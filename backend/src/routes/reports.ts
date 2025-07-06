@@ -1,8 +1,8 @@
 import express from 'express';
 import Joi from 'joi';
 import { reportingService, ReportConfig } from '../services/reportingService';
-import { authenticateToken } from '../middleware/auth.js';
-import { auditLog } from '../middleware/auditLog.js';
+import { authenticateToken } from '../middleware/auth';
+import { auditLog } from '../middleware/auditLog';
 import fs from 'fs';
 import path from 'path';
 

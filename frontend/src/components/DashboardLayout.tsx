@@ -16,6 +16,7 @@ import {
   ClockIcon,
   ChartPieIcon,
   CpuChipIcon,
+  PuzzlePieceIcon,
 } from '@heroicons/react/24/outline';
 
 interface DashboardLayoutProps {
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'Leads', href: '/leads', icon: DocumentTextIcon },
   { name: 'Scoring Models', href: '/scoring', icon: CogIcon },
   { name: 'AI/ML Scoring', href: '/ai-scoring', icon: CpuChipIcon },
+  { name: 'Integrations', href: '/integrations', icon: PuzzlePieceIcon },
   { name: 'Teams', href: '/teams', icon: UserGroupIcon },
   { name: 'Reports', href: '/reports', icon: ChartPieIcon },
   { name: 'Audit Logs', href: '/audit-logs', icon: ClockIcon },

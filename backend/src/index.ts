@@ -24,6 +24,7 @@ import searchRoutes from './routes/search';
 import analyticsRoutes from './routes/analytics';
 import reportsRoutes from './routes/reports';
 import aiScoringRoutes from './routes/aiScoring';
+import integrationRoutes from './routes/integrations';
 
 const app = express();
 const server = createServer(app);
@@ -65,6 +66,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/ai-scoring', aiScoringRoutes);
+app.use('/api/integrations', integrationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

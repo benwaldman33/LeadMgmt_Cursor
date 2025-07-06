@@ -20,6 +20,7 @@ import LeadDetailPage from './pages/LeadDetailPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ReportsPage from './pages/ReportsPage';
 import AIScoringPage from './pages/AIScoringPage';
+import IntegrationsPage from './pages/IntegrationsPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -205,6 +206,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <AIScoringPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/integrations"
+        element={
+          <ProtectedRoute>
+            <IntegrationsPage />
           </ProtectedRoute>
         }
       />

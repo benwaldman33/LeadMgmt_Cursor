@@ -138,6 +138,10 @@ model Lead {
   status    String   @default("RAW")
   score     Float?
   
+  // Integration fields
+  externalId String?
+  externalSource String?
+  
   // Relations
   campaignId String
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -271,4 +275,23 @@ model AuditLog {
   createdAt   DateTime @default(now())
   
   @@map("audit_logs")
+}
+
+// Integration Hub Models
+model Integration {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // "crm", "marketing", "email", "analytics", "custom"
+  provider  String   // "salesforce", "hubspot", "mailchimp", "zapier", "custom"
+  config    String   // JSON string for configuration (API keys, URLs, etc.)
+  isActive  Boolean  @default(true)
+  lastSync  DateTime?
+  syncStatus String  @default("idle") // "idle", "syncing", "error", "success"
+  errorMessage String?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("integrations")
 }
