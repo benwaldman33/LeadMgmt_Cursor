@@ -21,6 +21,10 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import ReportsPage from './pages/ReportsPage';
 import AIScoringPage from './pages/AIScoringPage';
 import IntegrationsPage from './pages/IntegrationsPage';
+import WorkflowsPage from './pages/WorkflowsPage';
+import CreateWorkflowPage from './pages/CreateWorkflowPage';
+import BusinessRulesPage from './pages/BusinessRulesPage';
+import CreateBusinessRulePage from './pages/CreateBusinessRulePage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -215,6 +219,42 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <IntegrationsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/workflows"
+        element={
+          <ProtectedRoute>
+            <WorkflowsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/workflows/new"
+        element={
+          <ProtectedRoute>
+            <CreateWorkflowPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/business-rules"
+        element={
+          <ProtectedRoute>
+            <BusinessRulesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/business-rules/new"
+        element={
+          <ProtectedRoute>
+            <CreateBusinessRulePage />
           </ProtectedRoute>
         }
       />

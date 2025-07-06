@@ -17,6 +17,8 @@ import {
   ChartPieIcon,
   CpuChipIcon,
   PuzzlePieceIcon,
+  Cog6ToothIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
 interface DashboardLayoutProps {
@@ -29,6 +31,8 @@ const navigation = [
   { name: 'Leads', href: '/leads', icon: DocumentTextIcon },
   { name: 'Scoring Models', href: '/scoring', icon: CogIcon },
   { name: 'AI/ML Scoring', href: '/ai-scoring', icon: CpuChipIcon },
+  { name: 'Workflows', href: '/workflows', icon: Cog6ToothIcon },
+  { name: 'Business Rules', href: '/business-rules', icon: ShieldCheckIcon },
   { name: 'Integrations', href: '/integrations', icon: PuzzlePieceIcon },
   { name: 'Teams', href: '/teams', icon: UserGroupIcon },
   { name: 'Reports', href: '/reports', icon: ChartPieIcon },
