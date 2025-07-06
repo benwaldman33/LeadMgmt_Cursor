@@ -35,6 +35,7 @@ model User {
   createdCampaigns Campaign[] @relation("CampaignCreator")
   assignedLeads     Lead[]    @relation("LeadAssignee")
   createdScoringModels ScoringModel[] @relation("ScoringModelCreator")
+  auditLogs         AuditLog[] @relation("UserAuditLogs")
   
   @@map("users")
 }
@@ -232,3 +233,26 @@ model Contact {
 // LeadStatus: "RAW", "SCORED", "QUALIFIED", "DELIVERED", "REJECTED"
 // CriterionType: "KEYWORD", "PHRASE", "PRESENCE", "COUNT"
 // EnrichmentSource: "CLEARBIT", "MANUAL"
+
+// Audit Log Models
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // e.g., "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT"
+  entityType  String   // e.g., "LEAD", "CAMPAIGN", "USER", "SCORING_MODEL"
+  entityId    String?  // ID of the affected entity (null for system events)
+  description String   // Human-readable description of the action
+  
+  // User attribution
+  userId      String?
+  user        User?    @relation("UserAuditLogs", fields: [userId], references: [id])
+  
+  // Additional context
+  metadata    String?  // JSON string for additional data
+  ipAddress   String?
+  userAgent   String?
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  
+  @@map("audit_logs")
+}

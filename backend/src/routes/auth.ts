@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '../index';
 import { authenticateToken } from '../middleware/auth';
+import { logAuditActivity } from '../middleware/auditLog';
+import { AUDIT_ACTIONS, ENTITY_TYPES } from '../services/auditLogService';
 
 const router = Router();
 
@@ -61,6 +63,18 @@ router.post('/login', async (req: Request, res: Response) => {
       },
       process.env.JWT_SECRET!,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
+    );
+
+    // Log login activity
+    await logAuditActivity(
+      AUDIT_ACTIONS.USER_LOGIN,
+      ENTITY_TYPES.USER,
+      `User login: ${user.email}`,
+      user.id,
+      user.id,
+      { email: user.email, role: user.role },
+      req.ip || req.connection.remoteAddress,
+      req.get('User-Agent')
     );
 
     res.json({
@@ -172,8 +186,25 @@ router.get('/me', authenticateToken, async (req: Request, res: Response) => {
 });
 
 // Logout endpoint (client-side token removal)
-router.post('/logout', authenticateToken, (req: Request, res: Response) => {
-  res.json({ message: 'Logged out successfully' });
+router.post('/logout', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    // Log logout activity
+    await logAuditActivity(
+      AUDIT_ACTIONS.USER_LOGOUT,
+      ENTITY_TYPES.USER,
+      `User logout: ${req.user!.email}`,
+      req.user!.id,
+      req.user!.id,
+      { email: req.user!.email, role: req.user!.role },
+      req.ip || req.connection.remoteAddress,
+      req.get('User-Agent')
+    );
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout audit log error:', error);
+    res.json({ message: 'Logged out successfully' });
+  }
 });
 
 export default router;

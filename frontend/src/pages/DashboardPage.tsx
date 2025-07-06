@@ -7,6 +7,7 @@ import {
   CogIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline';
+import ActivityFeed from '../components/ActivityFeed';
 
 const DashboardPage: React.FC = () => {
   // Mock data - in real app, this would come from API
@@ -104,43 +105,26 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Recent Activity */}
-      <div>
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h2>
-        <div className="card">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ActivityFeed limit={5} />
+        
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Quick Stats</h3>
+          </div>
           <div className="p-6">
             <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="h-2 w-2 bg-green-400 rounded-full"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">
-                    New campaign "Dental Equipment Q1 2024" created
-                  </p>
-                  <p className="text-sm text-gray-500">2 hours ago</p>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Today's Activities</span>
+                <span className="text-sm font-medium text-gray-900">24</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="h-2 w-2 bg-blue-400 rounded-full"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">
-                    150 leads imported from CSV file
-                  </p>
-                  <p className="text-sm text-gray-500">4 hours ago</p>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">This Week</span>
+                <span className="text-sm font-medium text-gray-900">156</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
-                  <div className="h-2 w-2 bg-yellow-400 rounded-full"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">
-                    Scoring model "Dental Practice v2" updated
-                  </p>
-                  <p className="text-sm text-gray-500">1 day ago</p>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Active Users</span>
+                <span className="text-sm font-medium text-gray-900">8</span>
               </div>
             </div>
           </div>
