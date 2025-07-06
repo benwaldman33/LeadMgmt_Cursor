@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import GlobalSearch from './GlobalSearch';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -116,7 +117,31 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           </button>
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-            <div className="flex flex-1" />
+            <div className="flex flex-1">
+              <GlobalSearch 
+                className="max-w-md"
+                onResultClick={(result) => {
+                  // Navigate based on result type
+                  switch (result.type) {
+                    case 'LEAD':
+                      navigate(`/leads/${result.id}`);
+                      break;
+                    case 'CAMPAIGN':
+                      navigate(`/campaigns/${result.id}`);
+                      break;
+                    case 'USER':
+                      navigate(`/users/${result.id}`);
+                      break;
+                    case 'TEAM':
+                      navigate(`/teams/${result.id}`);
+                      break;
+                    case 'SCORING_MODEL':
+                      navigate(`/scoring/${result.id}`);
+                      break;
+                  }
+                }}
+              />
+            </div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
               {/* User menu */}
               <div className="relative">

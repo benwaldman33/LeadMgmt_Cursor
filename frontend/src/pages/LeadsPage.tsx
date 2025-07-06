@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PlusIcon, EyeIcon, PencilIcon, MagnifyingGlassIcon, TrashIcon, SparklesIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { leadsAPI, campaignsAPI, scoringAPI } from '../services/api';
+import { SearchService, type LeadFilters } from '../services/searchService';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import AdvancedFilters from '../components/AdvancedFilters';
 import { 
   showBulkStatusUpdated, 
   showBulkScored, 
@@ -56,10 +58,19 @@ const LeadsPage: React.FC = () => {
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const { addNotification } = useNotifications();
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<LeadFilters>({
+    query: '',
+    status: [],
     campaignId: '',
-    status: '',
-    search: '',
+    assignedToId: '',
+    assignedTeamId: '',
+    industry: '',
+    scoreMin: undefined,
+    scoreMax: undefined,
+    dateFrom: '',
+    dateTo: '',
+    enriched: undefined,
+    scored: undefined,
   });
 
   useEffect(() => {
@@ -71,13 +82,8 @@ const LeadsPage: React.FC = () => {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const params: any = {};
-      if (filters.campaignId) params.campaignId = filters.campaignId;
-      if (filters.status) params.status = filters.status;
-      if (filters.search) params.search = filters.search;
-      
-      const response = await leadsAPI.getAll(params);
-      setLeads(response.leads || []);
+      const result = await SearchService.searchLeads(filters);
+      setLeads(result.leads || []);
     } catch (err: any) {
       addNotification(showNetworkError());
     } finally {
@@ -124,11 +130,8 @@ const LeadsPage: React.FC = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  const handleFilterChange = (newFilters: LeadFilters) => {
+    setFilters(newFilters);
   };
 
   const handleSelectLead = (leadId: string) => {
@@ -200,15 +203,40 @@ const LeadsPage: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
-          <p className="text-gray-600">Manage and score your leads</p>
+          <p className="text-gray-600">Manage and track your leads</p>
         </div>
         <Link
-          to="/leads/new"
-          className="btn-primary flex items-center gap-2"
+          to="/leads/create"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
         >
-          <PlusIcon className="h-5 w-5" />
+          <PlusIcon className="h-4 w-4 mr-2" />
           Add Lead
         </Link>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search leads..."
+                value={filters.query || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, query: e.target.value }))}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <AdvancedFilters
+              filters={filters}
+              onFiltersChange={handleFilterChange}
+              filterTypes={['status', 'campaign', 'assignedTo', 'assignedTeam', 'industry', 'scoreRange', 'dateRange', 'enrichment', 'scoring']}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Bulk Actions */}
@@ -285,74 +313,6 @@ const LeadsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Campaign
-            </label>
-            <select
-              value={filters.campaignId}
-              onChange={(e) => handleFilterChange('campaignId', e.target.value)}
-              className="input-field"
-            >
-              <option value="">All Campaigns</option>
-              {campaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="input-field"
-            >
-              <option value="">All Statuses</option>
-              <option value="RAW">Raw</option>
-              <option value="SCORED">Scored</option>
-              <option value="QUALIFIED">Qualified</option>
-              <option value="DELIVERED">Delivered</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="input-field pl-10"
-                placeholder="Company name or domain..."
-              />
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </div>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={() => setFilters({ campaignId: '', status: '', search: '' })}
-              className="btn-secondary w-full"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
-
-
-
       {/* Leads Table */}
       {leads.length === 0 ? (
         <div className="text-center py-12">
@@ -361,7 +321,7 @@ const LeadsPage: React.FC = () => {
           </div>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No leads found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {filters.campaignId || filters.status || filters.search 
+            {filters.campaignId || filters.status?.length || filters.query 
               ? 'Try adjusting your filters or add new leads.'
               : 'Get started by adding your first lead.'
             }
