@@ -48,6 +48,7 @@ model Team {
   // Relations
   members   User[]
   campaigns Campaign[] @relation("TeamCampaigns")
+  leads     Lead[]    @relation("TeamLeads")
   
   // Timestamps
   createdAt DateTime @default(now())
@@ -141,6 +142,8 @@ model Lead {
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   assignedToId String?
   assignedTo User?   @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  assignedTeamId String?
+  assignedTeam Team? @relation("TeamLeads", fields: [assignedTeamId], references: [id])
   
   // Scoring
   scoringDetails ScoringResult?

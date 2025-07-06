@@ -19,6 +19,7 @@ router.get('/', authenticateToken, requireAnalyst, async (req: Request, res: Res
       include: {
         campaign: true,
         assignedTo: true,
+        assignedTeam: true,
         scoringDetails: true,
         enrichment: {
           include: {
@@ -52,7 +53,7 @@ router.get('/', authenticateToken, requireAnalyst, async (req: Request, res: Res
 // Create lead
 router.post('/', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
   try {
-    const { url, companyName, domain, industry, campaignId } = req.body;
+    const { url, companyName, domain, industry, campaignId, assignedToId, assignedTeamId } = req.body;
 
     const lead = await prisma.lead.create({
       data: {
@@ -61,10 +62,13 @@ router.post('/', authenticateToken, requireAnalyst, async (req: Request, res: Re
         domain,
         industry,
         campaignId,
+        assignedToId,
+        assignedTeamId,
       },
       include: {
         campaign: true,
         assignedTo: true,
+        assignedTeam: true,
       },
     });
 
@@ -85,6 +89,7 @@ router.get('/:id', authenticateToken, requireAnalyst, async (req: Request, res: 
       include: {
         campaign: true,
         assignedTo: true,
+        assignedTeam: true,
         scoringDetails: {
           include: {
             criteriaScores: true,
@@ -113,7 +118,7 @@ router.get('/:id', authenticateToken, requireAnalyst, async (req: Request, res: 
 router.put('/:id', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { url, companyName, domain, industry, campaignId, status, assignedToId } = req.body;
+    const { url, companyName, domain, industry, campaignId, status, assignedToId, assignedTeamId } = req.body;
 
     const lead = await prisma.lead.update({
       where: { id },
@@ -125,10 +130,12 @@ router.put('/:id', authenticateToken, requireAnalyst, async (req: Request, res: 
         campaignId,
         status,
         assignedToId,
+        assignedTeamId,
       },
       include: {
         campaign: true,
         assignedTo: true,
+        assignedTeam: true,
       },
     });
 

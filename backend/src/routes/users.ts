@@ -1,8 +1,39 @@
 import { Router, Request, Response } from 'express';
-import { authenticateToken, requireSuperAdmin } from '../middleware/auth';
+import { authenticateToken, requireSuperAdmin, requireAnalyst } from '../middleware/auth';
 import { prisma } from '../index';
 
 const router = Router();
+
+// Get all users for assignment (analyst accessible)
+router.get('/assignment', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        fullName: 'asc',
+      },
+    });
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Get users for assignment error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Get all users (super admin only)
 router.get('/', authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
