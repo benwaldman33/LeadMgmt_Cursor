@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFormValidation } from '../hooks/useFormValidation';
 import { leadValidationSchema } from '../utils/validation';
 import FormField from '../components/FormField';
+import { useNotifications } from '../contexts/NotificationContext';
+import { showLeadCreated, showValidationError, showNetworkError } from '../utils/notifications';
 
 interface Campaign {
   id: string;
@@ -36,7 +38,7 @@ const CreateLeadPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [error, setError] = useState('');
+  const { addNotification } = useNotifications();
 
   const {
     values: formData,
@@ -57,6 +59,7 @@ const CreateLeadPage: React.FC = () => {
       domain: '',
       industry: '',
       campaignId: '',
+      status: 'RAW',
       assignedToId: '',
       assignedTeamId: '',
     }
@@ -119,12 +122,11 @@ const CreateLeadPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setError('');
 
     try {
       const validationErrors = await validateAll();
       if (Object.keys(validationErrors).length > 0) {
-        setError('Please fix the validation errors');
+        addNotification(showValidationError());
         return;
       }
 
@@ -139,9 +141,10 @@ const CreateLeadPage: React.FC = () => {
       };
 
       await leadsAPI.create(leadData);
+      addNotification(showLeadCreated());
       navigate('/leads');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create lead');
+      addNotification(showNetworkError());
     } finally {
       setSubmitting(false);
     }
@@ -163,12 +166,7 @@ const CreateLeadPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
+
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="card p-6 space-y-6">

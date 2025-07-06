@@ -3,6 +3,14 @@ import { Link } from 'react-router-dom';
 import { PlusIcon, EyeIcon, PencilIcon, MagnifyingGlassIcon, TrashIcon, SparklesIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 import { leadsAPI, campaignsAPI, scoringAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { 
+  showBulkStatusUpdated, 
+  showBulkScored, 
+  showBulkEnriched, 
+  showBulkDeleted,
+  showNetworkError 
+} from '../utils/notifications';
 
 interface Lead {
   id: string;
@@ -45,9 +53,9 @@ const LeadsPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [scoringModels, setScoringModels] = useState<ScoringModel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const { addNotification } = useNotifications();
   const [filters, setFilters] = useState({
     campaignId: '',
     status: '',
@@ -71,7 +79,7 @@ const LeadsPage: React.FC = () => {
       const response = await leadsAPI.getAll(params);
       setLeads(response.leads || []);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch leads');
+      addNotification(showNetworkError());
     } finally {
       setLoading(false);
     }
@@ -147,17 +155,21 @@ const LeadsPage: React.FC = () => {
       
       switch (action) {
         case 'status':
-          await leadsAPI.bulkUpdateStatus(selectedLeads, additionalData.status);
+          const statusResponse = await leadsAPI.bulkUpdateStatus(selectedLeads, additionalData.status);
+          addNotification(showBulkStatusUpdated(statusResponse.updatedCount));
           break;
         case 'score':
-          await leadsAPI.bulkScore(selectedLeads, additionalData.scoringModelId);
+          const scoreResponse = await leadsAPI.bulkScore(selectedLeads, additionalData.scoringModelId);
+          addNotification(showBulkScored(scoreResponse.scoredCount, scoreResponse.qualifiedCount));
           break;
         case 'enrich':
-          await leadsAPI.bulkEnrich(selectedLeads);
+          const enrichResponse = await leadsAPI.bulkEnrich(selectedLeads);
+          addNotification(showBulkEnriched(enrichResponse.enrichedCount));
           break;
         case 'delete':
           if (window.confirm(`Are you sure you want to delete ${selectedLeads.length} leads? This action cannot be undone.`)) {
-            await leadsAPI.bulkDelete(selectedLeads);
+            const deleteResponse = await leadsAPI.bulkDelete(selectedLeads);
+            addNotification(showBulkDeleted(deleteResponse.deletedCount));
           } else {
             return;
           }
@@ -168,7 +180,7 @@ const LeadsPage: React.FC = () => {
       await fetchLeads();
       setSelectedLeads([]);
     } catch (err: any) {
-      setError(err.response?.data?.error || `Failed to perform bulk ${action}`);
+      addNotification(showNetworkError());
     } finally {
       setBulkActionLoading(false);
     }
@@ -339,12 +351,7 @@ const LeadsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
+
 
       {/* Leads Table */}
       {leads.length === 0 ? (

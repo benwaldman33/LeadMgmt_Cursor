@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFormValidation } from '../hooks/useFormValidation';
 import { leadValidationSchema } from '../utils/validation';
 import FormField from '../components/FormField';
+import { useNotifications } from '../contexts/NotificationContext';
+import { showLeadUpdated, showValidationError, showNetworkError } from '../utils/notifications';
 
 interface Campaign {
   id: string;
@@ -52,9 +54,8 @@ const EditLeadPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [lead, setLead] = useState<Lead | null>(null);
+  const { addNotification } = useNotifications();
 
   const {
     values: formData,
@@ -107,7 +108,7 @@ const EditLeadPage: React.FC = () => {
         assignedTeamId: leadData.assignedTeamId || '',
       });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch lead');
+      addNotification(showNetworkError());
     } finally {
       setLoading(false);
     }
@@ -164,12 +165,11 @@ const EditLeadPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setError('');
 
     try {
       const validationErrors = await validateAll();
       if (Object.keys(validationErrors).length > 0) {
-        setError('Please fix the validation errors');
+        addNotification(showValidationError());
         return;
       }
 
@@ -185,9 +185,10 @@ const EditLeadPage: React.FC = () => {
       };
 
       await leadsAPI.update(id!, leadData);
+      addNotification(showLeadUpdated());
       navigate(`/leads/${id}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update lead');
+      addNotification(showNetworkError());
     } finally {
       setSubmitting(false);
     }
@@ -227,12 +228,7 @@ const EditLeadPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
+
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="card p-6 space-y-6">
