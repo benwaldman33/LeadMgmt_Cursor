@@ -9,6 +9,7 @@ import {
 } from '../middleware/validation';
 import { prisma } from '../index';
 import { ScoringService } from '../services/scoringService';
+import { webSocketService } from '../services/websocketService';
 
 const router = Router();
 
@@ -79,6 +80,12 @@ router.post('/', authenticateToken, requireAnalyst, validateLead, async (req: Re
       },
     });
 
+    // Send WebSocket notification
+    await webSocketService.sendLeadCreated(lead);
+
+    // Send user activity notification
+    await webSocketService.sendUserActivity(req.user!.id, 'created a new lead');
+
     res.status(201).json({ lead });
   } catch (error) {
     console.error('Create lead error:', error);
@@ -127,6 +134,12 @@ router.put('/:id', authenticateToken, requireAnalyst, validateLead, async (req: 
     const { id } = req.params;
     const { url, companyName, domain, industry, campaignId, status, assignedToId, assignedTeamId } = req.body;
 
+    // Get the lead before update to check for assignment changes
+    const oldLead = await prisma.lead.findUnique({
+      where: { id },
+      include: { assignedTo: true, assignedTeam: true }
+    });
+
     const lead = await prisma.lead.update({
       where: { id },
       data: {
@@ -145,6 +158,17 @@ router.put('/:id', authenticateToken, requireAnalyst, validateLead, async (req: 
         assignedTeam: true,
       },
     });
+
+    // Send WebSocket notification for lead update
+    await webSocketService.sendLeadUpdated(lead, req.user!.id);
+
+    // Check if lead was assigned to a new user
+    if (oldLead && lead.assignedToId && oldLead.assignedToId !== lead.assignedToId) {
+      await webSocketService.sendLeadAssigned(lead, lead.assignedToId, req.user!.id);
+    }
+
+    // Send user activity notification
+    await webSocketService.sendUserActivity(req.user!.id, 'updated a lead');
 
     res.json({ lead });
   } catch (error) {
@@ -212,6 +236,19 @@ router.post('/bulk/status', authenticateToken, requireAnalyst, validateBulkStatu
       }
     });
 
+    // Send WebSocket notification for bulk status update
+    const notification = {
+      type: 'lead_updated' as const,
+      title: 'Bulk Status Update',
+      message: `Updated ${result.count} leads to ${status} status`,
+      data: { leadIds, status, updatedCount: result.count },
+      timestamp: new Date()
+    };
+    webSocketService.sendToAll(notification);
+
+    // Send user activity notification
+    await webSocketService.sendUserActivity(req.user!.id, `updated ${result.count} leads to ${status} status`);
+
     res.json({ 
       success: true,
       updatedCount: result.count,
@@ -242,6 +279,19 @@ router.post('/bulk/score', authenticateToken, requireAnalyst, validateBulkScorin
         console.error(`Failed to score lead ${leadId}:`, error);
       }
     }
+
+    // Send WebSocket notification for bulk scoring
+    const notification = {
+      type: 'lead_scored' as const,
+      title: 'Bulk Lead Scoring',
+      message: `Scored ${scoredCount} leads, ${qualifiedCount} qualified`,
+      data: { leadIds, scoringModelId, scoredCount, qualifiedCount },
+      timestamp: new Date()
+    };
+    webSocketService.sendToAll(notification);
+
+    // Send user activity notification
+    await webSocketService.sendUserActivity(req.user!.id, `scored ${scoredCount} leads`);
 
     res.json({ 
       success: true,
@@ -288,6 +338,19 @@ router.post('/bulk/enrich', authenticateToken, requireAnalyst, validateBulkEnric
         console.error(`Failed to enrich lead ${leadId}:`, error);
       }
     }
+
+    // Send WebSocket notification for bulk enrichment
+    const notification = {
+      type: 'lead_updated' as const,
+      title: 'Bulk Lead Enrichment',
+      message: `Enriched ${enrichedCount} leads with additional data`,
+      data: { leadIds, enrichedCount },
+      timestamp: new Date()
+    };
+    webSocketService.sendToAll(notification);
+
+    // Send user activity notification
+    await webSocketService.sendUserActivity(req.user!.id, `enriched ${enrichedCount} leads`);
 
     res.json({ 
       success: true,

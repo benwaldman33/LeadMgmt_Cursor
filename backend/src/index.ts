@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { createServer } from 'http';
+import { webSocketService } from './services/websocketService';
 
 // Load environment variables
 dotenv.config();
@@ -22,7 +24,11 @@ import searchRoutes from './routes/search';
 import analyticsRoutes from './routes/analytics';
 
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 3001;
+
+// Initialize WebSocket service
+webSocketService.initialize(server);
 
 // Middleware
 app.use(helmet());
@@ -38,7 +44,10 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV 
+    environment: process.env.NODE_ENV,
+    websocket: {
+      connectedUsers: webSocketService.getConnectedUsersCount()
+    }
   });
 });
 
@@ -88,10 +97,11 @@ process.on('SIGINT', async () => {
 });
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
+  console.log(`🔌 WebSocket enabled`);
 });
 
 export default app;

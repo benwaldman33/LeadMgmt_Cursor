@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import GlobalSearch from './GlobalSearch';
+import RealTimeNotifications from './RealTimeNotifications';
+import { webSocketService } from '../services/websocketService';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -29,11 +31,25 @@ const navigation = [
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Connect to WebSocket when user is authenticated
+  useEffect(() => {
+    if (token) {
+      webSocketService.connect(token);
+    } else {
+      webSocketService.disconnect();
+    }
+
+    return () => {
+      webSocketService.disconnect();
+    };
+  }, [token]);
+
   const handleLogout = () => {
+    webSocketService.disconnect();
     logout();
     navigate('/login');
   };
@@ -143,6 +159,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               />
             </div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
+              {/* Real-time Notifications */}
+              <RealTimeNotifications />
+              
               {/* User menu */}
               <div className="relative">
                 <div className="flex items-center space-x-3">

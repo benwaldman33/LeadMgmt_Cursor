@@ -12,6 +12,7 @@ import {
   ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline';
 import ActivityFeed from '../components/ActivityFeed';
+import LiveActivityFeed from '../components/LiveActivityFeed';
 import { MetricsCard } from '../components/dashboard/MetricsCard';
 import { TrendsChart } from '../components/dashboard/TrendsChart';
 import { PerformanceTable } from '../components/dashboard/PerformanceTable';
@@ -25,7 +26,7 @@ const DashboardPage: React.FC = () => {
   const [campaignPerformance, setCampaignPerformance] = useState<CampaignPerformance[]>([]);
   const [teamPerformance, setTeamPerformance] = useState<TeamPerformance[]>([]);
   const [loading, setLoading] = useState(true);
-  const { showNotifications } = useNotifications();
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -44,14 +45,18 @@ const DashboardPage: React.FC = () => {
         setTeamPerformance(teamsData);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
-        showNotifications('Failed to load dashboard data', 'error');
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to load dashboard data'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [showNotifications]);
+  }, [addNotification]);
 
   const quickActions = [
     {
@@ -185,8 +190,8 @@ const DashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Team Performance and Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Team Performance and Activity Feeds */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Team Performance */}
         {teamPerformance.length > 0 && (
           <PerformanceTable
@@ -204,8 +209,11 @@ const DashboardPage: React.FC = () => {
           />
         )}
 
-        {/* Activity Feed */}
-        <ActivityFeed limit={5} />
+        {/* Live Activity Feed */}
+        <LiveActivityFeed maxItems={8} />
+
+        {/* Historical Activity Feed */}
+        <ActivityFeed limit={8} />
       </div>
     </div>
   );
