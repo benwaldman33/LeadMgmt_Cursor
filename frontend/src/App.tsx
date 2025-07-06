@@ -19,6 +19,7 @@ import ScoringDashboardPage from './pages/ScoringDashboardPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ReportsPage from './pages/ReportsPage';
+import AIScoringPage from './pages/AIScoringPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -195,6 +196,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ai-scoring"
+        element={
+          <ProtectedRoute>
+            <AIScoringPage />
           </ProtectedRoute>
         }
       />

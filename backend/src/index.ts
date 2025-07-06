@@ -23,6 +23,7 @@ import auditLogRoutes from './routes/auditLogs';
 import searchRoutes from './routes/search';
 import analyticsRoutes from './routes/analytics';
 import reportsRoutes from './routes/reports';
+import aiScoringRoutes from './routes/aiScoring';
 
 const app = express();
 const server = createServer(app);
@@ -63,6 +64,7 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/ai-scoring', aiScoringRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

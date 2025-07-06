@@ -1,6 +1,6 @@
 import express from 'express';
 import Joi from 'joi';
-import { reportingService, ReportConfig } from '../services/reportingService.js';
+import { reportingService, ReportConfig } from '../services/reportingService';
 import { authenticateToken } from '../middleware/auth.js';
 import { auditLog } from '../middleware/auditLog.js';
 import fs from 'fs';

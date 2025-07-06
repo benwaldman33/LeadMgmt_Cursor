@@ -234,6 +234,22 @@ model Contact {
 // CriterionType: "KEYWORD", "PHRASE", "PRESENCE", "COUNT"
 // EnrichmentSource: "CLEARBIT", "MANUAL"
 
+// AI/ML Models
+model AIModel {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // "regression", "classification", "ensemble"
+  features  String   // JSON string for SQLite compatibility
+  performance String  // JSON string for SQLite compatibility
+  isActive  Boolean  @default(true)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("ai_models")
+}
+
 // Audit Log Models
 model AuditLog {
   id          String   @id @default(cuid())
