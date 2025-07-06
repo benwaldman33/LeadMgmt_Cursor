@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChartBarIcon,
@@ -6,17 +6,52 @@ import {
   UserGroupIcon,
   CogIcon,
   PlusIcon,
+  UsersIcon,
+  BuildingOfficeIcon,
+  CheckCircleIcon,
+  ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline';
 import ActivityFeed from '../components/ActivityFeed';
+import { MetricsCard } from '../components/dashboard/MetricsCard';
+import { TrendsChart } from '../components/dashboard/TrendsChart';
+import { PerformanceTable } from '../components/dashboard/PerformanceTable';
+import { AnalyticsService } from '../services/analyticsService';
+import type { DashboardMetrics, LeadTrends, CampaignPerformance, TeamPerformance } from '../services/analyticsService';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const DashboardPage: React.FC = () => {
-  // Mock data - in real app, this would come from API
-  const stats = [
-    { name: 'Total Campaigns', value: '12', change: '+2', changeType: 'positive' },
-    { name: 'Active Leads', value: '1,234', change: '+12%', changeType: 'positive' },
-    { name: 'Qualified Leads', value: '456', change: '+8%', changeType: 'positive' },
-    { name: 'Scoring Models', value: '8', change: '+1', changeType: 'positive' },
-  ];
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [trends, setTrends] = useState<LeadTrends | null>(null);
+  const [campaignPerformance, setCampaignPerformance] = useState<CampaignPerformance[]>([]);
+  const [teamPerformance, setTeamPerformance] = useState<TeamPerformance[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { showNotifications } = useNotifications();
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [metricsData, trendsData, campaignsData, teamsData] = await Promise.all([
+          AnalyticsService.getDashboardMetrics(),
+          AnalyticsService.getLeadTrends(30),
+          AnalyticsService.getCampaignPerformance(),
+          AnalyticsService.getTeamPerformance(),
+        ]);
+
+        setMetrics(metricsData);
+        setTrends(trendsData);
+        setCampaignPerformance(campaignsData);
+        setTeamPerformance(teamsData);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        showNotifications('Failed to load dashboard data', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [showNotifications]);
 
   const quickActions = [
     {
@@ -45,6 +80,14 @@ const DashboardPage: React.FC = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-8">
@@ -54,28 +97,37 @@ const DashboardPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        {stats.map((stat) => (
-          <div key={stat.name} className="card p-6">
-            <div className="flex items-center">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-              </div>
-              <div className="flex items-baseline">
-                <span
-                  className={`text-sm font-medium ${
-                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                  }`}
-                >
-                  {stat.change}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Metrics Cards */}
+      {metrics && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <MetricsCard
+            title="Total Leads"
+            value={metrics.totalLeads}
+            icon={<DocumentTextIcon className="h-6 w-6" />}
+            color="blue"
+          />
+          <MetricsCard
+            title="Qualified Leads"
+            value={metrics.qualifiedLeads}
+            subtitle={`${metrics.conversionRate}% conversion rate`}
+            icon={<CheckCircleIcon className="h-6 w-6" />}
+            color="green"
+          />
+          <MetricsCard
+            title="Average Score"
+            value={metrics.averageScore}
+            format="percentage"
+            icon={<ArrowTrendingUpIcon className="h-6 w-6" />}
+            color="purple"
+          />
+          <MetricsCard
+            title="Active Campaigns"
+            value={metrics.totalCampaigns}
+            icon={<ChartBarIcon className="h-6 w-6" />}
+            color="orange"
+          />
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="mb-8">
@@ -104,31 +156,56 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* Analytics Charts and Tables */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Lead Trends Chart */}
+        {trends && (
+          <TrendsChart
+            data={trends}
+            title="Lead Trends (Last 30 Days)"
+            type="daily"
+          />
+        )}
+
+        {/* Campaign Performance */}
+        {campaignPerformance.length > 0 && (
+          <PerformanceTable
+            title="Top Campaign Performance"
+            data={campaignPerformance.map(campaign => ({
+              id: campaign.campaignId,
+              name: campaign.campaignName,
+              totalLeads: campaign.totalLeads,
+              qualifiedLeads: campaign.qualifiedLeads,
+              averageScore: campaign.averageScore,
+              conversionRate: campaign.conversionRate,
+              industry: campaign.industry,
+            }))}
+            type="campaign"
+          />
+        )}
+      </div>
+
+      {/* Team Performance and Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Team Performance */}
+        {teamPerformance.length > 0 && (
+          <PerformanceTable
+            title="Team Performance"
+            data={teamPerformance.map(team => ({
+              id: team.teamId,
+              name: team.teamName,
+              totalLeads: team.totalLeads,
+              qualifiedLeads: team.qualifiedLeads,
+              averageScore: team.averageScore,
+              conversionRate: team.qualifiedLeads > 0 ? (team.qualifiedLeads / team.totalLeads) * 100 : 0,
+              memberCount: team.memberCount,
+            }))}
+            type="team"
+          />
+        )}
+
+        {/* Activity Feed */}
         <ActivityFeed limit={5} />
-        
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Quick Stats</h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Today's Activities</span>
-                <span className="text-sm font-medium text-gray-900">24</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">This Week</span>
-                <span className="text-sm font-medium text-gray-900">156</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Active Users</span>
-                <span className="text-sm font-medium text-gray-900">8</span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

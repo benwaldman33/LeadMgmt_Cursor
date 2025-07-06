@@ -19,6 +19,7 @@ import leadRoutes from './routes/leads';
 import scoringRoutes from './routes/scoring';
 import auditLogRoutes from './routes/auditLogs';
 import searchRoutes from './routes/search';
+import analyticsRoutes from './routes/analytics';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -50,6 +51,7 @@ app.use('/api/leads', leadRoutes);
 app.use('/api/scoring', scoringRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
