@@ -82,6 +82,11 @@ export const usersAPI = {
     const response = await api.put(`/users/${id}`, userData);
     return response.data;
   },
+
+  getForAssignment: async () => {
+    const response = await api.get('/users/assignment');
+    return response.data;
+  },
 };
 
 // Teams API
@@ -136,6 +141,8 @@ export const leadsAPI = {
     domain: string;
     industry: string;
     campaignId: string;
+    assignedToId?: string;
+    assignedTeamId?: string;
   }) => {
     const response = await api.post('/leads', leadData);
     return response.data;
@@ -154,6 +161,7 @@ export const leadsAPI = {
     campaignId: string;
     status?: string;
     assignedToId?: string;
+    assignedTeamId?: string;
   }) => {
     const response = await api.put(`/leads/${id}`, leadData);
     return response.data;

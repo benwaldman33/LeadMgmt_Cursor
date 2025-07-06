@@ -63,6 +63,10 @@ interface Lead {
     id: string;
     fullName: string;
   };
+  assignedTeam?: {
+    id: string;
+    name: string;
+  };
   scoringDetails?: ScoringResult;
   enrichment?: LeadEnrichment;
 }
@@ -264,6 +268,12 @@ const LeadDetailPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
                 <p className="text-sm text-gray-900">
                   {lead.assignedTo?.fullName || 'Unassigned'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Team</label>
+                <p className="text-sm text-gray-900">
+                  {lead.assignedTeam?.name || 'No team assignment'}
                 </p>
               </div>
               <div>

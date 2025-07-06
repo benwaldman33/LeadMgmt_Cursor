@@ -1,10 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { leadsAPI, campaignsAPI } from '../services/api';
+import { leadsAPI, campaignsAPI, usersAPI, teamsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Campaign {
+  id: string;
+  name: string;
+  industry: string;
+}
+
+interface User {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+  team?: {
+    id: string;
+    name: string;
+  };
+}
+
+interface Team {
   id: string;
   name: string;
   industry: string;
@@ -14,6 +31,8 @@ const CreateLeadPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,10 +42,14 @@ const CreateLeadPage: React.FC = () => {
     domain: '',
     industry: '',
     campaignId: '',
+    assignedToId: '',
+    assignedTeamId: '',
   });
 
   useEffect(() => {
     fetchCampaigns();
+    fetchUsers();
+    fetchTeams();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -35,6 +58,24 @@ const CreateLeadPage: React.FC = () => {
       setCampaigns(response.campaigns || []);
     } catch (err: any) {
       console.error('Failed to fetch campaigns:', err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await usersAPI.getForAssignment();
+      setUsers(response.users || []);
+    } catch (err: any) {
+      console.error('Failed to fetch users:', err);
+    }
+  };
+
+  const fetchTeams = async () => {
+    try {
+      const response = await teamsAPI.getAll();
+      setTeams(response.teams || []);
+    } catch (err: any) {
+      console.error('Failed to fetch teams:', err);
     }
   };
 
@@ -76,6 +117,8 @@ const CreateLeadPage: React.FC = () => {
         domain: formData.domain,
         industry: formData.industry,
         campaignId: formData.campaignId,
+        assignedToId: formData.assignedToId || undefined,
+        assignedTeamId: formData.assignedTeamId || undefined,
       };
 
       await leadsAPI.create(leadData);
@@ -202,6 +245,48 @@ const CreateLeadPage: React.FC = () => {
               className="input-field"
               placeholder="e.g., Dental Equipment"
             />
+          </div>
+
+          {/* Assigned To */}
+          <div>
+            <label htmlFor="assignedToId" className="block text-sm font-medium text-gray-700 mb-2">
+              Assign To User
+            </label>
+            <select
+              id="assignedToId"
+              name="assignedToId"
+              value={formData.assignedToId}
+              onChange={handleInputChange}
+              className="input-field"
+            >
+              <option value="">No assignment</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName} ({user.email})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Assigned Team */}
+          <div>
+            <label htmlFor="assignedTeamId" className="block text-sm font-medium text-gray-700 mb-2">
+              Assign To Team
+            </label>
+            <select
+              id="assignedTeamId"
+              name="assignedTeamId"
+              value={formData.assignedTeamId}
+              onChange={handleInputChange}
+              className="input-field"
+            >
+              <option value="">No team assignment</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name} ({team.industry})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

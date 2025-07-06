@@ -22,6 +22,10 @@ interface Lead {
     id: string;
     fullName: string;
   };
+  assignedTeam?: {
+    id: string;
+    name: string;
+  };
 }
 
 interface Campaign {
@@ -391,6 +395,9 @@ const LeadsPage: React.FC = () => {
                     Assigned To
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Team
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Added
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -437,6 +444,11 @@ const LeadsPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {lead.assignedTo?.fullName || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {lead.assignedTeam?.name || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
