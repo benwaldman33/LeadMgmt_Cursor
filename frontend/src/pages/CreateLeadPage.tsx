@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { leadsAPI, campaignsAPI, usersAPI, teamsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { leadValidationSchema } from '../utils/validation';
+import FormField from '../components/FormField';
 
 interface Campaign {
   id: string;
@@ -33,17 +36,30 @@ const CreateLeadPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [formData, setFormData] = useState({
-    url: '',
-    companyName: '',
-    domain: '',
-    industry: '',
-    campaignId: '',
-    assignedToId: '',
-    assignedTeamId: '',
+  const {
+    values: formData,
+    errors,
+    touched,
+    isValid,
+    isSubmitting,
+    handleChange,
+    handleBlur,
+    validateAll,
+    setSubmitting,
+    reset
+  } = useFormValidation({
+    schema: leadValidationSchema,
+    initialValues: {
+      url: '',
+      companyName: '',
+      domain: '',
+      industry: '',
+      campaignId: '',
+      assignedToId: '',
+      assignedTeamId: '',
+    }
   });
 
   useEffect(() => {
@@ -81,10 +97,7 @@ const CreateLeadPage: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    handleChange(name as keyof typeof formData, value);
   };
 
   const extractDomain = (url: string) => {
@@ -98,19 +111,23 @@ const CreateLeadPage: React.FC = () => {
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
-    setFormData(prev => ({
-      ...prev,
-      url,
-      domain: extractDomain(url)
-    }));
+    const domain = extractDomain(url);
+    handleChange('url', url);
+    handleChange('domain', domain);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setSubmitting(true);
     setError('');
 
     try {
+      const validationErrors = await validateAll();
+      if (Object.keys(validationErrors).length > 0) {
+        setError('Please fix the validation errors');
+        return;
+      }
+
       const leadData = {
         url: formData.url,
         companyName: formData.companyName,
@@ -126,7 +143,7 @@ const CreateLeadPage: React.FC = () => {
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create lead');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -158,135 +175,175 @@ const CreateLeadPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Campaign */}
           <div className="md:col-span-2">
-            <label htmlFor="campaignId" className="block text-sm font-medium text-gray-700 mb-2">
-              Campaign *
-            </label>
-            <select
-              id="campaignId"
+            <FormField
+              label="Campaign"
               name="campaignId"
+              error={errors.campaignId}
+              touched={touched.campaignId}
               required
-              value={formData.campaignId}
-              onChange={handleInputChange}
-              className="input-field"
             >
-              <option value="">Select a campaign</option>
-              {campaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name} ({campaign.industry})
-                </option>
-              ))}
-            </select>
+              <select
+                id="campaignId"
+                name="campaignId"
+                required
+                value={formData.campaignId}
+                onChange={handleInputChange}
+                onBlur={() => handleBlur('campaignId')}
+                className={`input-field ${errors.campaignId && touched.campaignId ? 'border-red-500' : ''}`}
+              >
+                <option value="">Select a campaign</option>
+                {campaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name} ({campaign.industry})
+                  </option>
+                ))}
+              </select>
+            </FormField>
           </div>
 
           {/* URL */}
           <div className="md:col-span-2">
-            <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-2">
-              Website URL *
-            </label>
-            <input
-              type="url"
-              id="url"
+            <FormField
+              label="Website URL"
               name="url"
+              error={errors.url}
+              touched={touched.url}
               required
-              value={formData.url}
-              onChange={handleUrlChange}
-              className="input-field"
-              placeholder="https://example.com"
-            />
+            >
+              <input
+                type="url"
+                id="url"
+                name="url"
+                required
+                value={formData.url}
+                onChange={handleUrlChange}
+                onBlur={() => handleBlur('url')}
+                className={`input-field ${errors.url && touched.url ? 'border-red-500' : ''}`}
+                placeholder="https://example.com"
+              />
+            </FormField>
           </div>
 
           {/* Company Name */}
           <div className="md:col-span-2">
-            <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
-              Company Name *
-            </label>
-            <input
-              type="text"
-              id="companyName"
+            <FormField
+              label="Company Name"
               name="companyName"
+              error={errors.companyName}
+              touched={touched.companyName}
               required
-              value={formData.companyName}
-              onChange={handleInputChange}
-              className="input-field"
-              placeholder="Enter company name"
-            />
+            >
+              <input
+                type="text"
+                id="companyName"
+                name="companyName"
+                required
+                value={formData.companyName}
+                onChange={handleInputChange}
+                onBlur={() => handleBlur('companyName')}
+                className={`input-field ${errors.companyName && touched.companyName ? 'border-red-500' : ''}`}
+                placeholder="Enter company name"
+              />
+            </FormField>
           </div>
 
           {/* Domain */}
           <div>
-            <label htmlFor="domain" className="block text-sm font-medium text-gray-700 mb-2">
-              Domain
-            </label>
-            <input
-              type="text"
-              id="domain"
+            <FormField
+              label="Domain"
               name="domain"
-              value={formData.domain}
-              onChange={handleInputChange}
-              className="input-field"
-              placeholder="example.com"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Auto-extracted from URL, but you can edit it
-            </p>
+              error={errors.domain}
+              touched={touched.domain}
+              required
+            >
+              <input
+                type="text"
+                id="domain"
+                name="domain"
+                value={formData.domain}
+                onChange={handleInputChange}
+                onBlur={() => handleBlur('domain')}
+                className={`input-field ${errors.domain && touched.domain ? 'border-red-500' : ''}`}
+                placeholder="example.com"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Auto-extracted from URL, but you can edit it
+              </p>
+            </FormField>
           </div>
 
           {/* Industry */}
           <div>
-            <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
-              Industry
-            </label>
-            <input
-              type="text"
-              id="industry"
+            <FormField
+              label="Industry"
               name="industry"
-              value={formData.industry}
-              onChange={handleInputChange}
-              className="input-field"
-              placeholder="e.g., Dental Equipment"
-            />
+              error={errors.industry}
+              touched={touched.industry}
+              required
+            >
+              <input
+                type="text"
+                id="industry"
+                name="industry"
+                value={formData.industry}
+                onChange={handleInputChange}
+                onBlur={() => handleBlur('industry')}
+                className={`input-field ${errors.industry && touched.industry ? 'border-red-500' : ''}`}
+                placeholder="e.g., Dental Equipment"
+              />
+            </FormField>
           </div>
 
           {/* Assigned To */}
           <div>
-            <label htmlFor="assignedToId" className="block text-sm font-medium text-gray-700 mb-2">
-              Assign To User
-            </label>
-            <select
-              id="assignedToId"
+            <FormField
+              label="Assign To User"
               name="assignedToId"
-              value={formData.assignedToId}
-              onChange={handleInputChange}
-              className="input-field"
+              error={errors.assignedToId}
+              touched={touched.assignedToId}
             >
-              <option value="">No assignment</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.fullName} ({user.email})
-                </option>
-              ))}
-            </select>
+              <select
+                id="assignedToId"
+                name="assignedToId"
+                value={formData.assignedToId}
+                onChange={handleInputChange}
+                onBlur={() => handleBlur('assignedToId')}
+                className={`input-field ${errors.assignedToId && touched.assignedToId ? 'border-red-500' : ''}`}
+              >
+                <option value="">No assignment</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.fullName} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </FormField>
           </div>
 
           {/* Assigned Team */}
           <div>
-            <label htmlFor="assignedTeamId" className="block text-sm font-medium text-gray-700 mb-2">
-              Assign To Team
-            </label>
-            <select
-              id="assignedTeamId"
+            <FormField
+              label="Assign To Team"
               name="assignedTeamId"
-              value={formData.assignedTeamId}
-              onChange={handleInputChange}
-              className="input-field"
+              error={errors.assignedTeamId}
+              touched={touched.assignedTeamId}
             >
-              <option value="">No team assignment</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name} ({team.industry})
-                </option>
-              ))}
-            </select>
+              <select
+                id="assignedTeamId"
+                name="assignedTeamId"
+                value={formData.assignedTeamId}
+                onChange={handleInputChange}
+                onBlur={() => handleBlur('assignedTeamId')}
+                className={`input-field ${errors.assignedTeamId && touched.assignedTeamId ? 'border-red-500' : ''}`}
+              >
+                <option value="">No team assignment</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name} ({team.industry})
+                  </option>
+                ))}
+              </select>
+            </FormField>
           </div>
         </div>
 
@@ -301,10 +358,10 @@ const CreateLeadPage: React.FC = () => {
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="btn-primary flex-1"
           >
-            {loading ? 'Adding...' : 'Add Lead'}
+            {isSubmitting ? 'Adding...' : 'Add Lead'}
           </button>
         </div>
       </form>

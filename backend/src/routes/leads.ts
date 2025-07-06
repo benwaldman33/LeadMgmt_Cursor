@@ -1,5 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { authenticateToken, requireAnalyst } from '../middleware/auth';
+import { 
+  validateLead, 
+  validateBulkStatusUpdate, 
+  validateBulkScoring, 
+  validateBulkEnrichment, 
+  validateBulkDelete 
+} from '../middleware/validation';
 import { prisma } from '../index';
 import { ScoringService } from '../services/scoringService';
 
@@ -51,7 +58,7 @@ router.get('/', authenticateToken, requireAnalyst, async (req: Request, res: Res
 });
 
 // Create lead
-router.post('/', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+router.post('/', authenticateToken, requireAnalyst, validateLead, async (req: Request, res: Response) => {
   try {
     const { url, companyName, domain, industry, campaignId, assignedToId, assignedTeamId } = req.body;
 
@@ -115,7 +122,7 @@ router.get('/:id', authenticateToken, requireAnalyst, async (req: Request, res: 
 });
 
 // Update lead
-router.put('/:id', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+router.put('/:id', authenticateToken, requireAnalyst, validateLead, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { url, companyName, domain, industry, campaignId, status, assignedToId, assignedTeamId } = req.body;
@@ -192,17 +199,9 @@ router.post('/:id/enrich', authenticateToken, requireAnalyst, async (req: Reques
 });
 
 // Bulk operations
-router.post('/bulk/status', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+router.post('/bulk/status', authenticateToken, requireAnalyst, validateBulkStatusUpdate, async (req: Request, res: Response) => {
   try {
     const { leadIds, status } = req.body;
-
-    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return res.status(400).json({ error: 'Lead IDs array is required' });
-    }
-
-    if (!status) {
-      return res.status(400).json({ error: 'Status is required' });
-    }
 
     const result = await prisma.lead.updateMany({
       where: {
@@ -224,17 +223,9 @@ router.post('/bulk/status', authenticateToken, requireAnalyst, async (req: Reque
   }
 });
 
-router.post('/bulk/score', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+router.post('/bulk/score', authenticateToken, requireAnalyst, validateBulkScoring, async (req: Request, res: Response) => {
   try {
     const { leadIds, scoringModelId } = req.body;
-
-    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return res.status(400).json({ error: 'Lead IDs array is required' });
-    }
-
-    if (!scoringModelId) {
-      return res.status(400).json({ error: 'Scoring Model ID is required' });
-    }
 
     let scoredCount = 0;
     let qualifiedCount = 0;
@@ -264,13 +255,9 @@ router.post('/bulk/score', authenticateToken, requireAnalyst, async (req: Reques
   }
 });
 
-router.post('/bulk/enrich', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+router.post('/bulk/enrich', authenticateToken, requireAnalyst, validateBulkEnrichment, async (req: Request, res: Response) => {
   try {
     const { leadIds } = req.body;
-
-    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return res.status(400).json({ error: 'Lead IDs array is required' });
-    }
 
     let enrichedCount = 0;
 
@@ -313,13 +300,9 @@ router.post('/bulk/enrich', authenticateToken, requireAnalyst, async (req: Reque
   }
 });
 
-router.delete('/bulk', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+router.delete('/bulk', authenticateToken, requireAnalyst, validateBulkDelete, async (req: Request, res: Response) => {
   try {
     const { leadIds } = req.body;
-
-    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return res.status(400).json({ error: 'Lead IDs array is required' });
-    }
 
     const result = await prisma.lead.deleteMany({
       where: {
