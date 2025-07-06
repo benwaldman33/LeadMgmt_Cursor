@@ -1,0 +1,231 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// User and Team Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  fullName  String
+  role      String   @default("ANALYST")
+  status    String   @default("ACTIVE")
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id])
+  
+  // Authentication
+  passwordHash String
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastLoginAt DateTime?
+  
+  // Relations
+  createdCampaigns Campaign[] @relation("CampaignCreator")
+  assignedLeads     Lead[]    @relation("LeadAssignee")
+  createdScoringModels ScoringModel[] @relation("ScoringModelCreator")
+  
+  @@map("users")
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String
+  leadId    String?
+  
+  // Relations
+  members   User[]
+  campaigns Campaign[] @relation("TeamCampaigns")
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("teams")
+}
+
+// Campaign and Scoring Models
+model Campaign {
+  id              String         @id @default(cuid())
+  name            String
+  industry        String
+  status          String         @default("PLANNING")
+  scoringModelId  String?
+  scoringModel    ScoringModel?  @relation(fields: [scoringModelId], references: [id])
+  assignedTeamId  String?
+  assignedTeam    Team?          @relation("TeamCampaigns", fields: [assignedTeamId], references: [id])
+  createdById     String
+  createdBy       User           @relation("CampaignCreator", fields: [createdById], references: [id])
+  
+  // Campaign targets
+  targetLeadCount Int?
+  currentLeadCount Int @default(0)
+  
+  // Timeline
+  startDate       DateTime?
+  targetEndDate   DateTime?
+  actualEndDate   DateTime?
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  leads Lead[]
+  
+  @@map("campaigns")
+}
+
+model ScoringModel {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String
+  isActive  Boolean  @default(true)
+  createdById String
+  createdBy User     @relation("ScoringModelCreator", fields: [createdById], references: [id])
+  
+  // Relations
+  criteria ScoringCriterion[]
+  campaigns Campaign[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("scoring_models")
+}
+
+model ScoringCriterion {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  searchTerms String   // JSON string for SQLite compatibility
+  weight      Int      // 0-100, must sum to 100 across all criteria
+  type        String   @default("KEYWORD")
+  
+  // Relations
+  scoringModelId String
+  scoringModel   ScoringModel @relation(fields: [scoringModelId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("scoring_criteria")
+}
+
+// Lead Management Models
+model Lead {
+  id        String   @id @default(cuid())
+  url       String
+  companyName String
+  domain    String
+  industry  String
+  status    String   @default("RAW")
+  score     Float?
+  
+  // Relations
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo User?   @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  
+  // Scoring
+  scoringDetails ScoringResult?
+  
+  // Enrichment
+  enrichment LeadEnrichment?
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastScoredAt DateTime?
+  
+  @@map("leads")
+}
+
+model ScoringResult {
+  id        String   @id @default(cuid())
+  totalScore Float
+  confidence Float
+  scoredAt   DateTime @default(now())
+  scoringModelVersion String
+  
+  // Relations
+  leadId    String @unique
+  lead      Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  // Criteria scores
+  criteriaScores CriterionScore[]
+  
+  @@map("scoring_results")
+}
+
+model CriterionScore {
+  id           String @id @default(cuid())
+  criterionId  String
+  score        Float
+  matchedContent String   // JSON string for SQLite compatibility
+  confidence   Float
+  
+  // Relations
+  scoringResultId String
+  scoringResult   ScoringResult @relation(fields: [scoringResultId], references: [id], onDelete: Cascade)
+  
+  @@map("criterion_scores")
+}
+
+// Enrichment Models
+model LeadEnrichment {
+  id          String @id @default(cuid())
+  companySize Int?
+  revenue     String?
+  industry    String?
+  technologies String   // JSON string for SQLite compatibility
+  
+  // Relations
+  leadId      String @unique
+  lead        Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  contacts    Contact[]
+  
+  // Metadata
+  source      String @default("CLEARBIT")
+  enrichedAt  DateTime @default(now())
+  
+  @@map("lead_enrichments")
+}
+
+model Contact {
+  id              String @id @default(cuid())
+  name            String
+  email           String?
+  title           String?
+  linkedinUrl     String?
+  isPrimaryContact Boolean @default(false)
+  
+  // Relations
+  enrichmentId    String
+  enrichment      LeadEnrichment @relation(fields: [enrichmentId], references: [id], onDelete: Cascade)
+  
+  @@map("contacts")
+}
+
+// Note: Using string fields instead of enums for SQLite compatibility
+// UserRole: "SUPER_ADMIN", "ANALYST", "VIEWER"
+// UserStatus: "ACTIVE", "INACTIVE", "SUSPENDED", "PENDING"
+// CampaignStatus: "PLANNING", "ACTIVE", "PAUSED", "COMPLETED", "CANCELLED"
+// LeadStatus: "RAW", "SCORED", "QUALIFIED", "DELIVERED", "REJECTED"
+// CriterionType: "KEYWORD", "PHRASE", "PRESENCE", "COUNT"
+// EnrichmentSource: "CLEARBIT", "MANUAL"
