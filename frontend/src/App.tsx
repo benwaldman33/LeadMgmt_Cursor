@@ -18,6 +18,7 @@ import ScoringModelDetailPage from './pages/ScoringModelDetailPage';
 import ScoringDashboardPage from './pages/ScoringDashboardPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import AuditLogsPage from './pages/AuditLogsPage';
+import ReportsPage from './pages/ReportsPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -185,6 +186,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <AuditLogsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <ReportsPage />
           </ProtectedRoute>
         }
       />

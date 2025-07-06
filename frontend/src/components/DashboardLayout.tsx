@@ -14,6 +14,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   ClockIcon,
+  ChartPieIcon,
 } from '@heroicons/react/24/outline';
 
 interface DashboardLayoutProps {
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Leads', href: '/leads', icon: DocumentTextIcon },
   { name: 'Scoring Models', href: '/scoring', icon: CogIcon },
   { name: 'Teams', href: '/teams', icon: UserGroupIcon },
+  { name: 'Reports', href: '/reports', icon: ChartPieIcon },
   { name: 'Audit Logs', href: '/audit-logs', icon: ClockIcon },
 ];
 
