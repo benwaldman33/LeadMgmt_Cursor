@@ -36,6 +36,8 @@ model User {
   assignedLeads     Lead[]    @relation("LeadAssignee")
   createdScoringModels ScoringModel[] @relation("ScoringModelCreator")
   auditLogs         AuditLog[] @relation("UserAuditLogs")
+  createdWorkflows  Workflow[] @relation("WorkflowCreator")
+  createdBusinessRules BusinessRule[] @relation("BusinessRuleCreator")
   
   @@map("users")
 }
@@ -155,6 +157,9 @@ model Lead {
   
   // Enrichment
   enrichment LeadEnrichment?
+  
+  // Workflow executions
+  workflowExecutions WorkflowExecution[] @relation("LeadWorkflowExecutions")
   
   // Timestamps
   createdAt    DateTime @default(now())
@@ -294,4 +299,85 @@ model Integration {
   updatedAt DateTime @updatedAt
   
   @@map("integrations")
+}
+
+// Workflow Automation Models
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  trigger     String   // "lead_created", "lead_scored", "lead_status_changed", "manual"
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0) // Higher number = higher priority
+  
+  // Relations
+  createdById String
+  createdBy   User     @relation("WorkflowCreator", fields: [createdById], references: [id])
+  steps       WorkflowStep[]
+  executions  WorkflowExecution[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("workflows")
+}
+
+model WorkflowStep {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // "action", "condition", "delay", "notification", "integration"
+  order       Int      // Execution order within workflow
+  config      String   // JSON string for step configuration
+  
+  // Relations
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("workflow_steps")
+}
+
+model WorkflowExecution {
+  id          String   @id @default(cuid())
+  status      String   // "running", "completed", "failed", "cancelled"
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  errorMessage String?
+  
+  // Relations
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id])
+  leadId      String?
+  lead        Lead?    @relation("LeadWorkflowExecutions", fields: [leadId], references: [id])
+  
+  // Execution details
+  stepResults String?  // JSON string for step execution results
+  
+  @@map("workflow_executions")
+}
+
+// Business Rules Models
+model BusinessRule {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // "assignment", "scoring", "notification", "status_change", "enrichment"
+  conditions  String   // JSON string for rule conditions
+  actions     String   // JSON string for rule actions
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0) // Higher number = higher priority
+  
+  // Relations
+  createdById String
+  createdBy   User     @relation("BusinessRuleCreator", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("business_rules")
 }
