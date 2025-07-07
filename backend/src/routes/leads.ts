@@ -10,6 +10,11 @@ import {
 import { prisma } from '../index';
 import { ScoringService } from '../services/scoringService';
 import { webSocketService } from '../services/websocketService';
+import { Request as ExpressRequest } from 'express';
+
+interface RequestWithFiles extends ExpressRequest {
+  files?: any;
+}
 
 const router = Router();
 
@@ -380,6 +385,189 @@ router.delete('/bulk', authenticateToken, requireAnalyst, validateBulkDelete, as
     });
   } catch (error) {
     console.error('Bulk delete error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Import leads from CSV
+router.post('/import', authenticateToken, requireAnalyst, async (req: RequestWithFiles, res: Response) => {
+  try {
+    if (!req.files || !req.files.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const file = req.files.file as any;
+    const campaignId = req.body.campaignId;
+
+    if (!campaignId) {
+      return res.status(400).json({ error: 'Campaign ID is required' });
+    }
+
+    // Verify campaign exists
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId }
+    });
+
+    if (!campaign) {
+      return res.status(400).json({ error: 'Campaign not found' });
+    }
+
+    const csvContent = file.data.toString();
+    const lines = csvContent.split('\n');
+    const headers = lines[0]?.split(',').map((h: string) => h.trim()) || [];
+    
+    const results = {
+      total: 0,
+      success: 0,
+      errors: [] as Array<{ row: number; field: string; message: string }>
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      results.total++;
+      const values = line.split(',').map((v: string) => v.trim());
+      const row: any = {};
+      
+      headers.forEach((header: string, index: number) => {
+        row[header] = values[index] || '';
+      });
+
+      try {
+        // Validate required fields
+        if (!row.url || !row.companyName || !row.domain) {
+          results.errors.push({
+            row: i + 1,
+            field: 'required',
+            message: 'Missing required fields: url, companyName, domain'
+          });
+          continue;
+        }
+
+        // Create lead
+        await prisma.lead.create({
+          data: {
+            url: row.url,
+            companyName: row.companyName,
+            domain: row.domain,
+            industry: row.industry || 'Unknown',
+            campaignId: campaignId,
+            status: 'RAW'
+          }
+        });
+
+        results.success++;
+      } catch (error) {
+        results.errors.push({
+          row: i + 1,
+          field: 'general',
+          message: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    res.json({
+      ...results,
+      success: true
+    });
+  } catch (error) {
+    console.error('Import error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Export leads
+router.post('/export', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { format = 'csv', includeEnrichment = true, includeScoring = true, filters = {} } = req.body;
+
+    // Build where clause from filters
+    const where: any = {};
+    if (filters.status) where.status = filters.status;
+    if (filters.campaignId) where.campaignId = filters.campaignId;
+    if (filters.assignedToId) where.assignedToId = filters.assignedToId;
+    if (filters.assignedTeamId) where.assignedTeamId = filters.assignedTeamId;
+    if (filters.industry) where.industry = filters.industry;
+
+    const leads = await prisma.lead.findMany({
+      where,
+      include: {
+        campaign: true,
+        assignedTo: true,
+        assignedTeam: true,
+        enrichment: includeEnrichment,
+        scoringDetails: includeScoring ? {
+          include: {
+            criteriaScores: true
+          }
+        } : false
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (format === 'csv') {
+      const csvHeaders = [
+        'id', 'url', 'companyName', 'domain', 'industry', 'status', 'score',
+        'campaignName', 'assignedTo', 'assignedTeam', 'createdAt', 'lastScoredAt'
+      ];
+
+      if (includeEnrichment) {
+        csvHeaders.push('companySize', 'revenue', 'technologies');
+      }
+
+      if (includeScoring) {
+        csvHeaders.push('totalScore', 'confidence', 'scoringModelVersion');
+      }
+
+      let csvContent = csvHeaders.join(',') + '\n';
+
+      leads.forEach(lead => {
+        const row = [
+          lead.id,
+          lead.url,
+          lead.companyName,
+          lead.domain,
+          lead.industry,
+          lead.status,
+          lead.score || '',
+          lead.campaign?.name || '',
+          lead.assignedTo?.fullName || '',
+          lead.assignedTeam?.name || '',
+          lead.createdAt.toISOString(),
+          lead.lastScoredAt?.toISOString() || ''
+        ];
+
+        if (includeEnrichment && lead.enrichment) {
+          row.push(
+            lead.enrichment.companySize?.toString() || '',
+            lead.enrichment.revenue || '',
+            lead.enrichment.technologies || ''
+          );
+        }
+
+        if (includeScoring && lead.scoringDetails) {
+          row.push(
+            lead.scoringDetails.totalScore.toString(),
+            lead.scoringDetails.confidence.toString(),
+            lead.scoringDetails.scoringModelVersion
+          );
+        }
+
+        csvContent += row.map(field => `"${field}"`).join(',') + '\n';
+      });
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="leads-export-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csvContent);
+    } else {
+      // JSON format
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="leads-export-${new Date().toISOString().split('T')[0]}.json"`);
+      res.json(leads);
+    }
+  } catch (error) {
+    console.error('Export error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

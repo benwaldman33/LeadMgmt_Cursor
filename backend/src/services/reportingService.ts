@@ -162,7 +162,6 @@ class ReportingService {
   ) {
     const teams = await prisma.team.findMany({
       include: {
-        users: true,
         leads: {
           include: {
             scoringDetails: true,
@@ -184,7 +183,7 @@ class ReportingService {
     sortOrder: 'asc' | 'desc' = 'desc',
     limit?: number
   ) {
-    const scoringDetails = await prisma.leadScoringDetail.findMany({
+    const scoringDetails = await prisma.scoringResult.findMany({
       include: {
         lead: {
           include: {
@@ -553,7 +552,7 @@ class ReportingService {
 
     const totalLeads = campaigns.reduce((sum, campaign) => sum + campaign.leads.length, 0);
     const qualifiedLeads = campaigns.reduce((sum, campaign) => 
-      sum + campaign.leads.filter(lead => lead.scoringDetails?.totalScore >= 70).length, 0
+      sum + campaign.leads.filter(lead => lead.scoringDetails?.totalScore && lead.scoringDetails.totalScore >= 70).length, 0
     );
 
     return {
@@ -567,16 +566,15 @@ class ReportingService {
   private async calculateTeamSummary(filters: ReportFilter) {
     const teams = await prisma.team.findMany({
       include: {
-        users: true,
         leads: {
           include: { scoringDetails: true }
         }
       }
     });
 
-    const totalLeads = teams.reduce((sum, team) => sum + team.leads.length, 0);
+    const totalLeads = teams.reduce((sum, team) => sum + (team.leads?.length || 0), 0);
     const qualifiedLeads = teams.reduce((sum, team) => 
-      sum + team.leads.filter(lead => lead.scoringDetails?.totalScore >= 70).length, 0
+      sum + (team.leads?.filter(lead => lead.scoringDetails?.totalScore && lead.scoringDetails.totalScore >= 70).length || 0), 0
     );
 
     return {
@@ -588,13 +586,13 @@ class ReportingService {
   }
 
   private async calculateScoringSummary(filters: ReportFilter) {
-    const scoringDetails = await prisma.leadScoringDetail.findMany({
+    const scoringDetails = await prisma.scoringResult.findMany({
       include: { lead: true }
     });
 
     const totalScores = scoringDetails.length;
-    const qualifiedScores = scoringDetails.filter(detail => detail.totalScore >= 70).length;
-    const averageScore = scoringDetails.reduce((sum, detail) => sum + detail.totalScore, 0) / totalScores;
+    const qualifiedScores = scoringDetails.filter((detail: any) => detail.totalScore >= 70).length;
+    const averageScore = scoringDetails.reduce((sum: number, detail: any) => sum + detail.totalScore, 0) / totalScores;
 
     return {
       totalRecords: totalScores,

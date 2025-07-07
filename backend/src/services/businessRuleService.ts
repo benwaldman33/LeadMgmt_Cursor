@@ -108,13 +108,19 @@ export class BusinessRuleService {
     isActive?: boolean;
     priority?: number;
   }) {
+    const updateData: any = { ...data };
+    
+    if (data.conditions) {
+      updateData.conditions = JSON.stringify(data.conditions);
+    }
+    
+    if (data.actions) {
+      updateData.actions = JSON.stringify(data.actions);
+    }
+
     const businessRule = await prisma.businessRule.update({
       where: { id },
-      data: {
-        ...data,
-        ...(data.conditions && { conditions: JSON.stringify(data.conditions) }),
-        ...(data.actions && { actions: JSON.stringify(data.actions) })
-      },
+      data: updateData,
       include: {
         createdBy: {
           select: { id: true, email: true, fullName: true }

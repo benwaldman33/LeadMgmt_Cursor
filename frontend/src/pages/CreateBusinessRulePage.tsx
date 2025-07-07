@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { BusinessRuleService, BusinessRuleData, BusinessRuleCondition, BusinessRuleAction } from '../services/businessRuleService';
-import { useNotification } from '../contexts/NotificationContext';
+import { BusinessRuleService } from '../services/businessRuleService';
+import type { BusinessRuleData, BusinessRuleCondition, BusinessRuleAction } from '../services/businessRuleService';
+import { useNotifications } from '../contexts/NotificationContext';
 import {
   PlusIcon,
   TrashIcon,
@@ -17,7 +18,7 @@ import {
 
 const CreateBusinessRulePage: React.FC = () => {
   const navigate = useNavigate();
-  const { showNotification } = useNotification();
+  const { showNotification } = useNotifications();
   const [rule, setRule] = useState<BusinessRuleData>({
     name: '',
     description: '',

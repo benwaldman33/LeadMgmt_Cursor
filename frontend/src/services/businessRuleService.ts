@@ -3,15 +3,15 @@ import api from './api';
 export interface BusinessRuleCondition {
   field: string;
   operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'in' | 'not_in';
-  value: any;
+  value: string | number | boolean;
   logicalOperator?: 'AND' | 'OR';
 }
 
 export interface BusinessRuleAction {
   type: 'assignment' | 'scoring' | 'notification' | 'status_change' | 'enrichment';
   target: string;
-  value: any;
-  metadata?: Record<string, any>;
+  value: string | number | boolean;
+  metadata?: Record<string, unknown>;
 }
 
 export interface BusinessRuleData {
@@ -40,13 +40,47 @@ export interface BusinessRuleStats {
   }>;
 }
 
+interface BusinessRule {
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  conditions: Array<{
+    field: string;
+    operator: string;
+    value: string | number | boolean;
+  }>;
+  actions: Array<{
+    type: string;
+    config: Record<string, unknown>;
+  }>;
+  isActive: boolean;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BusinessRuleFilters {
+  type?: string;
+  isActive?: boolean;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+interface TestResult {
+  success: boolean;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
 export class BusinessRuleService {
   // Get all business rules
   async getBusinessRules(filters?: {
     isActive?: boolean;
     type?: string;
     createdById?: string;
-  }): Promise<any[]> {
+  }): Promise<BusinessRule[]> {
     const params = new URLSearchParams();
     if (filters?.isActive !== undefined) {
       params.append('isActive', filters.isActive.toString());
@@ -63,19 +97,19 @@ export class BusinessRuleService {
   }
 
   // Get a single business rule by ID
-  async getBusinessRuleById(id: string): Promise<any> {
+  async getBusinessRuleById(id: string): Promise<BusinessRule> {
     const response = await api.get(`/business-rules/${id}`);
     return response.data;
   }
 
   // Create a new business rule
-  async createBusinessRule(data: BusinessRuleData): Promise<any> {
+  async createBusinessRule(data: BusinessRuleData): Promise<BusinessRule> {
     const response = await api.post('/business-rules', data);
     return response.data;
   }
 
   // Update a business rule
-  async updateBusinessRule(id: string, data: Partial<BusinessRuleData>): Promise<any> {
+  async updateBusinessRule(id: string, data: Partial<BusinessRuleData>): Promise<BusinessRule> {
     const response = await api.put(`/business-rules/${id}`, data);
     return response.data;
   }
@@ -86,7 +120,7 @@ export class BusinessRuleService {
   }
 
   // Evaluate business rules for a lead
-  async evaluateRules(leadId: string, context?: Record<string, any>): Promise<RuleEvaluationResult[]> {
+  async evaluateRules(leadId: string, context?: Record<string, unknown>): Promise<RuleEvaluationResult[]> {
     const response = await api.post(`/business-rules/evaluate/${leadId}`, { context });
     return response.data;
   }
@@ -97,7 +131,7 @@ export class BusinessRuleService {
   }
 
   // Test business rule evaluation
-  async testRuleEvaluation(ruleId: string, testData: any): Promise<{
+  async testRuleEvaluation(ruleId: string, testData: Record<string, unknown>): Promise<{
     matched: boolean;
     actions: BusinessRuleAction[];
     conditions: BusinessRuleCondition[];
@@ -107,13 +141,13 @@ export class BusinessRuleService {
   }
 
   // Get business rules by type
-  async getBusinessRulesByType(type: string): Promise<any[]> {
+  async getBusinessRulesByType(type: string): Promise<BusinessRule[]> {
     const response = await api.get(`/business-rules/type/${type}`);
     return response.data;
   }
 
   // Bulk apply business rules to leads
-  async bulkApplyRules(leadIds: string[], context?: Record<string, any>): Promise<any[]> {
+  async bulkApplyRules(leadIds: string[], context?: Record<string, unknown>): Promise<RuleEvaluationResult[]> {
     const response = await api.post('/business-rules/bulk-apply', { leadIds, context });
     return response.data;
   }
@@ -207,7 +241,7 @@ export class BusinessRuleService {
   }
 
   // Helper methods for condition creation
-  static createCondition(field: string, operator: string, value: any, logicalOperator?: 'AND' | 'OR'): BusinessRuleCondition {
+  static createCondition(field: string, operator: string, value: string | number | boolean, logicalOperator?: 'AND' | 'OR'): BusinessRuleCondition {
     return {
       field,
       operator: operator as any,

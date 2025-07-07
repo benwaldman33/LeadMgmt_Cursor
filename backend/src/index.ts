@@ -27,6 +27,7 @@ import aiScoringRoutes from './routes/aiScoring';
 import integrationRoutes from './routes/integrations';
 import workflowRoutes from './routes/workflows';
 import businessRuleRoutes from './routes/businessRules';
+import webScrapingRoutes from './routes/webScraping';
 
 const app = express();
 const server = createServer(app);
@@ -71,6 +72,7 @@ app.use('/api/ai-scoring', aiScoringRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/business-rules', businessRuleRoutes);
+app.use('/api/web-scraping', webScrapingRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -1,6 +1,6 @@
 import express from 'express';
 import { WorkflowService } from '../services/workflowService';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, requireRole } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import Joi from 'joi';
 
@@ -41,15 +41,18 @@ const executeWorkflowSchema = Joi.object({
   triggerData: Joi.object().optional()
 });
 
+// Apply authentication to all routes
+router.use(authenticateToken);
+
 // Get all workflows
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const filters = {
       isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined,
       trigger: req.query.trigger as string,
       createdById: req.query.createdById as string
     };
-
+    
     const workflows = await workflowService.getWorkflows(filters);
     res.json(workflows);
   } catch (error) {
@@ -58,8 +61,8 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Get a single workflow by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+// Get workflow by ID
+router.get('/:id', async (req, res) => {
   try {
     const workflow = await workflowService.getWorkflowById(req.params.id);
     if (!workflow) {
@@ -72,51 +75,69 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Create a new workflow
-router.post('/', authenticateToken, validateRequest(createWorkflowSchema), async (req, res) => {
+// Create new workflow
+router.post('/', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
   try {
-    const workflow = await workflowService.createWorkflow({
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const workflowData = {
       ...req.body,
       createdById: req.user.id
-    });
-    res.status(201).json(workflow);
+    };
+
+    const newWorkflow = await workflowService.createWorkflow(workflowData);
+    res.status(201).json(newWorkflow);
   } catch (error) {
     console.error('Error creating workflow:', error);
     res.status(500).json({ error: 'Failed to create workflow' });
   }
 });
 
-// Update a workflow
-router.put('/:id', authenticateToken, validateRequest(updateWorkflowSchema), async (req, res) => {
+// Update workflow
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
   try {
-    const workflow = await workflowService.updateWorkflow(req.params.id, req.body);
-    res.json(workflow);
+    const updatedWorkflow = await workflowService.updateWorkflow(req.params.id, req.body);
+    if (!updatedWorkflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+    res.json(updatedWorkflow);
   } catch (error) {
     console.error('Error updating workflow:', error);
     res.status(500).json({ error: 'Failed to update workflow' });
   }
 });
 
-// Delete a workflow
-router.delete('/:id', authenticateToken, async (req, res) => {
+// Delete workflow
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
     await workflowService.deleteWorkflow(req.params.id, req.user.id);
-    res.json({ message: 'Workflow deleted successfully' });
+    res.status(204).send();
   } catch (error) {
     console.error('Error deleting workflow:', error);
     res.status(500).json({ error: 'Failed to delete workflow' });
   }
 });
 
-// Execute a workflow
-router.post('/:id/execute', authenticateToken, validateRequest(executeWorkflowSchema), async (req, res) => {
+// Execute workflow
+router.post('/:id/execute', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
   try {
-    const result = await workflowService.executeWorkflow(req.params.id, {
-      leadId: req.body.leadId,
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { leadId, triggerData } = req.body;
+    const execution = await workflowService.executeWorkflow(req.params.id, {
+      leadId,
+      triggerData,
       userId: req.user.id,
-      triggerData: req.body.triggerData
     });
-    res.json(result);
+    res.json(execution);
   } catch (error) {
     console.error('Error executing workflow:', error);
     res.status(500).json({ error: 'Failed to execute workflow' });
@@ -124,14 +145,17 @@ router.post('/:id/execute', authenticateToken, validateRequest(executeWorkflowSc
 });
 
 // Get workflow executions
-router.get('/:id/executions', authenticateToken, async (req, res) => {
+router.get('/:id/executions', async (req, res) => {
   try {
     const filters = {
       workflowId: req.params.id,
-      leadId: req.query.leadId as string,
-      status: req.query.status as string
+      status: req.query.status as string,
+      startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+      endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+      offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
     };
-
+    
     const executions = await workflowService.getWorkflowExecutions(filters);
     res.json(executions);
   } catch (error) {
@@ -140,14 +164,42 @@ router.get('/:id/executions', authenticateToken, async (req, res) => {
   }
 });
 
-// Trigger workflows by event
-router.post('/trigger/:event', authenticateToken, async (req, res) => {
+// Get workflow execution by ID
+router.get('/executions/:executionId', async (req, res) => {
   try {
-    const results = await workflowService.triggerWorkflows(req.params.event, {
-      leadId: req.body.leadId,
-      userId: req.user.id,
-      triggerData: req.body.triggerData
-    });
+    const execution = await workflowService.getWorkflowExecutionById(req.params.executionId);
+    if (!execution) {
+      return res.status(404).json({ error: 'Workflow execution not found' });
+    }
+    res.json(execution);
+  } catch (error) {
+    console.error('Error fetching workflow execution:', error);
+    res.status(500).json({ error: 'Failed to fetch workflow execution' });
+  }
+});
+
+// Get workflow execution statistics
+router.get('/:id/execution-stats', async (req, res) => {
+  try {
+    const filters = {
+      workflowId: req.params.id,
+      startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
+      endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined
+    };
+    
+    const stats = await workflowService.getWorkflowExecutionStats(filters);
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching workflow execution stats:', error);
+    res.status(500).json({ error: 'Failed to fetch workflow execution stats' });
+  }
+});
+
+// Trigger workflows for an event
+router.post('/trigger/:event', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
+  try {
+    const { context } = req.body;
+    const results = await workflowService.triggerWorkflows(req.params.event, context);
     res.json(results);
   } catch (error) {
     console.error('Error triggering workflows:', error);

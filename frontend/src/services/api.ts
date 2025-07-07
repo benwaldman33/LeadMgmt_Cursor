@@ -78,7 +78,7 @@ export const usersAPI = {
     return response.data;
   },
   
-  update: async (id: string, userData: any) => {
+  update: async (id: string, userData: Record<string, unknown>) => {
     const response = await api.put(`/users/${id}`, userData);
     return response.data;
   },

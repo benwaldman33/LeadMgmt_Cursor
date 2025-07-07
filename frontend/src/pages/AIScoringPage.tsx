@@ -1,30 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  aiScoringService, 
-  MLPrediction, 
-  AIModel, 
-  TextAnalysis, 
-  AIInsights,
-  BulkPredictionResult 
-} from '../services/aiScoringService';
-import { useNotification } from '../contexts/NotificationContext';
-import { 
-  Brain, 
-  TrendingUp, 
-  BarChart3, 
-  FileText, 
-  Settings, 
-  Play, 
-  Pause,
-  Download,
-  Upload,
-  Target,
-  Zap,
-  Activity,
-  Users,
-  Building2
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { aiScoringService } from '../services/aiScoringService';
+import { useNotifications } from '../contexts/NotificationContext';
+import {
+  ChartBarIcon,
+  DocumentTextIcon,
+  LightBulbIcon,
+  PlayIcon,
+  PauseIcon,
+  ArrowUpTrayIcon,
+  BoltIcon,
+  ClockIcon,
+  Cog6ToothIcon,
+  ChartBarSquareIcon
+} from '@heroicons/react/24/outline';
 
 const AIScoringPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'predictions' | 'analysis'>('overview');
@@ -37,8 +26,7 @@ const AIScoringPage: React.FC = () => {
   });
   const [trainingDataSize, setTrainingDataSize] = useState<number>(100);
 
-  const { showNotification } = useNotification();
-  const queryClient = useQueryClient();
+  const { addNotification } = useNotifications();
 
   // Queries
   const { data: insights, isLoading: insightsLoading } = useQuery({
@@ -67,12 +55,18 @@ const AIScoringPage: React.FC = () => {
   const createModelMutation = useMutation({
     mutationFn: aiScoringService.createModel,
     onSuccess: () => {
-      showNotification('Model created successfully', 'success');
-      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
-      queryClient.invalidateQueries({ queryKey: ['ai-insights'] });
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Model created successfully'
+      });
     },
-    onError: (error) => {
-      showNotification('Failed to create model', 'error');
+    onError: () => {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to create model'
+      });
     }
   });
 
@@ -80,30 +74,47 @@ const AIScoringPage: React.FC = () => {
     mutationFn: ({ modelId, isActive }: { modelId: string; isActive: boolean }) =>
       aiScoringService.updateModelStatus(modelId, isActive),
     onSuccess: () => {
-      showNotification('Model status updated', 'success');
-      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Model status updated'
+      });
     },
     onError: () => {
-      showNotification('Failed to update model status', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update model status'
+      });
     }
   });
 
   const trainModelMutation = useMutation({
-    mutationFn: ({ modelId, trainingData }: { modelId: string; trainingData: any[] }) =>
+    mutationFn: ({ modelId, trainingData }: { modelId: string; trainingData: Array<Record<string, unknown>> }) =>
       aiScoringService.trainModel(modelId, trainingData),
     onSuccess: () => {
-      showNotification('Model trained successfully', 'success');
-      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
-      queryClient.invalidateQueries({ queryKey: ['ai-insights'] });
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Model trained successfully'
+      });
     },
     onError: () => {
-      showNotification('Failed to train model', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to train model'
+      });
     }
   });
 
   const handleCreateModel = () => {
     if (!newModel.name || newModel.features.length === 0) {
-      showNotification('Please provide model name and features', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Please provide model name and features'
+      });
       return;
     }
     createModelMutation.mutate(newModel);
@@ -120,10 +131,10 @@ const AIScoringPage: React.FC = () => {
   };
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: Brain },
-    { id: 'models', label: 'Models', icon: Settings },
-    { id: 'predictions', label: 'Predictions', icon: Target },
-    { id: 'analysis', label: 'Text Analysis', icon: FileText }
+    { id: 'overview', label: 'Overview', icon: LightBulbIcon },
+    { id: 'models', label: 'Models', icon: Cog6ToothIcon },
+    { id: 'predictions', label: 'Predictions', icon: ChartBarSquareIcon },
+    { id: 'analysis', label: 'Text Analysis', icon: DocumentTextIcon }
   ];
 
   return (
@@ -132,7 +143,7 @@ const AIScoringPage: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Brain className="h-8 w-8 text-blue-600" />
+            <LightBulbIcon className="h-8 w-8 text-blue-600" />
             AI/ML Scoring
           </h1>
           <p className="text-gray-600 mt-2">
@@ -174,79 +185,81 @@ const AIScoringPage: React.FC = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               ) : insights ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {/* Model Stats */}
-                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-blue-100 text-sm">Total Models</p>
-                        <p className="text-3xl font-bold">{insights.totalModels}</p>
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Model Stats */}
+                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-blue-100 text-sm">Total Models</p>
+                          <p className="text-3xl font-bold">{insights.totalModels}</p>
+                        </div>
+                        <LightBulbIcon className="h-8 w-8 opacity-80" />
                       </div>
-                      <Brain className="h-8 w-8 opacity-80" />
+                    </div>
+
+                    <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-green-100 text-sm">Active Models</p>
+                          <p className="text-3xl font-bold">{insights.activeModels}</p>
+                        </div>
+                        <ClockIcon className="h-8 w-8 opacity-80" />
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-100 text-sm">Avg Accuracy</p>
+                          <p className="text-3xl font-bold">{insights.avgAccuracy}%</p>
+                        </div>
+                        <ChartBarIcon className="h-8 w-8 opacity-80" />
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-orange-100 text-sm">Model Types</p>
+                          <p className="text-3xl font-bold">{Object.keys(insights.modelTypes).length}</p>
+                        </div>
+                        <ChartBarIcon className="h-8 w-8 opacity-80" />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-green-100 text-sm">Active Models</p>
-                        <p className="text-3xl font-bold">{insights.activeModels}</p>
-                      </div>
-                      <Activity className="h-8 w-8 opacity-80" />
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-purple-100 text-sm">Avg Accuracy</p>
-                        <p className="text-3xl font-bold">{insights.avgAccuracy}%</p>
-                      </div>
-                      <Target className="h-8 w-8 opacity-80" />
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-100 text-sm">Model Types</p>
-                        <p className="text-3xl font-bold">{Object.keys(insights.modelTypes).length}</p>
-                      </div>
-                      <BarChart3 className="h-8 w-8 opacity-80" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recent Activity */}
-                <div className="mt-8">
-                  <h3 className="text-lg font-semibold mb-4">Recent Model Activity</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    {insights.recentActivity.length > 0 ? (
-                      <div className="space-y-3">
-                        {insights.recentActivity.map((activity) => (
-                          <div key={activity.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${aiScoringService.getModelTypeColor(activity.type)}`}>
-                                {aiScoringService.getModelTypeLabel(activity.type)}
+                  {/* Recent Activity */}
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold mb-4">Recent Model Activity</h3>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      {insights.recentActivity.length > 0 ? (
+                        <div className="space-y-3">
+                          {insights.recentActivity.map((activity) => (
+                            <div key={activity.id} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {activity.type}
+                                </div>
+                                <span className="font-medium">{activity.name}</span>
                               </div>
-                              <span className="font-medium">{activity.name}</span>
+                              <div className="text-right">
+                                <p className="text-sm text-gray-600">
+                                  {activity.accuracy}% accuracy
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {new Date(activity.updatedAt).toLocaleDateString()}
+                                </p>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm text-gray-600">
-                                {aiScoringService.formatAccuracy(activity.accuracy)} accuracy
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {new Date(activity.updatedAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 text-center py-4">No recent activity</p>
-                    )}
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-center py-4">No recent activity</p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </>
               ) : (
                 <p className="text-gray-500 text-center py-8">No insights available</p>
               )}
@@ -328,13 +341,13 @@ const AIScoringPage: React.FC = () => {
                     <div key={model.id} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${aiScoringService.getModelTypeColor(model.type)}`}>
-                            {aiScoringService.getModelTypeLabel(model.type)}
+                          <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {model.type}
                           </div>
                           <div>
                             <h3 className="font-semibold">{model.name}</h3>
                             <p className="text-sm text-gray-600">
-                              {model.features.length} features • {aiScoringService.formatAccuracy(model.performance.accuracy)} accuracy
+                              {model.features.length} features • {model.performance.accuracy}% accuracy
                             </p>
                           </div>
                         </div>
@@ -350,12 +363,12 @@ const AIScoringPage: React.FC = () => {
                           >
                             {model.isActive ? (
                               <>
-                                <Pause className="h-4 w-4 inline mr-1" />
+                                <PauseIcon className="h-4 w-4 inline mr-1" />
                                 Active
                               </>
                             ) : (
                               <>
-                                <Play className="h-4 w-4 inline mr-1" />
+                                <PlayIcon className="h-4 w-4 inline mr-1" />
                                 Inactive
                               </>
                             )}
@@ -365,7 +378,7 @@ const AIScoringPage: React.FC = () => {
                             disabled={trainModelMutation.isPending}
                             className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
                           >
-                            <Zap className="h-4 w-4 inline mr-1" />
+                            <BoltIcon className="h-4 w-4 inline mr-1" />
                             Train
                           </button>
                         </div>
@@ -410,7 +423,7 @@ const AIScoringPage: React.FC = () => {
                         <div className="bg-white rounded-lg p-4">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium text-gray-700">Predicted Score</span>
-                            <span className={`text-lg font-bold ${aiScoringService.getScoreColor(prediction.score)}`}>
+                            <span className="text-lg font-bold text-blue-600">
                               {prediction.score.toFixed(1)}
                             </span>
                           </div>
@@ -425,13 +438,13 @@ const AIScoringPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="bg-white rounded-lg p-4">
                             <p className="text-sm text-gray-600 mb-1">Confidence</p>
-                            <p className={`text-lg font-bold ${aiScoringService.getConfidenceColor(prediction.confidence)}`}>
-                              {aiScoringService.formatConfidence(prediction.confidence)}
+                            <p className="text-lg font-bold text-green-600">
+                              {prediction.confidence}%
                             </p>
                           </div>
                           <div className="bg-white rounded-lg p-4">
                             <p className="text-sm text-gray-600 mb-1">Risk Level</p>
-                            <p className={`text-lg font-bold ${aiScoringService.getRiskLevelColor(prediction.riskLevel)}`}>
+                            <p className="text-lg font-bold text-orange-600">
                               {prediction.riskLevel.toUpperCase()}
                             </p>
                           </div>
@@ -476,7 +489,7 @@ const AIScoringPage: React.FC = () => {
                     Generate predictions for multiple leads at once
                   </p>
                   <button className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
-                    <Upload className="h-4 w-4 inline mr-2" />
+                    <ArrowUpTrayIcon className="h-4 w-4 inline mr-2" />
                     Upload Lead IDs
                   </button>
                 </div>
@@ -522,7 +535,7 @@ const AIScoringPage: React.FC = () => {
                       {/* Sentiment */}
                       <div className="bg-white rounded-lg p-4 border">
                         <h3 className="text-lg font-semibold mb-3">Sentiment Analysis</h3>
-                        <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${aiScoringService.getSentimentColor(textAnalysis.sentiment)}`}>
+                        <div className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                           {textAnalysis.sentiment.toUpperCase()}
                         </div>
                       </div>

@@ -44,8 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
-
-  const isAuthenticated = !!token && !!user;
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -56,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
+          setIsAuthenticated(true);
           
           // Verify token is still valid
           await authAPI.getProfile();
@@ -65,6 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.removeItem('user');
           setToken(null);
           setUser(null);
+          setIsAuthenticated(false);
         }
       }
       setLoading(false);
@@ -77,12 +78,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authAPI.login(email, password);
       const { token: newToken, user: userData } = response;
-
+      
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userData));
       
       setToken(newToken);
       setUser(userData);
+      setIsAuthenticated(true);
     } catch (error) {
       throw error;
     }
@@ -93,6 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
+    setIsAuthenticated(false);
   };
 
   const value: AuthContextType = {

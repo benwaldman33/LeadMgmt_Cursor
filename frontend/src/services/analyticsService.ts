@@ -8,13 +8,36 @@ export interface DashboardMetrics {
   qualifiedLeads: number;
   conversionRate: number;
   averageScore: number;
-  recentActivity: any[];
+  recentActivity: Array<Record<string, unknown>>;
+  realTimeMetrics?: {
+    leadsToday: number;
+    leadsThisWeek: number;
+    qualifiedToday: number;
+    qualifiedThisWeek: number;
+    averageScoreToday: number;
+    averageScoreThisWeek: number;
+  };
 }
 
 export interface LeadTrends {
-  daily: Array<{ date: string; count: number }>;
-  weekly: Array<{ week: string; count: number }>;
-  monthly: Array<{ month: string; count: number }>;
+  daily: Array<{
+    date: string;
+    leads: number;
+    qualified: number;
+    averageScore: number;
+  }>;
+  weekly: Array<{
+    week: string;
+    leads: number;
+    qualified: number;
+    averageScore: number;
+  }>;
+  monthly: Array<{
+    month: string;
+    leads: number;
+    qualified: number;
+    averageScore: number;
+  }>;
 }
 
 export interface ScoringAnalytics {
@@ -124,7 +147,7 @@ export class AnalyticsService {
   /**
    * Get recent leads
    */
-  static async getRecentLeads(limit: number = 10): Promise<any[]> {
+  static async getRecentLeads(limit: number = 10): Promise<Array<Record<string, unknown>>> {
     const response = await api.get(`/analytics/recent-leads?limit=${limit}`);
     return response.data.data;
   }

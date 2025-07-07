@@ -5,14 +5,22 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   FunnelChart, Funnel, LabelList
 } from 'recharts';
-import { reportingService, ReportConfig, ReportResult, ReportType, FilterOptions } from '../services/reportingService';
-import { useNotification } from '../contexts/NotificationContext';
+import { reportingService } from '../services/reportingService';
+import type { ReportConfig, ReportResult, ReportType, FilterOptions } from '../services/reportingService';
+import { useNotifications } from '../contexts/NotificationContext';
+import {
+  ChartBarIcon,
+  DocumentTextIcon,
+  ArrowDownTrayIcon,
+  EyeIcon,
+  PlusIcon,
+} from '@heroicons/react/24/outline';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 const ReportsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { showNotification } = useNotification();
+  const { addNotification } = useNotifications();
   
   const [reportTypes, setReportTypes] = useState<ReportType[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -87,7 +95,7 @@ const ReportsPage: React.FC = () => {
       const config = reportConfig as ReportConfig;
       const report = await reportingService.generateReport(config);
       setCurrentReport(report);
-      showNotification('Report generated successfully', 'success');
+      addNotification({ type: 'success', title: 'Success', message: 'Report generated successfully' });
     } catch (error) {
       showNotification('Failed to generate report', 'error');
     } finally {

@@ -4,15 +4,11 @@ export interface AuditLog {
   id: string;
   action: string;
   entityType: string;
-  entityId?: string;
-  description: string;
-  userId?: string;
-  user?: {
-    id: string;
-    email: string;
-    fullName: string;
-  };
-  metadata?: Record<string, any>;
+  entityId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  details: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   createdAt: string;
@@ -23,8 +19,8 @@ export interface AuditLogFilters {
   entityType?: string;
   entityId?: string;
   userId?: string;
-  startDate?: string;
-  endDate?: string;
+  dateFrom?: string;
+  dateTo?: string;
   limit?: number;
   offset?: number;
 }

@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { SearchService, formatSearchResult } from '../services/searchService';
-import type { SearchFilters, SearchResult } from '../services/searchService';
+import { SearchService, formatSearchResult, type SearchResult } from '../services/searchService';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface GlobalSearchProps {
@@ -35,6 +34,12 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
     staleTime: 60000, // 1 minute
   });
 
+  const handleResultClick = useCallback((result: SearchResult) => {
+    setIsOpen(false);
+    setSelectedIndex(-1);
+    onResultClick?.(result);
+  }, [onResultClick]);
+
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,7 +71,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, selectedIndex, searchData]);
+  }, [isOpen, selectedIndex, searchData, handleResultClick]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -88,11 +93,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
     setSelectedIndex(-1);
   };
 
-  const handleResultClick = (result: SearchResult) => {
-    setIsOpen(false);
-    setSelectedIndex(-1);
-    onResultClick?.(result);
-  };
+
 
   const handleSuggestionClick = (suggestion: string) => {
     setQuery(suggestion);
@@ -200,10 +201,11 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                       </p>
                       <div className="flex items-center mt-1 text-xs text-gray-400">
                         <span>{result.formattedDate}</span>
-                        {result.metadata.status && (
+                        {result.metadata?.status && (
                           <>
-                            <span className="mx-1">•</span>
-                            <span>{result.metadata.status}</span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <span>{String(result.metadata.status)}</span>
+                            </span>
                           </>
                         )}
                         {result.score && (

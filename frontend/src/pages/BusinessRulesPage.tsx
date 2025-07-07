@@ -1,22 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BusinessRuleService } from '../services/businessRuleService';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import {
   PlusIcon,
-  PlayIcon,
-  PauseIcon,
+  PencilIcon,
   TrashIcon,
   EyeIcon,
-  CogIcon,
-  FunnelIcon,
-  MagnifyingGlassIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ExclamationTriangleIcon,
-  ShieldCheckIcon,
+  CheckIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 
 const BusinessRulesPage: React.FC = () => {
@@ -26,13 +19,13 @@ const BusinessRulesPage: React.FC = () => {
     search: '',
   });
   const [selectedRules, setSelectedRules] = useState<string[]>([]);
-  const { showNotification } = useNotification();
+  const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
 
   // Fetch business rules
   const { data: businessRules, isLoading, error } = useQuery({
     queryKey: ['business-rules', filters],
-    queryFn: () => BusinessRuleService.getBusinessRules({
+    queryFn: () => new BusinessRuleService().getBusinessRules({
       isActive: filters.isActive === 'true' ? true : filters.isActive === 'false' ? false : undefined,
       type: filters.type || undefined,
     }),
@@ -41,32 +34,48 @@ const BusinessRulesPage: React.FC = () => {
   // Fetch business rule stats
   const { data: stats } = useQuery({
     queryKey: ['business-rule-stats'],
-    queryFn: () => BusinessRuleService.getBusinessRuleStats(),
+    queryFn: () => new BusinessRuleService().getBusinessRuleStats(),
   });
 
   // Mutations
   const deleteRuleMutation = useMutation({
-    mutationFn: (id: string) => BusinessRuleService.deleteBusinessRule(id),
+    mutationFn: (id: string) => new BusinessRuleService().deleteBusinessRule(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business-rules'] });
       queryClient.invalidateQueries({ queryKey: ['business-rule-stats'] });
-      showNotification('Business rule deleted successfully', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Business rule deleted successfully'
+      });
     },
-    onError: (error: any) => {
-      showNotification(error.response?.data?.message || 'Failed to delete business rule', 'error');
+    onError: (error: Error) => {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'Failed to delete business rule'
+      });
     },
   });
 
   const toggleRuleMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      BusinessRuleService.updateBusinessRule(id, { isActive }),
+      new BusinessRuleService().updateBusinessRule(id, { isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['business-rules'] });
       queryClient.invalidateQueries({ queryKey: ['business-rule-stats'] });
-      showNotification('Business rule status updated', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Business rule status updated'
+      });
     },
-    onError: (error: any) => {
-      showNotification(error.response?.data?.message || 'Failed to update business rule', 'error');
+    onError: (error: Error) => {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'Failed to update business rule'
+      });
     },
   });
 
@@ -110,7 +119,7 @@ const BusinessRulesPage: React.FC = () => {
   if (error) {
     return (
       <div className="text-center py-12">
-        <XCircleIcon className="mx-auto h-12 w-12 text-red-500" />
+        <XMarkIcon className="mx-auto h-12 w-12 text-red-500" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading business rules</h3>
         <p className="mt-1 text-sm text-gray-500">Please try again later.</p>
       </div>
@@ -125,13 +134,22 @@ const BusinessRulesPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Business Rules</h1>
           <p className="text-gray-600">Automate lead processing with intelligent business rules</p>
         </div>
-        <Link
-          to="/business-rules/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-        >
-          <PlusIcon className="h-4 w-4 mr-2" />
-          Create Rule
-        </Link>
+        <div className="flex items-center space-x-3">
+          <Link
+            to="/business-rules/test"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <PencilIcon className="h-4 w-4 mr-2" />
+            Test Rules
+          </Link>
+          <Link
+            to="/business-rules/new"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Create Rule
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -139,7 +157,7 @@ const BusinessRulesPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center">
-              <ShieldCheckIcon className="h-8 w-8 text-primary-600" />
+              <CheckIcon className="h-8 w-8 text-primary-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-500">Total Rules</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.totalRules}</p>
@@ -148,7 +166,7 @@ const BusinessRulesPage: React.FC = () => {
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center">
-              <CheckCircleIcon className="h-8 w-8 text-green-600" />
+              <CheckIcon className="h-8 w-8 text-green-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-500">Active</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.activeRules}</p>
@@ -157,7 +175,7 @@ const BusinessRulesPage: React.FC = () => {
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center">
-              <PauseIcon className="h-8 w-8 text-yellow-600" />
+              <CheckIcon className="h-8 w-8 text-yellow-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-500">Inactive</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.inactiveRules}</p>
@@ -166,7 +184,7 @@ const BusinessRulesPage: React.FC = () => {
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center">
-              <ExclamationTriangleIcon className="h-8 w-8 text-orange-600" />
+              <CheckIcon className="h-8 w-8 text-orange-600" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-500">Rule Types</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.ruleTypes.length}</p>
@@ -182,7 +200,7 @@ const BusinessRulesPage: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <CheckIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search rules..."
@@ -272,7 +290,7 @@ const BusinessRulesPage: React.FC = () => {
           </div>
         ) : filteredRules?.length === 0 ? (
           <div className="text-center py-12">
-            <ShieldCheckIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <CheckIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No business rules found</h3>
             <p className="mt-1 text-sm text-gray-500">
               {filters.search || filters.isActive || filters.type
@@ -371,12 +389,12 @@ const BusinessRulesPage: React.FC = () => {
                       >
                         {rule.isActive ? (
                           <>
-                            <CheckCircleIcon className="h-3 w-3 mr-1" />
+                            <CheckIcon className="h-3 w-3 mr-1" />
                             Active
                           </>
                         ) : (
                           <>
-                            <PauseIcon className="h-3 w-3 mr-1" />
+                            <CheckIcon className="h-3 w-3 mr-1" />
                             Inactive
                           </>
                         )}
@@ -414,7 +432,7 @@ const BusinessRulesPage: React.FC = () => {
                           className="text-gray-600 hover:text-gray-900"
                           title="Edit Rule"
                         >
-                          <CogIcon className="h-4 w-4" />
+                          <CheckIcon className="h-4 w-4" />
                         </Link>
                         <button
                           onClick={() => handleDeleteRule(rule.id)}

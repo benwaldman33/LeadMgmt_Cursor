@@ -23,8 +23,12 @@ import AIScoringPage from './pages/AIScoringPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import WorkflowsPage from './pages/WorkflowsPage';
 import CreateWorkflowPage from './pages/CreateWorkflowPage';
+import WorkflowExecutionHistoryPage from './pages/WorkflowExecutionHistoryPage';
+import WorkflowExecutionDetailPage from './pages/WorkflowExecutionDetailPage';
 import BusinessRulesPage from './pages/BusinessRulesPage';
 import CreateBusinessRulePage from './pages/CreateBusinessRulePage';
+import BusinessRuleTestPage from './pages/BusinessRuleTestPage';
+import WebScrapingPage from './pages/WebScrapingPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -242,6 +246,24 @@ const AppRoutes: React.FC = () => {
       />
 
       <Route
+        path="/workflows/executions"
+        element={
+          <ProtectedRoute>
+            <WorkflowExecutionHistoryPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/workflows/executions/:executionId"
+        element={
+          <ProtectedRoute>
+            <WorkflowExecutionDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/business-rules"
         element={
           <ProtectedRoute>
@@ -255,6 +277,33 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <CreateBusinessRulePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/business-rules/test"
+        element={
+          <ProtectedRoute>
+            <BusinessRuleTestPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/business-rules/test/:ruleId"
+        element={
+          <ProtectedRoute>
+            <BusinessRuleTestPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/web-scraping"
+        element={
+          <ProtectedRoute>
+            <WebScrapingPage />
           </ProtectedRoute>
         }
       />

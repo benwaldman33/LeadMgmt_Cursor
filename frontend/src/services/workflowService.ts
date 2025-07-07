@@ -4,16 +4,19 @@ export interface WorkflowStepConfig {
   type: 'action' | 'condition' | 'delay' | 'notification' | 'integration';
   name: string;
   order: number;
-  config: any;
+  config: Record<string, unknown>;
 }
 
 export interface WorkflowData {
+  id?: string;
   name: string;
   description?: string;
   trigger: string;
-  isActive?: boolean;
-  priority?: number;
+  isActive: boolean;
+  priority: number;
   steps: WorkflowStepConfig[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WorkflowExecutionResult {
@@ -24,19 +27,20 @@ export interface WorkflowExecutionResult {
 
 export interface WorkflowExecution {
   id: string;
-  status: string;
+  workflowId: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
   startedAt: string;
   completedAt?: string;
-  errorMessage?: string;
-  workflow: {
-    id: string;
-    name: string;
-  };
-  lead?: {
-    id: string;
-    companyName: string;
-    status: string;
-  };
+  error?: string;
+  context: Record<string, unknown>;
+  steps: Array<{
+    stepId: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    startedAt?: string;
+    completedAt?: string;
+    error?: string;
+    result?: Record<string, unknown>;
+  }>;
 }
 
 export interface WorkflowStats {
@@ -57,7 +61,7 @@ export class WorkflowService {
     isActive?: boolean;
     trigger?: string;
     createdById?: string;
-  }): Promise<any[]> {
+  }): Promise<WorkflowData[]> {
     const params = new URLSearchParams();
     if (filters?.isActive !== undefined) {
       params.append('isActive', filters.isActive.toString());
@@ -74,19 +78,19 @@ export class WorkflowService {
   }
 
   // Get a single workflow by ID
-  async getWorkflowById(id: string): Promise<any> {
+  async getWorkflowById(id: string): Promise<WorkflowData> {
     const response = await api.get(`/workflows/${id}`);
     return response.data;
   }
 
   // Create a new workflow
-  async createWorkflow(data: WorkflowData): Promise<any> {
+  async createWorkflow(data: WorkflowData): Promise<WorkflowData> {
     const response = await api.post('/workflows', data);
     return response.data;
   }
 
   // Update a workflow
-  async updateWorkflow(id: string, data: Partial<WorkflowData>): Promise<any> {
+  async updateWorkflow(id: string, data: Partial<WorkflowData>): Promise<WorkflowData> {
     const response = await api.put(`/workflows/${id}`, data);
     return response.data;
   }
@@ -110,7 +114,16 @@ export class WorkflowService {
     workflowId?: string;
     leadId?: string;
     status?: string;
-  }): Promise<WorkflowExecution[]> {
+    triggeredById?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    executions: WorkflowExecution[];
+    totalCount: number;
+    hasMore: boolean;
+  }> {
     const params = new URLSearchParams();
     if (filters?.workflowId) {
       params.append('workflowId', filters.workflowId);
@@ -121,16 +134,64 @@ export class WorkflowService {
     if (filters?.status) {
       params.append('status', filters.status);
     }
+    if (filters?.triggeredById) {
+      params.append('triggeredById', filters.triggeredById);
+    }
+    if (filters?.startDate) {
+      params.append('startDate', filters.startDate.toISOString());
+    }
+    if (filters?.endDate) {
+      params.append('endDate', filters.endDate.toISOString());
+    }
+    if (filters?.limit) {
+      params.append('limit', filters.limit.toString());
+    }
+    if (filters?.offset) {
+      params.append('offset', filters.offset.toString());
+    }
 
-    const response = await api.get(`/workflows/${filters?.workflowId || 'all'}/executions?${params.toString()}`);
+    const response = await api.get(`/workflows/executions?${params.toString()}`);
+    return response.data;
+  }
+
+  // Get a single workflow execution by ID
+  async getWorkflowExecutionById(id: string): Promise<WorkflowExecution> {
+    const response = await api.get(`/workflows/executions/${id}`);
+    return response.data;
+  }
+
+  // Get workflow execution statistics
+  async getWorkflowExecutionStats(filters?: {
+    workflowId?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<{
+    totalExecutions: number;
+    completedExecutions: number;
+    failedExecutions: number;
+    runningExecutions: number;
+    successRate: number;
+  }> {
+    const params = new URLSearchParams();
+    if (filters?.workflowId) {
+      params.append('workflowId', filters.workflowId);
+    }
+    if (filters?.startDate) {
+      params.append('startDate', filters.startDate.toISOString());
+    }
+    if (filters?.endDate) {
+      params.append('endDate', filters.endDate.toISOString());
+    }
+
+    const response = await api.get(`/workflows/executions/stats?${params.toString()}`);
     return response.data;
   }
 
   // Trigger workflows by event
   async triggerWorkflows(event: string, context: {
     leadId?: string;
-    triggerData?: any;
-  }): Promise<any[]> {
+    triggerData?: Record<string, unknown>;
+  }): Promise<WorkflowExecution[]> {
     const response = await api.post(`/workflows/trigger/${event}`, context);
     return response.data;
   }
@@ -142,7 +203,7 @@ export class WorkflowService {
   }
 
   // Helper methods for workflow step configuration
-  static createActionStep(name: string, order: number, action: string, target: string, value: any): WorkflowStepConfig {
+  static createActionStep(name: string, order: number, action: string, target: string, value: string | number | boolean): WorkflowStepConfig {
     return {
       type: 'action',
       name,
@@ -151,7 +212,7 @@ export class WorkflowService {
     };
   }
 
-  static createConditionStep(name: string, order: number, field: string, operator: string, value: any): WorkflowStepConfig {
+  static createConditionStep(name: string, order: number, field: string, operator: string, value: string | number | boolean): WorkflowStepConfig {
     return {
       type: 'condition',
       name,
@@ -178,7 +239,7 @@ export class WorkflowService {
     };
   }
 
-  static createIntegrationStep(name: string, order: number, integrationId: string, action: string, data: any): WorkflowStepConfig {
+  static createIntegrationStep(name: string, order: number, integrationId: string, action: string, data: Record<string, unknown>): WorkflowStepConfig {
     return {
       type: 'integration',
       name,

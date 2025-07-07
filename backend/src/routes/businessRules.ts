@@ -1,6 +1,6 @@
 import express from 'express';
 import { BusinessRuleService } from '../services/businessRuleService';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, requireRole } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import Joi from 'joi';
 
@@ -52,75 +52,114 @@ const testRuleSchema = Joi.object({
   testData: Joi.object().required()
 });
 
+// Apply authentication to all routes
+router.use(authenticateToken);
+
 // Get all business rules
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const filters = {
       isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined,
       type: req.query.type as string,
       createdById: req.query.createdById as string
     };
-
-    const businessRules = await businessRuleService.getBusinessRules(filters);
-    res.json(businessRules);
+    
+    const rules = await businessRuleService.getBusinessRules(filters);
+    res.json(rules);
   } catch (error) {
     console.error('Error fetching business rules:', error);
     res.status(500).json({ error: 'Failed to fetch business rules' });
   }
 });
 
-// Get a single business rule by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+// Get business rule by ID
+router.get('/:id', async (req, res) => {
   try {
-    const businessRule = await businessRuleService.getBusinessRuleById(req.params.id);
-    if (!businessRule) {
+    const rule = await businessRuleService.getBusinessRuleById(req.params.id);
+    if (!rule) {
       return res.status(404).json({ error: 'Business rule not found' });
     }
-    res.json(businessRule);
+    res.json(rule);
   } catch (error) {
     console.error('Error fetching business rule:', error);
     res.status(500).json({ error: 'Failed to fetch business rule' });
   }
 });
 
-// Create a new business rule
-router.post('/', authenticateToken, validateRequest(createBusinessRuleSchema), async (req, res) => {
+// Create new business rule
+router.post('/', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
   try {
-    const businessRule = await businessRuleService.createBusinessRule({
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const ruleData = {
       ...req.body,
       createdById: req.user.id
-    });
-    res.status(201).json(businessRule);
+    };
+
+    const newRule = await businessRuleService.createBusinessRule(ruleData);
+    res.status(201).json(newRule);
   } catch (error) {
     console.error('Error creating business rule:', error);
     res.status(500).json({ error: 'Failed to create business rule' });
   }
 });
 
-// Update a business rule
-router.put('/:id', authenticateToken, validateRequest(updateBusinessRuleSchema), async (req, res) => {
+// Update business rule
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
   try {
-    const businessRule = await businessRuleService.updateBusinessRule(req.params.id, req.body);
-    res.json(businessRule);
+    const updatedRule = await businessRuleService.updateBusinessRule(req.params.id, req.body);
+    if (!updatedRule) {
+      return res.status(404).json({ error: 'Business rule not found' });
+    }
+    res.json(updatedRule);
   } catch (error) {
     console.error('Error updating business rule:', error);
     res.status(500).json({ error: 'Failed to update business rule' });
   }
 });
 
-// Delete a business rule
-router.delete('/:id', authenticateToken, async (req, res) => {
+// Delete business rule
+router.delete('/:id', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
     await businessRuleService.deleteBusinessRule(req.params.id, req.user.id);
-    res.json({ message: 'Business rule deleted successfully' });
+    res.status(204).send();
   } catch (error) {
     console.error('Error deleting business rule:', error);
     res.status(500).json({ error: 'Failed to delete business rule' });
   }
 });
 
+// Test business rule
+router.post('/:id/test', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
+  try {
+    const testData = req.body;
+    const result = await businessRuleService.testRuleEvaluation(req.params.id, testData);
+    res.json(result);
+  } catch (error) {
+    console.error('Error testing business rule:', error);
+    res.status(500).json({ error: 'Failed to test business rule' });
+  }
+});
+
+// Get business rules by type
+router.get('/type/:type', async (req, res) => {
+  try {
+    const businessRules = await businessRuleService.getBusinessRulesByType(req.params.type);
+    res.json(businessRules);
+  } catch (error) {
+    console.error('Error fetching business rules by type:', error);
+    res.status(500).json({ error: 'Failed to fetch business rules by type' });
+  }
+});
+
 // Evaluate business rules for a lead
-router.post('/evaluate/:leadId', authenticateToken, async (req, res) => {
+router.post('/evaluate/:leadId', async (req, res) => {
   try {
     const results = await businessRuleService.evaluateRules(req.params.leadId, req.body.context);
     res.json(results);
@@ -131,51 +170,21 @@ router.post('/evaluate/:leadId', authenticateToken, async (req, res) => {
 });
 
 // Apply business rule actions to a lead
-router.post('/apply/:leadId', authenticateToken, async (req, res) => {
+router.post('/apply/:leadId', async (req, res) => {
   try {
     const { actions } = req.body;
-    if (!Array.isArray(actions)) {
-      return res.status(400).json({ error: 'Actions must be an array' });
-    }
-
     await businessRuleService.applyRuleActions(req.params.leadId, actions);
-    res.json({ message: 'Business rule actions applied successfully' });
+    res.json({ message: 'Actions applied successfully' });
   } catch (error) {
     console.error('Error applying business rule actions:', error);
     res.status(500).json({ error: 'Failed to apply business rule actions' });
   }
 });
 
-// Test business rule evaluation
-router.post('/:id/test', authenticateToken, validateRequest(testRuleSchema), async (req, res) => {
-  try {
-    const result = await businessRuleService.testRuleEvaluation(req.params.id, req.body.testData);
-    res.json(result);
-  } catch (error) {
-    console.error('Error testing business rule:', error);
-    res.status(500).json({ error: 'Failed to test business rule' });
-  }
-});
-
-// Get business rules by type
-router.get('/type/:type', authenticateToken, async (req, res) => {
-  try {
-    const businessRules = await businessRuleService.getBusinessRulesByType(req.params.type);
-    res.json(businessRules);
-  } catch (error) {
-    console.error('Error fetching business rules by type:', error);
-    res.status(500).json({ error: 'Failed to fetch business rules by type' });
-  }
-});
-
 // Bulk apply business rules to leads
-router.post('/bulk-apply', authenticateToken, async (req, res) => {
+router.post('/bulk-apply', async (req, res) => {
   try {
     const { leadIds, context } = req.body;
-    if (!Array.isArray(leadIds)) {
-      return res.status(400).json({ error: 'Lead IDs must be an array' });
-    }
-
     const results = await businessRuleService.bulkApplyRules(leadIds, context);
     res.json(results);
   } catch (error) {
@@ -185,13 +194,13 @@ router.post('/bulk-apply', authenticateToken, async (req, res) => {
 });
 
 // Get business rule statistics
-router.get('/stats/overview', authenticateToken, async (req, res) => {
+router.get('/stats/overview', async (req, res) => {
   try {
     const stats = await businessRuleService.getBusinessRuleStats();
     res.json(stats);
   } catch (error) {
     console.error('Error fetching business rule stats:', error);
-    res.status(500).json({ error: 'Failed to fetch business rule statistics' });
+    res.status(500).json({ error: 'Failed to fetch business rule stats' });
   }
 });
 

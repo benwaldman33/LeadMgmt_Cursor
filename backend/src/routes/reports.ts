@@ -1,11 +1,11 @@
 import express from 'express';
 import Joi from 'joi';
-import { reportingService, ReportConfig } from '../services/reportingService';
 import { authenticateToken } from '../middleware/auth';
 import { auditLog } from '../middleware/auditLog';
+import { validateRequest } from '../middleware/validation';
 import fs from 'fs';
 import path from 'path';
-
+import { reportingService } from '../services/reportingService';
 const router = express.Router();
 
 // Validation schemas
@@ -27,35 +27,27 @@ const reportFilterSchema = Joi.object({
 
 const reportConfigSchema = Joi.object({
   name: Joi.string().required(),
-  description: Joi.string().optional(),
-  type: Joi.string().valid('lead_analysis', 'campaign_performance', 'team_performance', 'scoring_analysis', 'conversion_funnel').required(),
-  filters: reportFilterSchema.required(),
-  metrics: Joi.array().items(Joi.string()).required(),
-  chartTypes: Joi.array().items(Joi.string().valid('bar', 'line', 'pie', 'funnel')).required(),
+  type: Joi.string().required(),
+  filters: Joi.object().optional(),
+  metrics: Joi.array().items(Joi.string()).optional(),
+  chartType: Joi.string().optional(),
   groupBy: Joi.string().optional(),
-  sortBy: Joi.string().optional(),
-  sortOrder: Joi.string().valid('asc', 'desc').optional(),
-  limit: Joi.number().positive().optional(),
+  dateRange: Joi.object({
+    start: Joi.date().optional(),
+    end: Joi.date().optional()
+  }).optional()
 });
 
-// Generate custom report
-router.post('/generate', 
+// Generate report
+router.post('/generate',
   authenticateToken,
   auditLog({ action: 'REPORT_GENERATE', entityType: 'REPORT' }),
+  validateRequest(reportConfigSchema),
   async (req, res) => {
     try {
-      const { error, value } = reportConfigSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ error: error.details[0].message });
-      }
-
-      const config: ReportConfig = value;
-      const report = await reportingService.generateReport(config);
-
-      res.json({
-        success: true,
-        data: report,
-      });
+      const reportConfig = req.body;
+      const reportResult = await reportingService.generateReport(reportConfig);
+      res.json({ success: true, data: reportResult });
     } catch (error) {
       console.error('Error generating report:', error);
       res.status(500).json({ error: 'Failed to generate report' });
@@ -81,14 +73,13 @@ router.post('/export/excel',
         fs.mkdirSync(exportsDir, { recursive: true });
       }
 
-      const filePath = await reportingService.exportToExcel(reportResult, filename);
-      
+      const excelPath = await reportingService.exportToExcel(reportResult, filename);
       res.json({
         success: true,
         data: {
-          filePath,
+          filePath: excelPath.replace(process.cwd(), ''),
           filename: `${filename}.xlsx`,
-          downloadUrl: `/api/reports/download/${path.basename(filePath)}`
+          downloadUrl: `/api/reports/download/${filename}.xlsx`
         }
       });
     } catch (error) {
@@ -116,14 +107,13 @@ router.post('/export/pdf',
         fs.mkdirSync(exportsDir, { recursive: true });
       }
 
-      const filePath = await reportingService.exportToPDF(reportResult, filename);
-      
+      const pdfPath = await reportingService.exportToPDF(reportResult, filename);
       res.json({
         success: true,
         data: {
-          filePath,
+          filePath: pdfPath.replace(process.cwd(), ''),
           filename: `${filename}.pdf`,
-          downloadUrl: `/api/reports/download/${path.basename(filePath)}`
+          downloadUrl: `/api/reports/download/${filename}.pdf`
         }
       });
     } catch (error) {
@@ -151,14 +141,13 @@ router.post('/export/csv',
         fs.mkdirSync(exportsDir, { recursive: true });
       }
 
-      const filePath = await reportingService.exportToCSV(reportResult, filename);
-      
+      const csvPath = await reportingService.exportToCSV(reportResult, filename);
       res.json({
         success: true,
         data: {
-          filePath,
+          filePath: csvPath.replace(process.cwd(), ''),
           filename: `${filename}.csv`,
-          downloadUrl: `/api/reports/download/${path.basename(filePath)}`
+          downloadUrl: `/api/reports/download/${filename}.csv`
         }
       });
     } catch (error) {
@@ -188,19 +177,19 @@ router.get('/download/:filename',
   }
 );
 
-// Get available report types and metrics
+// Get report types
 router.get('/types',
   authenticateToken,
   async (req, res) => {
     try {
       const reportTypes = [
         {
-          id: 'lead_analysis',
-          name: 'Lead Analysis',
-          description: 'Analyze lead performance, scoring, and conversion rates',
-          metrics: ['totalValue', 'averageCompanySize', 'technologyCount'],
+          id: 'lead_analytics',
+          name: 'Lead Analytics',
+          description: 'Comprehensive lead analysis and insights',
+          metrics: ['totalLeads', 'conversionRate', 'averageScore'],
           chartTypes: ['bar', 'line', 'pie'],
-          groupByOptions: ['status', 'industry', 'campaign', 'assignedTeam', 'assignedTo']
+          groupByOptions: ['industry', 'status', 'campaign', 'team']
         },
         {
           id: 'campaign_performance',
@@ -261,7 +250,7 @@ router.get('/filters',
         prisma.user.findMany({ select: { id: true, fullName: true } }),
         prisma.lead.findMany({ 
           select: { industry: true },
-          where: { industry: { not: null } },
+          where: { industry: { not: null as any } },
           distinct: ['industry']
         }),
         prisma.lead.findMany({

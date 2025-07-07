@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { PlusIcon, EyeIcon, PencilIcon, MagnifyingGlassIcon, TrashIcon, SparklesIcon, ChartBarIcon } from '@heroicons/react/24/outline';
-import { leadsAPI, campaignsAPI, scoringAPI } from '../services/api';
-import { SearchService, type LeadFilters } from '../services/searchService';
-import { useAuth } from '../contexts/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
+import { leadsAPI, campaignsAPI, scoringAPI } from '../services/api';
+import {
+  PlusIcon,
+  PencilIcon,
+  EyeIcon,
+  TrashIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+} from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
+import { SearchService, type LeadFilters } from '../services/searchService';
 import AdvancedFilters from '../components/AdvancedFilters';
+import LeadImportExport from '../components/LeadImportExport';
 import { 
   showBulkStatusUpdated, 
   showBulkScored, 
@@ -84,7 +96,7 @@ const LeadsPage: React.FC = () => {
       setLoading(true);
       const result = await SearchService.searchLeads(filters);
       setLeads(result.leads || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       addNotification(showNetworkError());
     } finally {
       setLoading(false);
@@ -95,7 +107,7 @@ const LeadsPage: React.FC = () => {
     try {
       const response = await campaignsAPI.getAll();
       setCampaigns(response.campaigns || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch campaigns:', err);
     }
   };
@@ -104,7 +116,7 @@ const LeadsPage: React.FC = () => {
     try {
       const response = await scoringAPI.getAll();
       setScoringModels(response.scoringModels || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to fetch scoring models:', err);
     }
   };
@@ -150,7 +162,7 @@ const LeadsPage: React.FC = () => {
     }
   };
 
-  const handleBulkAction = async (action: string, additionalData?: any) => {
+  const handleBulkAction = async (action: string, additionalData?: Record<string, unknown>) => {
     if (selectedLeads.length === 0) return;
 
     try {
@@ -158,11 +170,11 @@ const LeadsPage: React.FC = () => {
       
       switch (action) {
         case 'status':
-          const statusResponse = await leadsAPI.bulkUpdateStatus(selectedLeads, additionalData.status);
+          const statusResponse = await leadsAPI.bulkUpdateStatus(selectedLeads, additionalData?.status as string);
           addNotification(showBulkStatusUpdated(statusResponse.updatedCount));
           break;
         case 'score':
-          const scoreResponse = await leadsAPI.bulkScore(selectedLeads, additionalData.scoringModelId);
+          const scoreResponse = await leadsAPI.bulkScore(selectedLeads, additionalData?.scoringModelId as string);
           addNotification(showBulkScored(scoreResponse.scoredCount, scoreResponse.qualifiedCount));
           break;
         case 'enrich':
@@ -182,7 +194,7 @@ const LeadsPage: React.FC = () => {
       // Refresh leads and clear selection
       await fetchLeads();
       setSelectedLeads([]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       addNotification(showNetworkError());
     } finally {
       setBulkActionLoading(false);
@@ -212,6 +224,11 @@ const LeadsPage: React.FC = () => {
           <PlusIcon className="h-4 w-4 mr-2" />
           Add Lead
         </Link>
+      </div>
+
+      {/* Import/Export */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <LeadImportExport />
       </div>
 
       {/* Search and Filters */}
@@ -296,7 +313,7 @@ const LeadsPage: React.FC = () => {
                 disabled={bulkActionLoading}
                 className="btn-secondary text-sm flex items-center gap-1"
               >
-                <SparklesIcon className="h-4 w-4" />
+                <FunnelIcon className="h-4 w-4" />
                 {bulkActionLoading ? 'Enriching...' : 'Enrich'}
               </button>
 

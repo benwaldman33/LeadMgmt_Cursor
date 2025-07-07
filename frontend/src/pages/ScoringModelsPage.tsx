@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { scoringAPI } from '../services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, Link } from 'react-router-dom';
+import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { scoringAPI } from '../services/api';
+import {
+  PlusIcon,
+  PencilIcon,
+  EyeIcon,
+  TrashIcon,
+  ChartBarIcon,
+  CogIcon,
+} from '@heroicons/react/24/outline';
 
 interface ScoringCriterion {
   id: string;
@@ -42,13 +51,14 @@ const ScoringModelsPage: React.FC = () => {
   const fetchScoringModels = async () => {
     try {
       setLoading(true);
-      const params: any = {};
+      const params: Record<string, unknown> = {};
       if (filters.industry) params.industry = filters.industry;
       
       const response = await scoringAPI.getAll(params);
       setScoringModels(response.scoringModels || []);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch scoring models');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch scoring models';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AuditLogService, formatAuditAction, getActionIcon, getActionColor, formatTimestamp } from '../services/auditLogService';
 import type { AuditLog, AuditLogFilters } from '../services/auditLogService';
+import { useNotifications } from '../contexts/NotificationContext';
+import {
+  EyeIcon,
+  DocumentTextIcon,
+  UserIcon,
+  ClockIcon,
+  FunnelIcon,
+} from '@heroicons/react/24/outline';
 
 const AuditLogsPage: React.FC = () => {
   const [filters, setFilters] = useState<AuditLogFilters>({

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { WorkflowService, WorkflowData, WorkflowStepConfig } from '../services/workflowService';
-import { useNotification } from '../contexts/NotificationContext';
+import { WorkflowService } from '../services/workflowService';
+import type { WorkflowData, WorkflowStepConfig } from '../services/workflowService';
+import { useNotifications } from '../contexts/NotificationContext';
+import { BusinessRuleService } from '../services/businessRuleService';
 import {
-  PlusIcon,
   TrashIcon,
   CogIcon,
   PlayIcon,
@@ -12,12 +13,11 @@ import {
   BellIcon,
   PuzzlePieceIcon,
   CheckIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline';
 
 const CreateWorkflowPage: React.FC = () => {
   const navigate = useNavigate();
-  const { showNotification } = useNotification();
+  const { addNotification } = useNotifications();
   const [workflow, setWorkflow] = useState<WorkflowData>({
     name: '',
     description: '',
@@ -28,20 +28,33 @@ const CreateWorkflowPage: React.FC = () => {
   });
 
   const createWorkflowMutation = useMutation({
-    mutationFn: (data: WorkflowData) => WorkflowService.createWorkflow(data),
+    mutationFn: (data: WorkflowData) => new WorkflowService().createWorkflow(data),
     onSuccess: () => {
-      showNotification('Workflow created successfully', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Workflow created successfully'
+      });
       navigate('/workflows');
     },
-    onError: (error: any) => {
-      showNotification(error.response?.data?.message || 'Failed to create workflow', 'error');
+    onError: (error: unknown) => {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create workflow';
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: errorMessage
+      });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!workflow.name || !workflow.trigger) {
-      showNotification('Please fill in all required fields', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields'
+      });
       return;
     }
     createWorkflowMutation.mutate(workflow);
@@ -287,7 +300,7 @@ const CreateWorkflowPage: React.FC = () => {
                             Action
                           </label>
                           <select
-                            value={step.config.action || ''}
+                            value={String(step.config.action || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, action: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           >
@@ -304,7 +317,7 @@ const CreateWorkflowPage: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={step.config.target || ''}
+                            value={String(step.config.target || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, target: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="Target field"
@@ -316,7 +329,7 @@ const CreateWorkflowPage: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={step.config.value || ''}
+                            value={String(step.config.value || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, value: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="Action value"
@@ -332,12 +345,12 @@ const CreateWorkflowPage: React.FC = () => {
                             Field
                           </label>
                           <select
-                            value={step.config.field || ''}
+                            value={String(step.config.field || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, field: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           >
                             <option value="">Select field</option>
-                            {BusinessRuleService.getAvailableFields().map(field => (
+                            {BusinessRuleService.getAvailableFields().map((field: { value: string; label: string }) => (
                               <option key={field.value} value={field.value}>
                                 {field.label}
                               </option>
@@ -349,12 +362,12 @@ const CreateWorkflowPage: React.FC = () => {
                             Operator
                           </label>
                           <select
-                            value={step.config.operator || ''}
+                            value={String(step.config.operator || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, operator: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           >
                             <option value="">Select operator</option>
-                            {BusinessRuleService.getAvailableOperators().map(op => (
+                            {BusinessRuleService.getAvailableOperators().map((op: { value: string; label: string }) => (
                               <option key={op.value} value={op.value}>
                                 {op.label}
                               </option>
@@ -367,7 +380,7 @@ const CreateWorkflowPage: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={step.config.value || ''}
+                            value={String(step.config.value || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, value: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="Condition value"
@@ -378,7 +391,7 @@ const CreateWorkflowPage: React.FC = () => {
                             Logic
                           </label>
                           <select
-                            value={step.config.logicalOperator || 'AND'}
+                            value={String(step.config.logicalOperator || 'AND')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, logicalOperator: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           >
@@ -396,7 +409,7 @@ const CreateWorkflowPage: React.FC = () => {
                         </label>
                         <input
                           type="number"
-                          value={step.config.duration || ''}
+                          value={String(step.config.duration || '')}
                           onChange={(e) => updateStep(index, { config: { ...step.config, duration: parseInt(e.target.value) } })}
                           className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           placeholder="Delay in minutes"
@@ -412,7 +425,7 @@ const CreateWorkflowPage: React.FC = () => {
                             Type
                           </label>
                           <select
-                            value={step.config.type || ''}
+                            value={String(step.config.type || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, type: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           >
@@ -428,7 +441,7 @@ const CreateWorkflowPage: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={step.config.message || ''}
+                            value={String(step.config.message || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, message: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="Notification message"
@@ -445,7 +458,7 @@ const CreateWorkflowPage: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={step.config.integrationId || ''}
+                            value={String(step.config.integrationId || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, integrationId: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="Integration ID"
@@ -457,7 +470,7 @@ const CreateWorkflowPage: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={step.config.action || ''}
+                            value={String(step.config.action || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, action: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="Integration action"
@@ -469,7 +482,7 @@ const CreateWorkflowPage: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            value={step.config.data || ''}
+                            value={String(step.config.data || '')}
                             onChange={(e) => updateStep(index, { config: { ...step.config, data: e.target.value } })}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             placeholder="Integration data"

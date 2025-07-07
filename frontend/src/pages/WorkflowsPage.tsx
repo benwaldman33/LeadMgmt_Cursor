@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { WorkflowService } from '../services/workflowService';
-import { useNotification } from '../contexts/NotificationContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import {
   PlusIcon,
   PlayIcon,
@@ -16,6 +16,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 
 const WorkflowsPage: React.FC = () => {
@@ -25,13 +26,14 @@ const WorkflowsPage: React.FC = () => {
     search: '',
   });
   const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([]);
-  const { showNotification } = useNotification();
+  const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch workflows
   const { data: workflows, isLoading, error } = useQuery({
     queryKey: ['workflows', filters],
-    queryFn: () => WorkflowService.getWorkflows({
+    queryFn: () => new WorkflowService().getWorkflows({
       isActive: filters.isActive === 'true' ? true : filters.isActive === 'false' ? false : undefined,
       trigger: filters.trigger || undefined,
     }),
@@ -40,43 +42,67 @@ const WorkflowsPage: React.FC = () => {
   // Fetch workflow stats
   const { data: stats } = useQuery({
     queryKey: ['workflow-stats'],
-    queryFn: () => WorkflowService.getWorkflowStats(),
+    queryFn: () => new WorkflowService().getWorkflowStats(),
   });
 
   // Mutations
   const deleteWorkflowMutation = useMutation({
-    mutationFn: (id: string) => WorkflowService.deleteWorkflow(id),
+    mutationFn: (id: string) => new WorkflowService().deleteWorkflow(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       queryClient.invalidateQueries({ queryKey: ['workflow-stats'] });
-      showNotification('Workflow deleted successfully', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Workflow deleted successfully'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.message || 'Failed to delete workflow', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to delete workflow'
+      });
     },
   });
 
   const toggleWorkflowMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      WorkflowService.updateWorkflow(id, { isActive }),
+      new WorkflowService().updateWorkflow(id, { isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       queryClient.invalidateQueries({ queryKey: ['workflow-stats'] });
-      showNotification('Workflow status updated', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Workflow status updated'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.message || 'Failed to update workflow', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to update workflow'
+      });
     },
   });
 
   const executeWorkflowMutation = useMutation({
     mutationFn: ({ id, context }: { id: string; context: any }) =>
-      WorkflowService.executeWorkflow(id, context),
+      new WorkflowService().executeWorkflow(id, context),
     onSuccess: () => {
-      showNotification('Workflow executed successfully', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Workflow executed successfully'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.message || 'Failed to execute workflow', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to execute workflow'
+      });
     },
   });
 
@@ -139,13 +165,22 @@ const WorkflowsPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Workflows</h1>
           <p className="text-gray-600">Automate lead processing with custom workflows</p>
         </div>
-        <Link
-          to="/workflows/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-        >
-          <PlusIcon className="h-4 w-4 mr-2" />
-          Create Workflow
-        </Link>
+        <div className="flex items-center space-x-3">
+          <Link
+            to="/workflows/executions"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <ClockIcon className="h-4 w-4 mr-2" />
+            Execution History
+          </Link>
+          <Link
+            to="/workflows/new"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Create Workflow
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}

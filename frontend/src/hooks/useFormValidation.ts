@@ -2,6 +2,30 @@ import { useState, useCallback } from 'react';
 import { ObjectSchema } from 'yup';
 import { validateField, validateForm } from '../utils/validation';
 
+interface ValidationRule {
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: RegExp;
+  custom?: (value: unknown) => string | null;
+}
+
+interface ValidationRules {
+  [key: string]: ValidationRule;
+}
+
+interface ValidationErrors {
+  [key: string]: string;
+}
+
+interface UseFormValidationReturn {
+  errors: ValidationErrors;
+  isValid: boolean;
+  validateField: (name: string, value: unknown) => string | null;
+  validateForm: (data: Record<string, unknown>) => boolean;
+  reset: () => void;
+}
+
 interface UseFormValidationProps<T extends Record<string, any>> {
   schema: ObjectSchema<T>;
   initialValues: T;

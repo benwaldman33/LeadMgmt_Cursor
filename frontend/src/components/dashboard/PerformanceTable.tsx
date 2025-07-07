@@ -1,29 +1,30 @@
 import React from 'react';
 import { formatNumber, formatPercentage, getScoreColor } from '../../services/analyticsService';
 
+interface PerformanceMetric {
+  name: string;
+  value: number;
+  change: number;
+  trend: 'up' | 'down' | 'stable';
+  format?: 'number' | 'percentage' | 'currency';
+  industry?: string;
+  memberCount?: number;
+  [key: string]: unknown;
+}
+
 interface PerformanceTableProps {
-  title: string;
-  data: Array<{
-    id: string;
-    name: string;
-    totalLeads: number;
-    qualifiedLeads: number;
-    averageScore: number;
-    conversionRate: number;
-    [key: string]: any;
-  }>;
-  type: 'campaign' | 'team';
+  data: PerformanceMetric[];
+  title?: string;
   className?: string;
 }
 
 export const PerformanceTable: React.FC<PerformanceTableProps> = ({
   title,
   data,
-  type,
   className = ''
 }) => {
   const getAdditionalColumn = () => {
-    if (type === 'campaign') {
+    if (title === 'campaign') {
       return { key: 'industry', label: 'Industry' };
     } else {
       return { key: 'memberCount', label: 'Members' };
@@ -48,7 +49,7 @@ export const PerformanceTable: React.FC<PerformanceTableProps> = ({
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {type === 'campaign' ? 'Campaign' : 'Team'}
+                  {title === 'campaign' ? 'Campaign' : 'Team'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Leads
@@ -69,7 +70,7 @@ export const PerformanceTable: React.FC<PerformanceTableProps> = ({
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {data.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
+                <tr key={item.name} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {item.name}
@@ -77,27 +78,27 @@ export const PerformanceTable: React.FC<PerformanceTableProps> = ({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {formatNumber(item.totalLeads)}
+                      {formatNumber(item.value)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {formatNumber(item.qualifiedLeads)}
+                      {formatNumber(item.change)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm font-medium ${getScoreColor(item.averageScore)}`}>
-                      {formatPercentage(item.averageScore)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {formatPercentage(item.conversionRate)}
+                    <div className={`text-sm font-medium ${getScoreColor(item.value)}`}>
+                      {formatPercentage(item.value)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {item[additionalColumn.key]}
+                      {formatPercentage(item.change)}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {String(item[additionalColumn.key] || '')}
                     </div>
                   </td>
                 </tr>

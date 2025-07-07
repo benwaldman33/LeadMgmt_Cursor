@@ -155,6 +155,32 @@ export const validate = (schema: Joi.ObjectSchema) => {
   };
 };
 
+// validateRequest function for use with Joi schemas
+export const validateRequest = (schema: Joi.ObjectSchema) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const { error, value } = schema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true
+    });
+
+    if (error) {
+      const errorMessages = error.details.map(detail => ({
+        field: detail.path.join('.'),
+        message: detail.message
+      }));
+
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errorMessages
+      });
+    }
+
+    // Replace req.body with validated data
+    req.body = value;
+    next();
+  };
+};
+
 // Specific validation middlewares
 export const validateLead = validate(leadValidationSchema);
 export const validateBulkStatusUpdate = validate(bulkStatusUpdateSchema);

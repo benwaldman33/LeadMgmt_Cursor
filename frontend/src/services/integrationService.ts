@@ -5,7 +5,7 @@ export interface IntegrationConfig {
   name: string;
   type: 'crm' | 'marketing' | 'email' | 'analytics' | 'custom';
   provider: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   isActive: boolean;
   lastSync?: Date;
   syncStatus: 'idle' | 'syncing' | 'error' | 'success';
@@ -38,7 +38,7 @@ export interface WebhookPayload {
   event: string;
   entityType: string;
   entityId: string;
-  data: any;
+  data: Record<string, unknown>;
   timestamp: Date;
 }
 
@@ -164,12 +164,13 @@ class IntegrationService {
     return 'Just now';
   }
 
-  validateConfig(provider: string, config: Record<string, any>): { isValid: boolean; errors: string[] } {
+  validateConfig(provider: string, config: Record<string, unknown>): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
     const fields = this.getProviderConfigFields(provider);
 
     for (const field of fields) {
-      if (field.required && (!config[field.key] || config[field.key].trim() === '')) {
+      const value = config[field.key];
+      if (field.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
         errors.push(`${field.label} is required`);
       }
     }
@@ -177,18 +178,21 @@ class IntegrationService {
     // Provider-specific validation
     switch (provider) {
       case 'salesforce':
-        if (config.instanceUrl && !config.instanceUrl.startsWith('https://')) {
+        const instanceUrl = config.instanceUrl;
+        if (instanceUrl && typeof instanceUrl === 'string' && !instanceUrl.startsWith('https://')) {
           errors.push('Instance URL must start with https://');
         }
         break;
       case 'mailchimp':
-        if (config.serverPrefix && !/^[a-z0-9]+$/.test(config.serverPrefix)) {
+        const serverPrefix = config.serverPrefix;
+        if (serverPrefix && typeof serverPrefix === 'string' && !/^[a-z0-9]+$/.test(serverPrefix)) {
           errors.push('Server prefix must contain only lowercase letters and numbers');
         }
         break;
       case 'zapier':
       case 'custom':
-        if (config.webhookUrl && !config.webhookUrl.startsWith('https://')) {
+        const webhookUrl = config.webhookUrl;
+        if (webhookUrl && typeof webhookUrl === 'string' && !webhookUrl.startsWith('https://')) {
           errors.push('Webhook URL must start with https://');
         }
         break;

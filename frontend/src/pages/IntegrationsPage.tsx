@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { integrationService, IntegrationConfig, Provider, SyncResult, ConnectionTestResult } from '../services/integrationService';
-import { useNotification } from '../contexts/NotificationContext';
-import { PlusIcon, TrashIcon, CogIcon, ArrowPathIcon, PlayIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
+import { useNotifications } from '../contexts/NotificationContext';
+import { integrationService } from '../services/integrationService';
+import type { IntegrationConfig, Provider, SyncResult, ConnectionTestResult } from '../services/integrationService';
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  PlayIcon,
+  PauseIcon,
+  ArrowPathIcon,
+  WrenchScrewdriverIcon,
+  CheckIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import IntegrationTestPanel from '../components/IntegrationTestPanel';
 
 const IntegrationsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -11,7 +24,9 @@ const IntegrationsPage: React.FC = () => {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
-  const { showNotification } = useNotification();
+  const [showTestPanel, setShowTestPanel] = useState(false);
+  const [selectedIntegrationForTest, setSelectedIntegrationForTest] = useState<IntegrationConfig | null>(null);
+  const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
 
   // Queries
@@ -31,10 +46,18 @@ const IntegrationsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
       setShowCreateModal(false);
-      showNotification('Integration created successfully', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Integration created successfully'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.error || 'Failed to create integration', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.error || 'Failed to create integration'
+      });
     },
   });
 
@@ -43,10 +66,18 @@ const IntegrationsPage: React.FC = () => {
       integrationService.updateIntegration(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      showNotification('Integration updated successfully', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Integration updated successfully'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.error || 'Failed to update integration', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.error || 'Failed to update integration'
+      });
     },
   });
 
@@ -54,10 +85,18 @@ const IntegrationsPage: React.FC = () => {
     mutationFn: integrationService.deleteIntegration,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      showNotification('Integration deleted successfully', 'success');
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Integration deleted successfully'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.error || 'Failed to delete integration', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.error || 'Failed to delete integration'
+      });
     },
   });
 
@@ -65,10 +104,18 @@ const IntegrationsPage: React.FC = () => {
     mutationFn: integrationService.testConnection,
     onSuccess: (result) => {
       setTestResult(result);
-      showNotification(result.success ? 'Connection test successful' : 'Connection test failed', result.success ? 'success' : 'error');
+      addNotification({
+        type: result.success ? 'success' : 'error',
+        title: result.success ? 'Success' : 'Error',
+        message: result.success ? 'Connection test successful' : 'Connection test failed'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.error || 'Failed to test connection', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.error || 'Failed to test connection'
+      });
     },
   });
 
@@ -77,15 +124,20 @@ const IntegrationsPage: React.FC = () => {
     onSuccess: (result) => {
       setSyncResult(result);
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      showNotification(
-        result.success 
+      addNotification({
+        type: result.success ? 'success' : 'error',
+        title: result.success ? 'Success' : 'Error',
+        message: result.success 
           ? `Sync completed: ${result.recordsCreated} created, ${result.recordsUpdated} updated`
-          : 'Sync failed',
-        result.success ? 'success' : 'error'
-      );
+          : 'Sync failed'
+      });
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.error || 'Failed to sync leads', 'error');
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.error || 'Failed to sync leads'
+      });
     },
   });
 
@@ -100,6 +152,11 @@ const IntegrationsPage: React.FC = () => {
     setSelectedIntegration(integration);
     setShowTestModal(true);
     testConnectionMutation.mutate(integration.id);
+  };
+
+  const handleOpenTestPanel = (integration: IntegrationConfig) => {
+    setSelectedIntegrationForTest(integration);
+    setShowTestPanel(true);
   };
 
   const handleSyncLeads = (integration: IntegrationConfig) => {
@@ -222,7 +279,14 @@ const IntegrationsPage: React.FC = () => {
                   className="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
                 >
                   <PlayIcon className="h-3 w-3 mr-1" />
-                  Test
+                  Quick Test
+                </button>
+                <button
+                  onClick={() => handleOpenTestPanel(integration)}
+                  className="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <WrenchScrewdriverIcon className="h-3 w-3 mr-1" />
+                  Test Panel
                 </button>
                 <button
                   onClick={() => handleSyncLeads(integration)}
@@ -245,7 +309,7 @@ const IntegrationsPage: React.FC = () => {
 
       {integrations.length === 0 && (
         <div className="text-center py-12">
-          <CogIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <WrenchScrewdriverIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No integrations</h3>
           <p className="mt-1 text-sm text-gray-500">Get started by creating your first integration.</p>
           <div className="mt-6">
@@ -294,6 +358,17 @@ const IntegrationsPage: React.FC = () => {
             setShowSyncModal(false);
             setSelectedIntegration(null);
             setSyncResult(null);
+          }}
+        />
+      )}
+
+      {/* Integration Test Panel */}
+      {showTestPanel && selectedIntegrationForTest && (
+        <IntegrationTestPanel
+          integrationId={selectedIntegrationForTest?.id || ''}
+          onClose={() => {
+            setShowTestPanel(false);
+            setSelectedIntegrationForTest(null);
           }}
         />
       )}

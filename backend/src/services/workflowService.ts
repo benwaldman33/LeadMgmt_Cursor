@@ -191,12 +191,24 @@ export class WorkflowService {
       throw new Error('Workflow not found or inactive');
     }
 
-    // Create execution record
+    // Create execution record with enhanced context
     const execution = await prisma.workflowExecution.create({
       data: {
         workflowId,
         leadId: context.leadId,
-        status: 'running'
+        triggeredById: context.userId,
+        status: 'running',
+        triggerData: context.triggerData ? JSON.stringify(context.triggerData) : null,
+        executionContext: JSON.stringify({
+          workflowName: workflow.name,
+          trigger: workflow.trigger,
+          context: {
+            leadId: context.leadId,
+            userId: context.userId,
+            triggerData: context.triggerData
+          },
+          timestamp: new Date().toISOString()
+        })
       }
     });
 
@@ -405,23 +417,131 @@ export class WorkflowService {
     return { success: true, result: { integrationId, action, data } };
   }
 
-  // Get workflow executions
+  // Get workflow executions with enhanced filtering and pagination
   async getWorkflowExecutions(filters?: {
     workflowId?: string;
     leadId?: string;
     status?: string;
+    triggeredById?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
   }) {
-    return await prisma.workflowExecution.findMany({
-      where: filters,
+    const where: any = {};
+    
+    if (filters?.workflowId) {
+      where.workflowId = filters.workflowId;
+    }
+    
+    if (filters?.leadId) {
+      where.leadId = filters.leadId;
+    }
+    
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+    
+    if (filters?.triggeredById) {
+      where.triggeredById = filters.triggeredById;
+    }
+    
+    if (filters?.startDate || filters?.endDate) {
+      where.startedAt = {};
+      if (filters?.startDate) {
+        where.startedAt.gte = filters.startDate;
+      }
+      if (filters?.endDate) {
+        where.startedAt.lte = filters.endDate;
+      }
+    }
+    
+    const limit = filters?.limit || 50;
+    const offset = filters?.offset || 0;
+    
+    const [executions, totalCount] = await Promise.all([
+      prisma.workflowExecution.findMany({
+        where,
+        include: {
+          workflow: {
+            select: { id: true, name: true, description: true }
+          },
+          lead: {
+            select: { id: true, companyName: true, status: true }
+          },
+          triggeredBy: {
+            select: { id: true, email: true, fullName: true }
+          }
+        },
+        orderBy: { startedAt: 'desc' },
+        take: limit,
+        skip: offset
+      }),
+      prisma.workflowExecution.count({ where })
+    ]);
+    
+    return {
+      executions,
+      totalCount,
+      hasMore: totalCount > offset + limit
+    };
+  }
+
+  // Get workflow execution statistics
+  async getWorkflowExecutionStats(filters?: {
+    workflowId?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }) {
+    const where: any = {};
+    
+    if (filters?.workflowId) {
+      where.workflowId = filters.workflowId;
+    }
+    
+    if (filters?.startDate || filters?.endDate) {
+      where.startedAt = {};
+      if (filters?.startDate) {
+        where.startedAt.gte = filters.startDate;
+      }
+      if (filters?.endDate) {
+        where.startedAt.lte = filters.endDate;
+      }
+    }
+    
+    const [totalExecutions, completedExecutions, failedExecutions, runningExecutions] = await Promise.all([
+      prisma.workflowExecution.count({ where }),
+      prisma.workflowExecution.count({ where: { ...where, status: 'completed' } }),
+      prisma.workflowExecution.count({ where: { ...where, status: 'failed' } }),
+      prisma.workflowExecution.count({ where: { ...where, status: 'running' } })
+    ]);
+    
+    const successRate = totalExecutions > 0 ? (completedExecutions / totalExecutions) * 100 : 0;
+    
+    return {
+      totalExecutions,
+      completedExecutions,
+      failedExecutions,
+      runningExecutions,
+      successRate: Math.round(successRate * 100) / 100
+    };
+  }
+
+  // Get a single workflow execution by ID
+  async getWorkflowExecutionById(id: string) {
+    return await prisma.workflowExecution.findUnique({
+      where: { id },
       include: {
         workflow: {
-          select: { id: true, name: true }
+          select: { id: true, name: true, description: true }
         },
         lead: {
           select: { id: true, companyName: true, status: true }
+        },
+        triggeredBy: {
+          select: { id: true, email: true, fullName: true }
         }
-      },
-      orderBy: { startedAt: 'desc' }
+      }
     });
   }
 

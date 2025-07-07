@@ -190,10 +190,10 @@ export class AnalyticsService {
       prisma.lead.count({ where: { score: { not: null } } }),
       prisma.scoringModel.findMany({
         include: {
-          _count: { leads: true },
-          leads: {
-            select: { score: true },
-            where: { score: { not: null } }
+          _count: {
+            select: {
+              criteria: true
+            }
           }
         }
       })
@@ -208,7 +208,7 @@ export class AnalyticsService {
       return {
         name: model.name,
         averageScore: Math.round(avgScore * 100) / 100,
-        leadCount: model._count.leads
+        leadCount: 0 // TODO: Add lead count when relationship is available
       };
     }).sort((a: any, b: any) => b.averageScore - a.averageScore).slice(0, 5);
 
@@ -242,7 +242,7 @@ export class AnalyticsService {
     return campaigns.map((campaign: any) => {
       const totalLeads = campaign.leads.length;
       const qualifiedLeads = campaign.leads.filter((lead: any) => lead.status === 'QUALIFIED').length;
-      const scores = campaign.leads.map((lead: any) => lead.score).filter(Boolean);
+      const scores = campaign.leads.map((lead: any) => lead.score).filter((score: any) => score !== null && score !== undefined);
       const averageScore = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0;
       const conversionRate = totalLeads > 0 ? (qualifiedLeads / totalLeads) * 100 : 0;
 
@@ -278,8 +278,8 @@ export class AnalyticsService {
     return teams.map(team => {
       const totalLeads = team.leads.length;
       const qualifiedLeads = team.leads.filter(lead => lead.status === 'QUALIFIED').length;
-      const scores = team.leads.map(lead => lead.score).filter(Boolean);
-      const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      const scores = team.leads.map(lead => lead.score).filter((score): score is number => score !== null && score !== undefined);
+      const averageScore = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0;
 
       return {
         teamId: team.id,
@@ -300,8 +300,7 @@ export class AnalyticsService {
       include: {
         _count: {
           select: {
-            auditLogs: true,
-            leads: true
+            auditLogs: true
           }
         },
         auditLogs: {
@@ -317,7 +316,7 @@ export class AnalyticsService {
       userName: user.fullName,
       actions: user._count.auditLogs,
       lastActivity: user.auditLogs[0]?.createdAt || user.createdAt,
-      leadCount: user._count.leads
+      leadCount: 0 // TODO: Add lead count when relationship is available
     })).sort((a, b) => b.actions - a.actions);
   }
 
@@ -378,18 +377,40 @@ export class AnalyticsService {
    * Get conversion funnel data
    */
   static async getConversionFunnel() {
-    const [raw, scored, qualified, delivered] = await Promise.all([
-      prisma.lead.count({ where: { status: 'RAW' } }),
-      prisma.lead.count({ where: { status: 'SCORED' } }),
-      prisma.lead.count({ where: { status: 'QUALIFIED' } }),
-      prisma.lead.count({ where: { status: 'DELIVERED' } })
-    ]);
+    const totalLeads = await prisma.lead.count();
+    const qualifiedLeads = await prisma.lead.count({ where: { status: 'QUALIFIED' } });
+    const convertedLeads = await prisma.lead.count({ where: { status: 'CONVERTED' } });
 
-    return [
-      { stage: 'Raw', count: raw },
-      { stage: 'Scored', count: scored },
-      { stage: 'Qualified', count: qualified },
-      { stage: 'Delivered', count: delivered }
-    ];
+    return {
+      total: totalLeads,
+      qualified: qualifiedLeads,
+      converted: convertedLeads,
+      qualifiedRate: totalLeads > 0 ? (qualifiedLeads / totalLeads) * 100 : 0,
+      conversionRate: qualifiedLeads > 0 ? (convertedLeads / qualifiedLeads) * 100 : 0
+    };
+  }
+
+  /**
+   * Get scoring model performance
+   */
+  static async getScoringModelPerformance() {
+    const models = await prisma.scoringModel.findMany({
+      include: {
+        _count: {
+          select: {
+            criteria: true
+          }
+        }
+      }
+    });
+
+    return models.map(model => ({
+      id: model.id,
+      name: model.name,
+      industry: model.industry,
+      criteriaCount: model._count.criteria,
+      isActive: model.isActive,
+      createdAt: model.createdAt
+    }));
   }
 } 

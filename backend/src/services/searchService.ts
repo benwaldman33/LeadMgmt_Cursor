@@ -75,16 +75,16 @@ export class SearchService {
       const leads = await prisma.lead.findMany({
         where: {
           OR: [
-            { companyName: { contains: query, mode: 'insensitive' } },
-            { domain: { contains: query, mode: 'insensitive' } },
-            { industry: { contains: query, mode: 'insensitive' } },
-            { url: { contains: query, mode: 'insensitive' } },
+            { companyName: { contains: query } },
+            { domain: { contains: query } },
+            { industry: { contains: query } },
+            { url: { contains: query } },
           ],
           ...(filters.status && { status: { in: [filters.status] } }),
           ...(filters.campaignId && { campaignId: filters.campaignId }),
           ...(filters.assignedToId && { assignedToId: filters.assignedToId }),
           ...(filters.assignedTeamId && { assignedTeamId: filters.assignedTeamId }),
-          ...(filters.industry && { industry: { contains: filters.industry, mode: 'insensitive' } }),
+          ...(filters.industry && { industry: { contains: filters.industry } }),
           ...(filters.dateFrom && { createdAt: { gte: filters.dateFrom } }),
           ...(filters.dateTo && { createdAt: { lte: filters.dateTo } }),
           ...(filters.scoreMin && { score: { gte: filters.scoreMin } }),
@@ -103,16 +103,16 @@ export class SearchService {
       results.push(...leads.map(lead => ({
         type: 'LEAD' as const,
         id: lead.id,
-        title: lead.companyName,
-        description: `${lead.domain} - ${lead.industry}`,
+        title: `${lead.companyName} - ${lead.domain}`,
+        description: `${lead.industry} - ${lead.status}`,
         metadata: {
           status: lead.status,
-          score: lead.score,
-          campaign: lead.campaign.name,
-          assignedTo: lead.assignedTo?.fullName,
-          assignedTeam: lead.assignedTeam?.name,
+          score: lead.score || undefined,
+          campaign: lead.campaignId,
+          assignedTo: lead.assignedToId,
+          assignedTeam: lead.assignedTeamId,
         },
-        score: lead.score,
+        score: lead.score || undefined,
         createdAt: lead.createdAt,
         updatedAt: lead.updatedAt,
       })));
@@ -123,12 +123,12 @@ export class SearchService {
       const campaigns = await prisma.campaign.findMany({
         where: {
           OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { industry: { contains: query, mode: 'insensitive' } },
+            { name: { contains: query } },
+            { industry: { contains: query } },
           ],
           ...(filters.status && { status: { in: [filters.status] } }),
           ...(filters.assignedTeamId && { assignedTeamId: filters.assignedTeamId }),
-          ...(filters.industry && { industry: { contains: filters.industry, mode: 'insensitive' } }),
+          ...(filters.industry && { industry: { contains: filters.industry } }),
           ...(filters.dateFrom && { createdAt: { gte: filters.dateFrom } }),
           ...(filters.dateTo && { createdAt: { lte: filters.dateTo } }),
         },
@@ -149,9 +149,9 @@ export class SearchService {
         metadata: {
           status: campaign.status,
           industry: campaign.industry,
-          createdBy: campaign.createdBy.fullName,
-          assignedTeam: campaign.assignedTeam?.name,
-          leadCount: campaign.currentLeadCount,
+          createdBy: campaign.createdById,
+          assignedTeam: campaign.assignedTeamId,
+          startDate: campaign.startDate,
         },
         createdAt: campaign.createdAt,
         updatedAt: campaign.updatedAt,
@@ -163,8 +163,8 @@ export class SearchService {
       const users = await prisma.user.findMany({
         where: {
           OR: [
-            { fullName: { contains: query, mode: 'insensitive' } },
-            { email: { contains: query, mode: 'insensitive' } },
+            { fullName: { contains: query } },
+            { email: { contains: query } },
           ],
           ...(filters.status && { status: { in: [filters.status] } }),
           ...(filters.dateFrom && { createdAt: { gte: filters.dateFrom } }),
@@ -186,8 +186,8 @@ export class SearchService {
         metadata: {
           email: user.email,
           role: user.role,
+          team: user.teamId,
           status: user.status,
-          team: user.team?.name,
         },
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -199,10 +199,10 @@ export class SearchService {
       const teams = await prisma.team.findMany({
         where: {
           OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { industry: { contains: query, mode: 'insensitive' } },
+            { name: { contains: query } },
+            { industry: { contains: query } },
           ],
-          ...(filters.industry && { industry: { contains: filters.industry, mode: 'insensitive' } }),
+          ...(filters.industry && { industry: { contains: filters.industry } }),
           ...(filters.dateFrom && { createdAt: { gte: filters.dateFrom } }),
           ...(filters.dateTo && { createdAt: { lte: filters.dateTo } }),
         },
@@ -218,10 +218,10 @@ export class SearchService {
         type: 'TEAM' as const,
         id: team.id,
         title: team.name,
-        description: `${team.industry} - ${team.members.length} members`,
+        description: `${team.industry} - Team`,
         metadata: {
           industry: team.industry,
-          memberCount: team.members.length,
+          memberCount: 0, // Will be calculated separately if needed
         },
         createdAt: team.createdAt,
         updatedAt: team.updatedAt,
@@ -233,10 +233,10 @@ export class SearchService {
       const scoringModels = await prisma.scoringModel.findMany({
         where: {
           OR: [
-            { name: { contains: query, mode: 'insensitive' } },
-            { industry: { contains: query, mode: 'insensitive' } },
+            { name: { contains: query } },
+            { industry: { contains: query } },
           ],
-          ...(filters.industry && { industry: { contains: filters.industry, mode: 'insensitive' } }),
+          ...(filters.industry && { industry: { contains: filters.industry } }),
           ...(filters.dateFrom && { createdAt: { gte: filters.dateFrom } }),
           ...(filters.dateTo && { createdAt: { lte: filters.dateTo } }),
         },
@@ -253,12 +253,12 @@ export class SearchService {
         type: 'SCORING_MODEL' as const,
         id: model.id,
         title: model.name,
-        description: `${model.industry} - ${model.criteria.length} criteria`,
+        description: `${model.industry} - Scoring Model`,
         metadata: {
           industry: model.industry,
+          createdBy: model.createdById,
+          criteriaCount: 0, // Will be calculated separately if needed
           isActive: model.isActive,
-          createdBy: model.createdBy.fullName,
-          criteriaCount: model.criteria.length,
         },
         createdAt: model.createdAt,
         updatedAt: model.updatedAt,
@@ -278,10 +278,10 @@ export class SearchService {
     if (filters.query) {
       const query = filters.query.toLowerCase();
       where.OR = [
-        { companyName: { contains: query, mode: 'insensitive' } },
-        { domain: { contains: query, mode: 'insensitive' } },
-        { industry: { contains: query, mode: 'insensitive' } },
-        { url: { contains: query, mode: 'insensitive' } },
+        { companyName: { contains: query } },
+        { domain: { contains: query } },
+        { industry: { contains: query } },
+        { url: { contains: query } },
       ];
     }
 
@@ -306,7 +306,7 @@ export class SearchService {
 
     // Industry filter
     if (filters.industry) {
-      where.industry = { contains: filters.industry, mode: 'insensitive' };
+      where.industry = { contains: filters.industry };
     }
 
     // Score range
@@ -374,8 +374,8 @@ export class SearchService {
     if (filters.query) {
       const query = filters.query.toLowerCase();
       where.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { industry: { contains: query, mode: 'insensitive' } },
+        { name: { contains: query } },
+        { industry: { contains: query } },
       ];
     }
 
@@ -396,7 +396,7 @@ export class SearchService {
 
     // Industry filter
     if (filters.industry) {
-      where.industry = { contains: filters.industry, mode: 'insensitive' };
+      where.industry = { contains: filters.industry };
     }
 
     // Date range
@@ -441,7 +441,7 @@ export class SearchService {
       // Company name suggestions
       const companies = await prisma.lead.findMany({
         where: {
-          companyName: { contains: searchQuery, mode: 'insensitive' },
+          companyName: { contains: searchQuery },
         },
         select: { companyName: true },
         take: 5,
@@ -451,7 +451,7 @@ export class SearchService {
       // Industry suggestions
       const industries = await prisma.lead.findMany({
         where: {
-          industry: { contains: searchQuery, mode: 'insensitive' },
+          industry: { contains: searchQuery },
         },
         select: { industry: true },
         take: 5,
@@ -463,7 +463,7 @@ export class SearchService {
       // Campaign name suggestions
       const campaigns = await prisma.campaign.findMany({
         where: {
-          name: { contains: searchQuery, mode: 'insensitive' },
+          name: { contains: searchQuery },
         },
         select: { name: true },
         take: 5,
@@ -475,7 +475,7 @@ export class SearchService {
       // User name suggestions
       const users = await prisma.user.findMany({
         where: {
-          fullName: { contains: searchQuery, mode: 'insensitive' },
+          fullName: { contains: searchQuery },
         },
         select: { fullName: true },
         take: 5,

@@ -30,7 +30,7 @@ export interface ReportConfig {
 }
 
 export interface ReportResult {
-  data: any[];
+  data: Record<string, unknown>[];
   summary: {
     totalRecords: number;
     totalValue?: number;
@@ -39,8 +39,8 @@ export interface ReportResult {
   };
   charts: {
     type: string;
-    data: any;
-    config: any;
+      data: Record<string, unknown>;
+  config: Record<string, unknown>;
   }[];
   metadata: {
     generatedAt: Date;
@@ -127,13 +127,13 @@ class ReportingService {
   }
 
   // Get saved reports
-  async getSavedReports(): Promise<any[]> {
+  async getSavedReports(): Promise<ReportConfig[]> {
     const response = await api.get('/reports/saved');
     return response.data;
   }
 
   // Save report configuration
-  async saveReport(config: ReportConfig): Promise<any> {
+  async saveReport(config: ReportConfig): Promise<ReportConfig> {
     const response = await api.post('/reports/save', config);
     return response.data;
   }
@@ -167,7 +167,7 @@ class ReportingService {
   }
 
   // Helper function to format report data for charts
-  formatChartData(data: any[], chartType: string, config: any) {
+  formatChartData(data: Record<string, unknown>[], chartType: string, config: Record<string, unknown>) {
     switch (chartType) {
       case 'bar':
         return data.map(item => ({
@@ -199,7 +199,7 @@ class ReportingService {
   }
 
   // Helper function to get chart configuration
-  getChartConfig(chartType: string, data: any[]) {
+  getChartConfig(chartType: string, data: Record<string, unknown>[]) {
     switch (chartType) {
       case 'bar':
         return {

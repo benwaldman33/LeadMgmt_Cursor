@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
 import crypto from 'crypto';
+import { AuditLogService } from '../services/auditLogService';
 
 const prisma = new PrismaClient();
 
@@ -62,30 +63,41 @@ class IntegrationService {
     }
   }
 
-  async createIntegration(config: Omit<IntegrationConfig, 'id' | 'lastSync' | 'syncStatus'>): Promise<IntegrationConfig> {
+  async createIntegration(data: {
+    name: string;
+    type: string;
+    provider: string;
+    config: IntegrationConfig;
+  }): Promise<IntegrationConfig> {
     const integration = await prisma.integration.create({
       data: {
-        name: config.name,
-        type: config.type,
-        provider: config.provider,
-        config: config.config,
-        isActive: config.isActive,
-        syncStatus: 'idle',
-      },
+        name: data.name,
+        type: data.type,
+        provider: data.provider,
+        config: JSON.stringify(data.config),
+        isActive: true,
+        syncStatus: 'idle'
+      }
     });
 
-    const newIntegration: IntegrationConfig = {
+    await AuditLogService.logActivity({
+      action: 'CREATE',
+      entityType: 'INTEGRATION',
+      entityId: integration.id,
+      description: `Created integration: ${integration.name}`
+    });
+
+    return {
       id: integration.id,
       name: integration.name,
       type: integration.type as any,
       provider: integration.provider,
-      config: integration.config as Record<string, any>,
+      config: typeof integration.config === 'string' ? (() => { try { return JSON.parse(integration.config); } catch { return {}; } })() : integration.config,
       isActive: integration.isActive,
-      syncStatus: 'idle',
+      lastSync: integration.lastSync === null ? undefined : integration.lastSync,
+      syncStatus: integration.syncStatus as any,
+      errorMessage: integration.errorMessage === null ? undefined : integration.errorMessage
     };
-
-    this.integrations.set(integration.id, newIntegration);
-    return newIntegration;
   }
 
   async updateIntegration(id: string, updates: Partial<IntegrationConfig>): Promise<IntegrationConfig> {
@@ -107,11 +119,11 @@ class IntegrationService {
       name: integration.name,
       type: integration.type as any,
       provider: integration.provider,
-      config: integration.config as Record<string, any>,
+      config: typeof integration.config === 'string' ? (() => { try { return JSON.parse(integration.config); } catch { return {}; } })() : integration.config,
       isActive: integration.isActive,
-      lastSync: integration.lastSync,
+      lastSync: integration.lastSync === null ? undefined : integration.lastSync,
       syncStatus: integration.syncStatus as any,
-      errorMessage: integration.errorMessage,
+      errorMessage: integration.errorMessage === null ? undefined : integration.errorMessage
     };
 
     this.integrations.set(id, updatedIntegration);
@@ -278,16 +290,21 @@ class IntegrationService {
           where: { externalId: sfLead.Id, externalSource: 'salesforce' }
         });
 
-        const leadData = {
-          firstName: sfLead.FirstName || '',
-          lastName: sfLead.LastName || '',
-          email: sfLead.Email || '',
-          company: sfLead.Company || '',
+        const leadData: any = {
+          firstName: sfLead.FirstName || 'Unknown',
+          lastName: sfLead.LastName || 'Unknown',
+          email: sfLead.Email || 'unknown@example.com',
+          company: sfLead.Company || 'Unknown',
           source: sfLead.LeadSource || 'salesforce',
           status: this.mapSalesforceStatus(sfLead.Status),
           externalId: sfLead.Id,
           externalSource: 'salesforce',
+          url: sfLead.Website || '',
+          companyName: sfLead.Company || '',
+          domain: sfLead.Domain || '',
+          industry: sfLead.Industry || '',
         };
+        Object.keys(leadData).forEach(key => leadData[key] === undefined && delete leadData[key]);
 
         if (existingLead) {
           await prisma.lead.update({
@@ -324,7 +341,7 @@ class IntegrationService {
           where: { externalId: contact.id, externalSource: 'hubspot' }
         });
 
-        const leadData = {
+        const leadData: any = {
           firstName: contact.properties.firstname || '',
           lastName: contact.properties.lastname || '',
           email: contact.properties.email || '',
@@ -333,7 +350,12 @@ class IntegrationService {
           status: this.mapHubspotStatus(contact.properties.hs_lead_status),
           externalId: contact.id,
           externalSource: 'hubspot',
+          url: '',
+          companyName: '',
+          domain: '',
+          industry: '',
         };
+        Object.keys(leadData).forEach(key => leadData[key] === undefined && delete leadData[key]);
 
         if (existingLead) {
           await prisma.lead.update({
@@ -370,7 +392,7 @@ class IntegrationService {
           where: { externalId: subscriber.id, externalSource: 'mailchimp' }
         });
 
-        const leadData = {
+        const leadData: any = {
           firstName: subscriber.merge_fields.FNAME || '',
           lastName: subscriber.merge_fields.LNAME || '',
           email: subscriber.email_address,
@@ -379,7 +401,12 @@ class IntegrationService {
           status: this.mapMailchimpStatus(subscriber.status),
           externalId: subscriber.id,
           externalSource: 'mailchimp',
+          url: '',
+          companyName: '',
+          domain: '',
+          industry: '',
         };
+        Object.keys(leadData).forEach(key => leadData[key] === undefined && delete leadData[key]);
 
         if (existingLead) {
           await prisma.lead.update({
@@ -498,6 +525,26 @@ class IntegrationService {
         description: 'Send data to custom webhook endpoints',
       },
     ];
+  }
+
+  async getIntegrationById(id: string): Promise<IntegrationConfig | null> {
+    const integration = await prisma.integration.findUnique({
+      where: { id }
+    });
+
+    if (!integration) return null;
+
+    return {
+      id: integration.id,
+      name: integration.name,
+      type: integration.type as any,
+      provider: integration.provider,
+      config: typeof integration.config === 'string' ? (() => { try { return JSON.parse(integration.config); } catch { return {}; } })() : integration.config,
+      isActive: integration.isActive,
+      lastSync: integration.lastSync === null ? undefined : integration.lastSync,
+      syncStatus: integration.syncStatus as any,
+      errorMessage: integration.errorMessage === null ? undefined : integration.errorMessage
+    };
   }
 }
 

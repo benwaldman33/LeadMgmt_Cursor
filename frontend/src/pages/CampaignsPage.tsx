@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { campaignsAPI } from '../services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { campaignsAPI } from '../services/api';
+import { Link } from 'react-router-dom';
+import {
+  PlusIcon,
+  PencilIcon,
+  EyeIcon,
+  CheckIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 
 interface Campaign {
   id: string;
@@ -28,6 +36,7 @@ const CampaignsPage: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
   const { user } = useAuth();
 
   useEffect(() => {
@@ -39,8 +48,9 @@ const CampaignsPage: React.FC = () => {
       setLoading(true);
       const response = await campaignsAPI.getAll();
       setCampaigns(response.campaigns || []);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to fetch campaigns');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch campaigns';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

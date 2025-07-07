@@ -19,6 +19,7 @@ import {
   PuzzlePieceIcon,
   Cog6ToothIcon,
   ShieldCheckIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 
 interface DashboardLayoutProps {
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Leads', href: '/leads', icon: DocumentTextIcon },
   { name: 'Scoring Models', href: '/scoring', icon: CogIcon },
   { name: 'AI/ML Scoring', href: '/ai-scoring', icon: CpuChipIcon },
+  { name: 'Web Scraping', href: '/web-scraping', icon: GlobeAltIcon },
   { name: 'Workflows', href: '/workflows', icon: Cog6ToothIcon },
   { name: 'Business Rules', href: '/business-rules', icon: ShieldCheckIcon },
   { name: 'Integrations', href: '/integrations', icon: PuzzlePieceIcon },

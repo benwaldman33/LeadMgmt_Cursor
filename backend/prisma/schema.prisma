@@ -38,6 +38,7 @@ model User {
   auditLogs         AuditLog[] @relation("UserAuditLogs")
   createdWorkflows  Workflow[] @relation("WorkflowCreator")
   createdBusinessRules BusinessRule[] @relation("BusinessRuleCreator")
+  workflowExecutions WorkflowExecution[] @relation("UserWorkflowExecutions")
   
   @@map("users")
 }
@@ -353,9 +354,13 @@ model WorkflowExecution {
   workflow    Workflow @relation(fields: [workflowId], references: [id])
   leadId      String?
   lead        Lead?    @relation("LeadWorkflowExecutions", fields: [leadId], references: [id])
+  triggeredById String?
+  triggeredBy User?    @relation("UserWorkflowExecutions", fields: [triggeredById], references: [id])
   
-  // Execution details
+  // Execution context and details
+  triggerData String?  // JSON string for trigger context data
   stepResults String?  // JSON string for step execution results
+  executionContext String? // JSON string for full execution context
   
   @@map("workflow_executions")
 }

@@ -28,8 +28,8 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
   };
 
   const chartData = getChartData();
-  const maxValue = Math.max(...chartData.map(item => item.count));
-  const minValue = Math.min(...chartData.map(item => item.count));
+  const maxValue = Math.max(...chartData.map(item => item.leads));
+  const minValue = Math.min(...chartData.map(item => item.leads));
 
   const getBarHeight = (value: number) => {
     if (maxValue === minValue) return 50; // Default height if all values are the same
@@ -67,7 +67,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                   <div
                     className="bg-blue-500 rounded-t-sm transition-all duration-300 hover:bg-blue-600"
                     style={{
-                      height: `${getBarHeight(item.count)}%`,
+                      height: `${getBarHeight(item.leads)}%`,
                       minHeight: '4px'
                     }}
                   />

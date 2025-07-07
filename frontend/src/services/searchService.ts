@@ -2,29 +2,39 @@ import api from './api';
 
 export interface SearchFilters {
   query?: string;
-  entityType?: 'LEAD' | 'CAMPAIGN' | 'USER' | 'TEAM' | 'SCORING_MODEL';
+  type?: string;
   status?: string;
   campaignId?: string;
   assignedToId?: string;
   assignedTeamId?: string;
   industry?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  scoreMin?: number;
-  scoreMax?: number;
+  scoreRange?: {
+    min: number;
+    max: number;
+  };
+  dateRange?: {
+    start: Date;
+    end: Date;
+  };
   limit?: number;
   offset?: number;
 }
 
 export interface SearchResult {
-  type: 'LEAD' | 'CAMPAIGN' | 'USER' | 'TEAM' | 'SCORING_MODEL';
   id: string;
+  type: string;
   title: string;
   description: string;
-  metadata: Record<string, any>;
-  score?: number;
-  createdAt: string;
-  updatedAt: string;
+  url: string;
+  score: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  total: number;
+  hasMore: boolean;
+  facets?: Record<string, Array<{ value: string; count: number }>>;
 }
 
 export interface LeadFilters {
@@ -82,7 +92,7 @@ export class SearchService {
    * Advanced lead search and filtering
    */
   static async searchLeads(filters: LeadFilters): Promise<{
-    leads: any[];
+            leads: Array<Record<string, unknown>>;
     total: number;
     hasMore: boolean;
   }> {
@@ -94,7 +104,7 @@ export class SearchService {
    * Advanced campaign search and filtering
    */
   static async searchCampaigns(filters: CampaignFilters): Promise<{
-    campaigns: any[];
+            campaigns: Array<Record<string, unknown>>;
     total: number;
     hasMore: boolean;
   }> {
@@ -153,6 +163,6 @@ export const formatSearchResult = (result: SearchResult) => {
     ...result,
     icon: getEntityIcon(result.type),
     color: getEntityColor(result.type),
-    formattedDate: new Date(result.createdAt).toLocaleDateString(),
+    formattedDate: result.metadata?.createdAt ? new Date(result.metadata.createdAt as string).toLocaleDateString() : 'Unknown',
   };
 }; 
