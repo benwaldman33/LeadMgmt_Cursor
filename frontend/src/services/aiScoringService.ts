@@ -8,6 +8,44 @@ export interface MLPrediction {
   riskLevel: 'low' | 'medium' | 'high';
 }
 
+export interface CriteriaSuggestion {
+  name: string;
+  weight: number;
+  description: string;
+}
+
+export interface WeightOptimization {
+  recommendations: string[];
+  suggestedWeights: Record<string, number>;
+  reasoning: string;
+}
+
+export interface ContentAnalysis {
+  sentiment: 'positive' | 'negative' | 'neutral';
+  keywords: string[];
+  topics: string[];
+  industryRelevance: number;
+  insights: string[];
+}
+
+export interface AIModel {
+  id: string;
+  name: string;
+  type: 'regression' | 'classification' | 'ensemble';
+  features: string[];
+  performance: {
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1Score: number;
+    trainingDate: Date;
+    sampleSize: number;
+  };
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ModelPerformance {
   accuracy: number;
   precision: number;
@@ -17,15 +55,12 @@ export interface ModelPerformance {
   sampleSize: number;
 }
 
-export interface AIModel {
-  id: string;
-  name: string;
-  type: 'regression' | 'classification' | 'ensemble';
+export interface ScoringPrediction {
+  score: number;
+  confidence: number;
+  modelId: string;
   features: string[];
-  performance: ModelPerformance;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  predictionTime: Date;
 }
 
 export interface TextAnalysis {
@@ -58,109 +93,258 @@ export interface BulkPredictionResult {
   };
 }
 
-class AIScoringService {
-  // Get AI prediction for a lead
+export class AIScoringService {
+  // Claude AI Integration Methods
+
+  /**
+   * Score a lead using Claude AI
+   */
+  async scoreLeadWithClaude(leadData: any, industry: string = 'dental'): Promise<MLPrediction> {
+    const response = await api.post('/ai-scoring/claude/score-lead', {
+      leadData,
+      industry
+    });
+    return response.data.data;
+  }
+
+  /**
+   * Get criteria suggestions from Claude for a specific industry
+   */
+  async getCriteriaSuggestions(industry: string): Promise<{
+    criteria: CriteriaSuggestion[];
+    reasoning: string;
+  }> {
+    const response = await api.get(`/ai-scoring/claude/criteria-suggestions/${industry}`);
+    return response.data.data;
+  }
+
+  /**
+   * Get weight optimization recommendations from Claude
+   */
+  async getWeightOptimizationRecommendations(
+    currentWeights: Record<string, number>,
+    performanceData: any
+  ): Promise<WeightOptimization> {
+    const response = await api.post('/ai-scoring/claude/weight-optimization', {
+      currentWeights,
+      performanceData
+    });
+    return response.data.data;
+  }
+
+  /**
+   * Analyze lead content with Claude
+   */
+  async analyzeLeadContent(content: string, industry: string = 'dental'): Promise<ContentAnalysis> {
+    const response = await api.post('/ai-scoring/claude/analyze-content', {
+      content,
+      industry
+    });
+    return response.data.data;
+  }
+
+  // Existing ML Model Methods
+
+  /**
+   * Get AI prediction for a lead
+   */
   async predictScore(leadId: string): Promise<MLPrediction> {
-    try {
-      const response = await api.post('/ai-scoring/predict', { leadId });
-      return response.data.data;
-    } catch (error) {
-      console.error('Error predicting score:', error);
-      throw error;
-    }
+    const response = await api.post('/ai-scoring/predict', { leadId });
+    return response.data.data;
   }
 
-  // Get all active AI models
-  async getModels(): Promise<AIModel[]> {
-    try {
-      const response = await api.get('/ai-scoring/models');
-      return response.data.data;
-    } catch (error) {
-      console.error('Error getting models:', error);
-      throw error;
-    }
+  /**
+   * Get all active AI models
+   */
+  async getActiveModels(): Promise<AIModel[]> {
+    const response = await api.get('/ai-scoring/models');
+    return response.data.data;
   }
 
-  // Create a new AI model
+  /**
+   * Get all AI models
+   */
+  async getAllModels(): Promise<AIModel[]> {
+    const response = await api.get('/ai-scoring/models');
+    return response.data.data;
+  }
+
+  /**
+   * Get model by ID
+   */
+  async getModelById(id: string): Promise<AIModel | null> {
+    const response = await api.get(`/ai-scoring/models/${id}`);
+    return response.data.data;
+  }
+
+  /**
+   * Create a new AI model
+   */
   async createModel(modelData: {
     name: string;
     type: 'regression' | 'classification' | 'ensemble';
     features: string[];
   }): Promise<AIModel> {
-    try {
-      const response = await api.post('/ai-scoring/models', modelData);
-      return response.data.data;
-    } catch (error) {
-      console.error('Error creating model:', error);
-      throw error;
-    }
+    const response = await api.post('/ai-scoring/models', modelData);
+    return response.data.data;
   }
 
-  // Update model status
+  /**
+   * Update model status
+   */
   async updateModelStatus(modelId: string, isActive: boolean): Promise<void> {
-    try {
-      await api.patch(`/ai-scoring/models/${modelId}`, { isActive });
-    } catch (error) {
-      console.error('Error updating model status:', error);
-      throw error;
-    }
+    await api.patch(`/ai-scoring/models/${modelId}`, { isActive });
   }
 
-  // Get model performance
+  /**
+   * Get model performance
+   */
   async getModelPerformance(modelId: string): Promise<ModelPerformance | null> {
-    try {
-      const response = await api.get(`/ai-scoring/models/${modelId}/performance`);
-      return response.data.data;
-    } catch (error) {
-      console.error('Error getting model performance:', error);
-      throw error;
-    }
+    const response = await api.get(`/ai-scoring/models/${modelId}/performance`);
+    return response.data.data;
   }
 
-  // Train a model
+  /**
+   * Train a model
+   */
   async trainModel(modelId: string, trainingData: any[]): Promise<ModelPerformance> {
-    try {
-      const response = await api.post(`/ai-scoring/models/${modelId}/train`, {
-        trainingData
-      });
-      return response.data.data;
-    } catch (error) {
-      console.error('Error training model:', error);
-      throw error;
-    }
+    const response = await api.post(`/ai-scoring/models/${modelId}/train`, {
+      trainingData
+    });
+    return response.data.data;
   }
 
-  // Analyze text content
+  /**
+   * Analyze text content
+   */
   async analyzeText(text: string): Promise<TextAnalysis> {
-    try {
-      const response = await api.post('/ai-scoring/analyze-text', { text });
-      return response.data.data;
-    } catch (error) {
-      console.error('Error analyzing text:', error);
-      throw error;
-    }
+    const response = await api.post('/ai-scoring/analyze-text', { text });
+    return response.data.data;
   }
 
-  // Get AI insights for dashboard
+  /**
+   * Get AI insights for dashboard
+   */
   async getInsights(): Promise<AIInsights> {
-    try {
-      const response = await api.get('/ai-scoring/insights');
-      return response.data.data;
-    } catch (error) {
-      console.error('Error getting AI insights:', error);
-      throw error;
+    const response = await api.get('/ai-scoring/insights');
+    return response.data.data;
+  }
+
+  /**
+   * Bulk predict scores for multiple leads
+   */
+  async bulkPredict(leadIds: string[]): Promise<BulkPredictionResult> {
+    const response = await api.post('/ai-scoring/bulk-predict', { leadIds });
+    return response.data.data;
+  }
+
+  /**
+   * Score lead with multiple models
+   */
+  async scoreLeadWithModels(leadId: string, modelIds?: string[]): Promise<ScoringPrediction[]> {
+    const response = await api.post('/ai-scoring/score-lead-models', {
+      leadId,
+      modelIds
+    });
+    return response.data.data;
+  }
+
+  /**
+   * Compare models
+   */
+  async compareModels(modelIds: string[]): Promise<any[]> {
+    const response = await api.post('/ai-scoring/compare-models', { modelIds });
+    return response.data.data;
+  }
+
+  /**
+   * Get model recommendations for lead
+   */
+  async getModelRecommendations(leadId: string): Promise<AIModel[]> {
+    const response = await api.get(`/ai-scoring/model-recommendations/${leadId}`);
+    return response.data.data;
+  }
+
+  // Static helper methods
+
+  /**
+   * Get available model types
+   */
+  static getModelTypes(): Array<{ value: string; label: string }> {
+    return [
+      { value: 'regression', label: 'Regression' },
+      { value: 'classification', label: 'Classification' },
+      { value: 'ensemble', label: 'Ensemble' }
+    ];
+  }
+
+  /**
+   * Get available features
+   */
+  static getAvailableFeatures(): Array<{ value: string; label: string }> {
+    return [
+      { value: 'companySize', label: 'Company Size' },
+      { value: 'industryScore', label: 'Industry Score' },
+      { value: 'technologyCount', label: 'Technology Count' },
+      { value: 'domainAge', label: 'Domain Age' },
+      { value: 'socialPresence', label: 'Social Presence' },
+      { value: 'fundingStage', label: 'Funding Stage' },
+      { value: 'growthRate', label: 'Growth Rate' },
+      { value: 'marketCap', label: 'Market Cap' },
+      { value: 'employeeCount', label: 'Employee Count' },
+      { value: 'revenue', label: 'Revenue' }
+    ];
+  }
+
+  /**
+   * Get available industries
+   */
+  static getAvailableIndustries(): Array<{ value: string; label: string }> {
+    return [
+      { value: 'dental', label: 'Dental' },
+      { value: 'healthcare', label: 'Healthcare' },
+      { value: 'technology', label: 'Technology' },
+      { value: 'finance', label: 'Finance' },
+      { value: 'retail', label: 'Retail' },
+      { value: 'manufacturing', label: 'Manufacturing' },
+      { value: 'education', label: 'Education' },
+      { value: 'real_estate', label: 'Real Estate' },
+      { value: 'legal', label: 'Legal' },
+      { value: 'consulting', label: 'Consulting' }
+    ];
+  }
+
+  /**
+   * Format confidence as percentage
+   */
+  static formatConfidence(confidence: number): string {
+    return `${Math.round(confidence * 100)}%`;
+  }
+
+  /**
+   * Get risk level color
+   */
+  static getRiskLevelColor(riskLevel: 'low' | 'medium' | 'high'): string {
+    switch (riskLevel) {
+      case 'low':
+        return 'text-green-600 bg-green-100';
+      case 'medium':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'high':
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   }
 
-  // Bulk predict scores for multiple leads
-  async bulkPredict(leadIds: string[]): Promise<BulkPredictionResult> {
-    try {
-      const response = await api.post('/ai-scoring/bulk-predict', { leadIds });
-      return response.data.data;
-    } catch (error) {
-      console.error('Error bulk predicting scores:', error);
-      throw error;
-    }
+  /**
+   * Get score color based on value
+   */
+  static getScoreColor(score: number): string {
+    if (score >= 80) return 'text-green-600';
+    if (score >= 60) return 'text-yellow-600';
+    if (score >= 40) return 'text-orange-600';
+    return 'text-red-600';
   }
 
   // Helper functions for UI
@@ -194,10 +378,6 @@ class AIScoringService {
       default:
         return 'text-gray-600 bg-gray-100';
     }
-  }
-
-  formatConfidence(confidence: number): string {
-    return `${Math.round(confidence * 100)}%`;
   }
 
   formatAccuracy(accuracy: number): string {

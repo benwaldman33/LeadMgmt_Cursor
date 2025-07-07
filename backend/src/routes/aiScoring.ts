@@ -1,10 +1,11 @@
 import express from 'express';
 import Joi from 'joi';
-import { aiScoringService } from '../services/aiScoringService';
 import { authenticateToken } from '../middleware/auth';
 import { auditLog } from '../middleware/auditLog';
+import { AIScoringService } from '../services/aiScoringService';
 
 const router = express.Router();
+const aiScoringService = new AIScoringService();
 
 // Validation schemas
 const predictionRequestSchema = Joi.object({
@@ -280,5 +281,111 @@ router.post('/bulk-predict',
     }
   }
 );
+
+// Claude AI specific routes
+
+// Score lead with Claude AI
+router.post('/claude/score-lead', async (req, res) => {
+  try {
+    const { leadData, industry = 'dental' } = req.body;
+
+    if (!leadData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Lead data is required'
+      });
+    }
+
+    const result = await aiScoringService.scoreLeadWithClaude(leadData, industry);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error scoring lead with Claude:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to score lead'
+    });
+  }
+});
+
+// Get criteria suggestions for industry
+router.get('/claude/criteria-suggestions/:industry', async (req, res) => {
+  try {
+    const { industry } = req.params;
+
+    const result = await aiScoringService.getCriteriaSuggestions(industry);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error getting criteria suggestions:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get criteria suggestions'
+    });
+  }
+});
+
+// Get weight optimization recommendations
+router.post('/claude/weight-optimization', async (req, res) => {
+  try {
+    const { currentWeights, performanceData } = req.body;
+
+    if (!currentWeights || !performanceData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Current weights and performance data are required'
+      });
+    }
+
+    const result = await aiScoringService.getWeightOptimizationRecommendations(
+      currentWeights,
+      performanceData
+    );
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error getting weight optimization:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get weight optimization'
+    });
+  }
+});
+
+// Analyze lead content
+router.post('/claude/analyze-content', async (req, res) => {
+  try {
+    const { content, industry = 'dental' } = req.body;
+
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content is required'
+      });
+    }
+
+    const result = await aiScoringService.analyzeLeadContent(content, industry);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error analyzing content:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to analyze content'
+    });
+  }
+});
 
 export default router; 

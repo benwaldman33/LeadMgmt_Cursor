@@ -7,6 +7,10 @@ import { AuditLogService } from './auditLogService';
 
 const prisma = new PrismaClient();
 
+// Claude API Configuration
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
+const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+
 export interface MLFeatures {
   companySize: number;
   industryScore: number;
@@ -56,6 +60,17 @@ export interface ScoringPrediction {
   predictionTime: Date;
 }
 
+export interface ClaudeResponse {
+  content: Array<{
+    type: 'text';
+    text: string;
+  }>;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
 export class AIScoringService {
   private models: Map<string, any> = new Map();
   private tokenizer = new natural.WordTokenizer();
@@ -76,6 +91,329 @@ export class AIScoringService {
       console.log(`Loaded ${dbModels.length} AI models`);
     } catch (error) {
       console.error('Error initializing AI models:', error);
+    }
+  }
+
+  // Claude API Integration Methods
+
+  /**
+   * Call Claude API for lead scoring
+   */
+  async scoreLeadWithClaude(leadData: any, industry: string = 'dental'): Promise<MLPrediction> {
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildScoringPrompt(leadData, industry);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseClaudeScoringResponse(response);
+    } catch (error) {
+      console.error('Error scoring lead with Claude:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get criteria suggestions from Claude for a specific industry
+   */
+  async getCriteriaSuggestions(industry: string): Promise<{
+    criteria: Array<{ name: string; weight: number; description: string }>;
+    reasoning: string;
+  }> {
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildCriteriaPrompt(industry);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseCriteriaResponse(response);
+    } catch (error) {
+      console.error('Error getting criteria suggestions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get weight optimization recommendations
+   */
+  async getWeightOptimizationRecommendations(
+    currentWeights: Record<string, number>,
+    performanceData: any
+  ): Promise<{
+    recommendations: string[];
+    suggestedWeights: Record<string, number>;
+    reasoning: string;
+  }> {
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildWeightOptimizationPrompt(currentWeights, performanceData);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseWeightOptimizationResponse(response);
+    } catch (error) {
+      console.error('Error getting weight optimization:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Analyze lead content with Claude
+   */
+  async analyzeLeadContent(content: string, industry: string = 'dental'): Promise<{
+    sentiment: 'positive' | 'negative' | 'neutral';
+    keywords: string[];
+    topics: string[];
+    industryRelevance: number;
+    insights: string[];
+  }> {
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildContentAnalysisPrompt(content, industry);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseContentAnalysisResponse(response);
+    } catch (error) {
+      console.error('Error analyzing lead content:', error);
+      throw error;
+    }
+  }
+
+  // Private Claude API helper methods
+
+  private async callClaudeAPI(prompt: string): Promise<ClaudeResponse> {
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    const response = await fetch(CLAUDE_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-sonnet-20240229',
+        max_tokens: 4000,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  private buildScoringPrompt(leadData: any, industry: string): string {
+    return `You are an AI expert in lead scoring for the ${industry} industry. 
+
+Analyze the following lead data and provide a comprehensive scoring assessment:
+
+Lead Data:
+- Company: ${leadData.companyName || 'Unknown'}
+- Industry: ${leadData.industry || 'Unknown'}
+- Domain: ${leadData.domain || 'Unknown'}
+- Content: ${leadData.content?.substring(0, 1000) || 'No content available'}
+- Technologies: ${leadData.technologies?.join(', ') || 'None detected'}
+- Certifications: ${leadData.certifications?.join(', ') || 'None detected'}
+
+Please provide your assessment in the following JSON format:
+{
+  "score": <number between 0-100>,
+  "confidence": <number between 0-1>,
+  "factors": ["factor1", "factor2", "factor3"],
+  "recommendations": ["recommendation1", "recommendation2"],
+  "riskLevel": "low|medium|high",
+  "reasoning": "detailed explanation of the scoring decision"
+}
+
+Focus on ${industry}-specific factors and industry relevance.`;
+  }
+
+  private buildCriteriaPrompt(industry: string): string {
+    return `You are an expert in lead scoring criteria for the ${industry} industry.
+
+Please suggest optimal scoring criteria for ${industry} leads. Consider:
+- Industry-specific factors
+- Technology adoption patterns
+- Certification requirements
+- Market maturity indicators
+- Growth potential factors
+
+Provide your response in this JSON format:
+{
+  "criteria": [
+    {
+      "name": "criteria name",
+      "weight": <number between 0-100>,
+      "description": "explanation of this criteria"
+    }
+  ],
+  "reasoning": "explanation of why these criteria are optimal for this industry"
+}
+
+Ensure the weights sum to 100.`;
+  }
+
+  private buildWeightOptimizationPrompt(
+    currentWeights: Record<string, number>,
+    performanceData: any
+  ): string {
+    return `You are an expert in optimizing lead scoring weights based on performance data.
+
+Current weights: ${JSON.stringify(currentWeights)}
+Performance data: ${JSON.stringify(performanceData)}
+
+Please analyze the performance and suggest optimized weights. Provide your response in this JSON format:
+{
+  "recommendations": ["recommendation1", "recommendation2"],
+  "suggestedWeights": {
+    "criteria1": <new_weight>,
+    "criteria2": <new_weight>
+  },
+  "reasoning": "explanation of the optimization strategy"
+}
+
+Ensure the suggested weights sum to 100.`;
+  }
+
+  private buildContentAnalysisPrompt(content: string, industry: string): string {
+    return `You are an expert in analyzing lead content for the ${industry} industry.
+
+Analyze the following content and provide insights:
+
+Content: ${content.substring(0, 2000)}
+
+Please provide your analysis in this JSON format:
+{
+  "sentiment": "positive|negative|neutral",
+  "keywords": ["keyword1", "keyword2"],
+  "topics": ["topic1", "topic2"],
+  "industryRelevance": <number between 0-1>,
+  "insights": ["insight1", "insight2"]
+}
+
+Focus on ${industry}-specific relevance and business potential.`;
+  }
+
+  private parseClaudeScoringResponse(response: ClaudeResponse): MLPrediction {
+    try {
+      const content = response.content[0]?.text;
+      const jsonMatch = content?.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+        throw new Error('Invalid response format from Claude');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      return {
+        score: Math.max(0, Math.min(100, parsed.score || 0)),
+        confidence: Math.max(0, Math.min(1, parsed.confidence || 0)),
+        factors: parsed.factors || [],
+        recommendations: parsed.recommendations || [],
+        riskLevel: parsed.riskLevel || 'medium'
+      };
+    } catch (error) {
+      console.error('Error parsing Claude response:', error);
+      throw new Error('Failed to parse Claude API response');
+    }
+  }
+
+  private parseCriteriaResponse(response: ClaudeResponse): {
+    criteria: Array<{ name: string; weight: number; description: string }>;
+    reasoning: string;
+  } {
+    try {
+      const content = response.content[0]?.text;
+      const jsonMatch = content?.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+        throw new Error('Invalid response format from Claude');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      return {
+        criteria: parsed.criteria || [],
+        reasoning: parsed.reasoning || ''
+      };
+    } catch (error) {
+      console.error('Error parsing criteria response:', error);
+      throw new Error('Failed to parse Claude API response');
+    }
+  }
+
+  private parseWeightOptimizationResponse(response: ClaudeResponse): {
+    recommendations: string[];
+    suggestedWeights: Record<string, number>;
+    reasoning: string;
+  } {
+    try {
+      const content = response.content[0]?.text;
+      const jsonMatch = content?.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+        throw new Error('Invalid response format from Claude');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      return {
+        recommendations: parsed.recommendations || [],
+        suggestedWeights: parsed.suggestedWeights || {},
+        reasoning: parsed.reasoning || ''
+      };
+    } catch (error) {
+      console.error('Error parsing weight optimization response:', error);
+      throw new Error('Failed to parse Claude API response');
+    }
+  }
+
+  private parseContentAnalysisResponse(response: ClaudeResponse): {
+    sentiment: 'positive' | 'negative' | 'neutral';
+    keywords: string[];
+    topics: string[];
+    industryRelevance: number;
+    insights: string[];
+  } {
+    try {
+      const content = response.content[0]?.text;
+      const jsonMatch = content?.match(/\{[\s\S]*\}/);
+      
+      if (!jsonMatch) {
+        throw new Error('Invalid response format from Claude');
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      
+      return {
+        sentiment: parsed.sentiment || 'neutral',
+        keywords: parsed.keywords || [],
+        topics: parsed.topics || [],
+        industryRelevance: Math.max(0, Math.min(1, parsed.industryRelevance || 0)),
+        insights: parsed.insights || []
+      };
+    } catch (error) {
+      console.error('Error parsing content analysis response:', error);
+      throw new Error('Failed to parse Claude API response');
     }
   }
 

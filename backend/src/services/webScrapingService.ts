@@ -539,7 +539,7 @@ class WebScrapingService {
             error: error,
             timestamp: new Date(),
           }),
-          userId: 'system' // Will be replaced with actual user ID in real implementation
+          userId: null // System activity, no specific user
         }
       });
     } catch (error) {

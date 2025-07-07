@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { aiScoringService } from '../services/aiScoringService';
+import { AIScoringService } from '../services/aiScoringService';
 import { useNotifications } from '../contexts/NotificationContext';
 import {
+  LightBulbIcon,
+  ArrowTrendingUpIcon,
   ChartBarIcon,
   DocumentTextIcon,
-  LightBulbIcon,
+  CogIcon,
   PlayIcon,
   PauseIcon,
   ArrowUpTrayIcon,
   BoltIcon,
   ClockIcon,
-  Cog6ToothIcon,
-  ChartBarSquareIcon
+  ChartBarSquareIcon,
+  SparklesIcon,
+  MagnifyingGlassIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 
 const AIScoringPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'predictions' | 'analysis'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'predictions' | 'analysis' | 'claude'>('overview');
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [analysisText, setAnalysisText] = useState<string>('');
   const [newModel, setNewModel] = useState({
@@ -26,17 +30,44 @@ const AIScoringPage: React.FC = () => {
   });
   const [trainingDataSize, setTrainingDataSize] = useState<number>(100);
 
+  // Claude AI state
+  const [claudeLeadData, setClaudeLeadData] = useState({
+    companyName: '',
+    industry: 'dental',
+    domain: '',
+    content: '',
+    technologies: [] as string[],
+    certifications: [] as string[]
+  });
+  const [selectedIndustry, setSelectedIndustry] = useState('dental');
+  const [claudeAnalysisContent, setClaudeAnalysisContent] = useState('');
+  const [currentWeights, setCurrentWeights] = useState<Record<string, number>>({
+    companySize: 20,
+    industryScore: 25,
+    technologyCount: 15,
+    domainAge: 10,
+    socialPresence: 10,
+    fundingStage: 20
+  });
+  const [performanceData, setPerformanceData] = useState({
+    accuracy: 0.85,
+    precision: 0.82,
+    recall: 0.78,
+    conversionRate: 0.15
+  });
+
   const { addNotification } = useNotifications();
+  const aiScoringService = new AIScoringService();
 
   // Queries
   const { data: insights, isLoading: insightsLoading } = useQuery({
     queryKey: ['ai-insights'],
-    queryFn: aiScoringService.getInsights
+    queryFn: () => aiScoringService.getInsights()
   });
 
   const { data: models, isLoading: modelsLoading } = useQuery({
     queryKey: ['ai-models'],
-    queryFn: aiScoringService.getModels
+    queryFn: () => aiScoringService.getActiveModels()
   });
 
   const { data: prediction, isLoading: predictionLoading } = useQuery({
@@ -49,6 +80,31 @@ const AIScoringPage: React.FC = () => {
     queryKey: ['text-analysis', analysisText],
     queryFn: () => aiScoringService.analyzeText(analysisText),
     enabled: !!analysisText && analysisText.length > 10
+  });
+
+  // Claude AI Queries
+  const { data: claudePrediction, isLoading: claudePredictionLoading, refetch: refetchClaudePrediction } = useQuery({
+    queryKey: ['claude-prediction', claudeLeadData],
+    queryFn: () => aiScoringService.scoreLeadWithClaude(claudeLeadData, selectedIndustry),
+    enabled: false
+  });
+
+  const { data: criteriaSuggestions, isLoading: criteriaLoading, refetch: refetchCriteria } = useQuery({
+    queryKey: ['criteria-suggestions', selectedIndustry],
+    queryFn: () => aiScoringService.getCriteriaSuggestions(selectedIndustry),
+    enabled: false
+  });
+
+  const { data: weightOptimization, isLoading: weightOptimizationLoading, refetch: refetchWeightOptimization } = useQuery({
+    queryKey: ['weight-optimization', currentWeights, performanceData],
+    queryFn: () => aiScoringService.getWeightOptimizationRecommendations(currentWeights, performanceData),
+    enabled: false
+  });
+
+  const { data: claudeContentAnalysis, isLoading: claudeContentAnalysisLoading, refetch: refetchContentAnalysis } = useQuery({
+    queryKey: ['claude-content-analysis', claudeAnalysisContent, selectedIndustry],
+    queryFn: () => aiScoringService.analyzeLeadContent(claudeAnalysisContent, selectedIndustry),
+    enabled: false
   });
 
   // Mutations
@@ -130,11 +186,45 @@ const AIScoringPage: React.FC = () => {
     updateModelStatusMutation.mutate({ modelId, isActive: !currentStatus });
   };
 
+  // Claude AI Handlers
+  const handleClaudeScoreLead = () => {
+    if (!claudeLeadData.companyName || !claudeLeadData.domain) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Please provide company name and domain'
+      });
+      return;
+    }
+    refetchClaudePrediction();
+  };
+
+  const handleGetCriteriaSuggestions = () => {
+    refetchCriteria();
+  };
+
+  const handleGetWeightOptimization = () => {
+    refetchWeightOptimization();
+  };
+
+  const handleAnalyzeContent = () => {
+    if (!claudeAnalysisContent.trim()) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Please provide content to analyze'
+      });
+      return;
+    }
+    refetchContentAnalysis();
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: LightBulbIcon },
-    { id: 'models', label: 'Models', icon: Cog6ToothIcon },
+    { id: 'models', label: 'Models', icon: CogIcon },
     { id: 'predictions', label: 'Predictions', icon: ChartBarSquareIcon },
-    { id: 'analysis', label: 'Text Analysis', icon: DocumentTextIcon }
+    { id: 'analysis', label: 'Text Analysis', icon: DocumentTextIcon },
+    { id: 'claude', label: 'Claude AI', icon: SparklesIcon }
   ];
 
   return (
@@ -194,7 +284,7 @@ const AIScoringPage: React.FC = () => {
                           <p className="text-blue-100 text-sm">Total Models</p>
                           <p className="text-3xl font-bold">{insights.totalModels}</p>
                         </div>
-                        <LightBulbIcon className="h-8 w-8 opacity-80" />
+                        <ArrowTrendingUpIcon className="h-8 w-8 opacity-80" />
                       </div>
                     </div>
 
@@ -576,6 +666,148 @@ const AIScoringPage: React.FC = () => {
                     <p className="text-gray-500 text-center py-8">Enter text to analyze</p>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'claude' && (
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-6">Claude AI</h2>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Lead Input */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Company Name
+                    </label>
+                    <input
+                      type="text"
+                      value={claudeLeadData.companyName}
+                      onChange={(e) => setClaudeLeadData({ ...claudeLeadData, companyName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Industry
+                    </label>
+                    <select
+                      value={claudeLeadData.industry}
+                      onChange={(e) => setClaudeLeadData({ ...claudeLeadData, industry: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="dental">Dental</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="technology">Technology</option>
+                      <option value="finance">Finance</option>
+                      <option value="retail">Retail</option>
+                      <option value="education">Education</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Domain
+                    </label>
+                    <input
+                      type="text"
+                      value={claudeLeadData.domain}
+                      onChange={(e) => setClaudeLeadData({ ...claudeLeadData, domain: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter domain"
+                    />
+                  </div>
+                </div>
+
+                {/* Content Input */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Content
+                    </label>
+                    <textarea
+                      value={claudeAnalysisContent}
+                      onChange={(e) => setClaudeAnalysisContent(e.target.value)}
+                      rows={8}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter content for analysis"
+                    />
+                  </div>
+                  <button
+                    onClick={handleAnalyzeContent}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Analyze Content
+                  </button>
+                </div>
+              </div>
+
+              {/* Prediction Results */}
+              <div className="mt-8">
+                {claudePredictionLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : claudePrediction ? (
+                  <div className="space-y-4">
+                    <div className="bg-white rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">Predicted Score</span>
+                        <span className="text-lg font-bold text-blue-600">
+                          {claudePrediction.score.toFixed(1)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${claudePrediction.score}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Confidence</p>
+                        <p className="text-lg font-bold text-green-600">
+                          {claudePrediction.confidence}%
+                        </p>
+                      </div>
+                      <div className="bg-white rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Risk Level</p>
+                        <p className="text-lg font-bold text-orange-600">
+                          {claudePrediction.riskLevel.toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Key Factors</p>
+                      <div className="space-y-1">
+                        {claudePrediction.factors.map((factor, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                            <span className="text-sm">{factor}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Recommendations</p>
+                      <div className="space-y-1">
+                        {claudePrediction.recommendations.map((rec, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                            <span className="text-sm">{rec}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">No prediction available</p>
+                )}
               </div>
             </div>
           )}
