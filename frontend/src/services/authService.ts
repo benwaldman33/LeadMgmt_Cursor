@@ -48,7 +48,7 @@ export class AuthService {
    * Login user
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post('/api/auth/login', credentials);
+    const response = await api.post('/auth/login', credentials);
     const { user, accessToken } = response.data.data;
     
     // Store token and user data
@@ -62,7 +62,7 @@ export class AuthService {
    * Register new user
    */
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await api.post('/api/auth/register', data);
+    const response = await api.post('/auth/register', data);
     const { user, accessToken } = response.data.data;
     
     // Store token and user data
@@ -77,7 +77,7 @@ export class AuthService {
    */
   async logout(): Promise<void> {
     try {
-      await api.post('/api/auth/logout');
+      await api.post('/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -90,7 +90,7 @@ export class AuthService {
    * Get current user profile
    */
   async getProfile(): Promise<User> {
-    const response = await api.get('/api/auth/profile');
+    const response = await api.get('/auth/profile');
     return response.data.data;
   }
 
@@ -98,7 +98,7 @@ export class AuthService {
    * Update user profile
    */
   async updateProfile(data: ProfileUpdateData): Promise<User> {
-    const response = await api.put('/api/auth/profile', data);
+    const response = await api.put('/auth/profile', data);
     const updatedUser = response.data.data;
     
     // Update stored user data
@@ -111,14 +111,14 @@ export class AuthService {
    * Change password
    */
   async changePassword(data: PasswordChangeData): Promise<void> {
-    await api.post('/api/auth/change-password', data);
+    await api.post('/auth/change-password', data);
   }
 
   /**
    * Get all users (admin only)
    */
   async getUsers(): Promise<User[]> {
-    const response = await api.get('/api/auth/users');
+    const response = await api.get('/auth/users');
     return response.data.data;
   }
 
@@ -130,7 +130,7 @@ export class AuthService {
     status?: string;
     teamId?: string;
   }): Promise<User> {
-    const response = await api.put(`/api/auth/users/${userId}`, data);
+    const response = await api.put(`/auth/users/${userId}`, data);
     return response.data.data;
   }
 
