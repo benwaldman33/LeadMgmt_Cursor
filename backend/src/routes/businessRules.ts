@@ -204,4 +204,6 @@ router.get('/stats/overview', async (req, res) => {
   }
 });
 
+console.log('businessRules router defined:', typeof router);
+
 export default router; 

@@ -388,4 +388,6 @@ router.post('/claude/analyze-content', async (req, res) => {
   }
 });
 
+console.log('aiScoring router defined:', typeof router);
+
 export default router; 

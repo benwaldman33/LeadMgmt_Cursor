@@ -14,20 +14,35 @@ export const prisma = new PrismaClient();
 
 // Import routes
 import authRoutes from './routes/auth';
+console.log('authRoutes:', typeof authRoutes);
 import userRoutes from './routes/users';
+console.log('userRoutes:', typeof userRoutes);
 import teamRoutes from './routes/teams';
+console.log('teamRoutes:', typeof teamRoutes);
 import campaignRoutes from './routes/campaigns';
+console.log('campaignRoutes:', typeof campaignRoutes);
 import leadRoutes from './routes/leads';
+console.log('leadRoutes:', typeof leadRoutes);
 import scoringRoutes from './routes/scoring';
+console.log('scoringRoutes:', typeof scoringRoutes);
 import auditLogRoutes from './routes/auditLogs';
+console.log('auditLogRoutes:', typeof auditLogRoutes);
 import searchRoutes from './routes/search';
+console.log('searchRoutes:', typeof searchRoutes);
 import analyticsRoutes from './routes/analytics';
+console.log('analyticsRoutes:', typeof analyticsRoutes);
 import reportsRoutes from './routes/reports';
+console.log('reportsRoutes:', typeof reportsRoutes);
 import aiScoringRoutes from './routes/aiScoring';
+console.log('aiScoringRoutes:', typeof aiScoringRoutes);
 import integrationRoutes from './routes/integrations';
+console.log('integrationRoutes:', typeof integrationRoutes);
 import workflowRoutes from './routes/workflows';
+console.log('workflowRoutes:', typeof workflowRoutes);
 import businessRuleRoutes from './routes/businessRules';
+console.log('businessRuleRoutes:', typeof businessRuleRoutes);
 import webScrapingRoutes from './routes/webScraping';
+console.log('webScrapingRoutes:', typeof webScrapingRoutes);
 
 const app = express();
 const server = createServer(app);
@@ -39,7 +54,14 @@ webSocketService.initialize(server);
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  // Allow all localhost ports for development; restrict in production!
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'), false);
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));

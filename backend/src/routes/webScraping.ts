@@ -160,4 +160,6 @@ router.get('/health', async (req, res) => {
   }
 });
 
+console.log('webScraping router defined:', typeof router);
+
 export default router; 
