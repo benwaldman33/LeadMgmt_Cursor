@@ -15,7 +15,7 @@ import LiveActivityFeed from '../components/LiveActivityFeed';
 import { MetricsCard } from '../components/dashboard/MetricsCard';
 import { TrendsChart } from '../components/dashboard/TrendsChart';
 import { PerformanceTable } from '../components/dashboard/PerformanceTable';
-import { RealTimeMetrics } from '../components/dashboard/RealTimeMetrics';
+import RealTimeMetrics from '../components/dashboard/RealTimeMetrics';
 import { AdvancedChart } from '../components/dashboard/AdvancedChart';
 import { AnalyticsService } from '../services/analyticsService';
 import type { DashboardMetrics, LeadTrends, CampaignPerformance, TeamPerformance } from '../services/analyticsService';
@@ -141,47 +141,26 @@ const DashboardPage: React.FC = () => {
           <RealTimeMetrics
             metrics={[
               {
-                id: 'leads-today',
-                label: 'Leads Today',
+                title: 'Leads Today',
                 value: metrics.realTimeMetrics?.leadsToday || 0,
-                previousValue: Math.max(0, (metrics.realTimeMetrics?.leadsToday || 0) - 5),
-                change: 5,
-                changePercent: 12.5,
-                trend: 'up',
-                color: 'blue'
+                change: 5
               },
               {
-                id: 'qualified-today',
-                label: 'Qualified Today',
+                title: 'Qualified Today',
                 value: metrics.realTimeMetrics?.qualifiedToday || 0,
-                previousValue: Math.max(0, (metrics.realTimeMetrics?.qualifiedToday || 0) - 2),
-                change: 2,
-                changePercent: 8.3,
-                trend: 'up',
-                color: 'green'
+                change: 2
               },
               {
-                id: 'avg-score-today',
-                label: 'Avg Score Today',
+                title: 'Avg Score Today',
                 value: metrics.realTimeMetrics?.averageScoreToday || 0,
-                previousValue: (metrics.realTimeMetrics?.averageScoreToday || 0) - 2,
-                change: 2,
-                changePercent: 3.2,
-                trend: 'up',
-                color: 'purple'
+                change: 2
               },
               {
-                id: 'conversion-rate',
-                label: 'Conversion Rate',
+                title: 'Conversion Rate',
                 value: metrics.conversionRate,
-                previousValue: Math.max(0, metrics.conversionRate - 1.5),
-                change: 1.5,
-                changePercent: 2.1,
-                trend: 'up',
-                color: 'yellow'
+                change: 1.5
               }
             ]}
-            refreshInterval={30000}
           />
         </div>
       )}
@@ -301,7 +280,10 @@ const DashboardPage: React.FC = () => {
         )}
 
         {/* Live Activity Feed */}
-        <LiveActivityFeed maxItems={8} />
+        <div className="mb-8">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Live Activity Feed</h2>
+          <LiveActivityFeed activities={[]} />
+        </div>
 
         {/* Historical Activity Feed */}
         <ActivityFeed limit={8} />

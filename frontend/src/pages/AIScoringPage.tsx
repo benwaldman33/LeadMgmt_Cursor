@@ -5,7 +5,6 @@ import { useNotifications } from '../contexts/NotificationContext';
 import {
   LightBulbIcon,
   ArrowTrendingUpIcon,
-  ChartBarIcon,
   DocumentTextIcon,
   CogIcon,
   PlayIcon,
@@ -304,7 +303,7 @@ const AIScoringPage: React.FC = () => {
                           <p className="text-purple-100 text-sm">Avg Accuracy</p>
                           <p className="text-3xl font-bold">{insights.avgAccuracy}%</p>
                         </div>
-                        <ChartBarIcon className="h-8 w-8 opacity-80" />
+                        <ChartBarSquareIcon className="h-8 w-8 opacity-80" />
                       </div>
                     </div>
 
@@ -314,7 +313,7 @@ const AIScoringPage: React.FC = () => {
                           <p className="text-orange-100 text-sm">Model Types</p>
                           <p className="text-3xl font-bold">{Object.keys(insights.modelTypes).length}</p>
                         </div>
-                        <ChartBarIcon className="h-8 w-8 opacity-80" />
+                        <ChartBarSquareIcon className="h-8 w-8 opacity-80" />
                       </div>
                     </div>
                   </div>

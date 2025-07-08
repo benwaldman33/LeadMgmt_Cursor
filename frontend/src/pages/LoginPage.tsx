@@ -49,6 +49,7 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Login form submitted', formData);
     
     if (!formData.email || !formData.password) {
       addNotification({
