@@ -121,22 +121,22 @@ export class AnalyticsService {
     // Weekly trends
     const weeklyData = await prisma.$queryRaw`
       SELECT 
-        DATE_TRUNC('week', "createdAt") as week,
+        strftime('%Y-%W', createdAt) as week,
         COUNT(*) as count
-      FROM "Lead"
-      WHERE "createdAt" >= ${startDate}
-      GROUP BY DATE_TRUNC('week', "createdAt")
+      FROM leads
+      WHERE createdAt >= ${startDate}
+      GROUP BY week
       ORDER BY week ASC
     `;
 
     // Monthly trends
     const monthlyData = await prisma.$queryRaw`
       SELECT 
-        DATE_TRUNC('month', "createdAt") as month,
+        strftime('%Y-%m', createdAt) as month,
         COUNT(*) as count
-      FROM "Lead"
-      WHERE "createdAt" >= ${startDate}
-      GROUP BY DATE_TRUNC('month', "createdAt")
+      FROM leads
+      WHERE createdAt >= ${startDate}
+      GROUP BY month
       ORDER BY month ASC
     `;
 
@@ -181,7 +181,7 @@ export class AnalyticsService {
             ELSE '0-19'
           END as range,
           COUNT(*) as count
-        FROM "Lead"
+        FROM leads
         WHERE score IS NOT NULL
         GROUP BY range
         ORDER BY range DESC

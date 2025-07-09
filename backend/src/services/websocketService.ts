@@ -29,7 +29,14 @@ class WebSocketService {
   initialize(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:5173",
+        origin: (origin, callback) => {
+          // Allow all localhost ports for development
+          if (!origin || /^(http:\/\/localhost:\d+|http:\/\/127\.0\.0\.1:\d+)$/.test(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
         methods: ["GET", "POST"]
       }
     });

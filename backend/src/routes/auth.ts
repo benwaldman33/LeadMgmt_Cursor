@@ -417,4 +417,11 @@ router.put('/users/:userId', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/me', authenticateToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  res.json({ user: req.user });
+});
+
 export default router;
