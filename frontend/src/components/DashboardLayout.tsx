@@ -50,6 +50,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   // Connect to WebSocket when user is authenticated
   useEffect(() => {
     if (token) {
+      console.log('[WebSocket Debug] Connecting with token:', token);
       webSocketService.connect(token);
     } else {
       webSocketService.disconnect();

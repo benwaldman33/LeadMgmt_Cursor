@@ -44,11 +44,28 @@ const CreateScoringModelPage: React.FC = () => {
   const handleCriterionChange = (index: number, field: keyof ScoringCriterion, value: string | number) => {
     const updatedCriteria = [...criteria];
     if (field === 'searchTerms') {
-      updatedCriteria[index][field] = (value as string).split(',').map((term: string) => term.trim());
+      // Parse search terms more intelligently
+      // Split by comma but preserve spaces within each term
+      // Also handle quotes for complex phrases
+      const parsedTerms = parseSearchTerms(value as string);
+      updatedCriteria[index][field] = parsedTerms;
     } else {
       (updatedCriteria[index] as any)[field] = value;
     }
     setCriteria(updatedCriteria);
+  };
+
+  // Helper function to parse search terms intelligently
+  const parseSearchTerms = (input: string): string[] => {
+    if (!input.trim()) return [''];
+    
+    // Split by comma but preserve spaces within terms
+    const terms = input.split(',').map(term => term.trim()).filter(term => term.length > 0);
+    
+    // If no terms found, return empty array with one empty string
+    if (terms.length === 0) return [''];
+    
+    return terms;
   };
 
   const addCriterion = () => {
@@ -265,8 +282,11 @@ const CreateScoringModelPage: React.FC = () => {
                       value={criterion.searchTerms.join(', ')}
                       onChange={(e) => handleCriterionChange(index, 'searchTerms', e.target.value)}
                       className="input-field"
-                      placeholder="dental, equipment, practice (comma separated)"
+                      placeholder="cone beam computed tomography, dental laser, CAD/CAM (comma separated)"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter search terms separated by commas. Multi-word phrases like "cone beam computed tomography" will be treated as single search terms.
+                    </p>
                   </div>
 
                   <div className="md:col-span-2">

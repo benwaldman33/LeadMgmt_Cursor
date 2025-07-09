@@ -244,31 +244,49 @@ router.get('/filters',
       const { PrismaClient } = await import('@prisma/client');
       const prisma = new PrismaClient();
 
-      const [campaigns, teams, users, industries, statuses] = await Promise.all([
-        prisma.campaign.findMany({ select: { id: true, name: true } }),
-        prisma.team.findMany({ select: { id: true, name: true } }),
-        prisma.user.findMany({ select: { id: true, fullName: true } }),
-        prisma.lead.findMany({ 
-          select: { industry: true },
-          where: { industry: { not: null as any } },
-          distinct: ['industry']
-        }),
-        prisma.lead.findMany({
-          select: { status: true },
-          distinct: ['status']
-        })
-      ]);
+      // Handle potential database connection issues
+      try {
+        const [campaigns, teams, users, industries, statuses] = await Promise.all([
+          prisma.campaign.findMany({ select: { id: true, name: true } }).catch(() => []),
+          prisma.team.findMany({ select: { id: true, name: true } }).catch(() => []),
+          prisma.user.findMany({ select: { id: true, fullName: true } }).catch(() => []),
+          prisma.lead.findMany({ 
+            select: { industry: true },
+            where: { industry: { not: null as any } },
+            distinct: ['industry']
+          }).catch(() => []),
+          prisma.lead.findMany({
+            select: { status: true },
+            distinct: ['status']
+          }).catch(() => [])
+        ]);
 
-      res.json({
-        success: true,
-        data: {
-          campaigns: campaigns.map((c: any) => ({ id: c.id, name: c.name })),
-          teams: teams.map((t: any) => ({ id: t.id, name: t.name })),
-          users: users.map((u: any) => ({ id: u.id, name: u.fullName })),
-          industries: industries.map((i: any) => i.industry).filter(Boolean),
-          statuses: statuses.map((s: any) => s.status).filter(Boolean),
-        }
-      });
+        res.json({
+          success: true,
+          data: {
+            campaigns: campaigns.map((c: any) => ({ id: c.id, name: c.name })),
+            teams: teams.map((t: any) => ({ id: t.id, name: t.name })),
+            users: users.map((u: any) => ({ id: u.id, name: u.fullName })),
+            industries: industries.map((i: any) => i.industry).filter(Boolean),
+            statuses: statuses.map((s: any) => s.status).filter(Boolean),
+          }
+        });
+      } catch (dbError) {
+        console.error('Database error in filters endpoint:', dbError);
+        // Return empty arrays if database queries fail
+        res.json({
+          success: true,
+          data: {
+            campaigns: [],
+            teams: [],
+            users: [],
+            industries: [],
+            statuses: [],
+          }
+        });
+      } finally {
+        await prisma.$disconnect();
+      }
     } catch (error) {
       console.error('Error getting filters:', error);
       res.status(500).json({ error: 'Failed to get filters' });

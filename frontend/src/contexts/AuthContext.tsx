@@ -24,6 +24,7 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   isAuthenticated: boolean;
+  setAuth: (user: User, token: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -98,13 +99,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  const value: AuthContextType = {
+  const setAuth = (userData: User, newToken: string) => {
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setToken(newToken);
+    setUser(userData);
+    setIsAuthenticated(true);
+  };
+
+  const value: AuthContextType & { setAuth: (user: User, token: string) => void } = {
     user,
     token,
     login,
     logout,
     loading,
     isAuthenticated,
+    setAuth,
   };
 
   return (

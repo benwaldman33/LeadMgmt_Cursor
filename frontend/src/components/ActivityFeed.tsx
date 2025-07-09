@@ -18,6 +18,9 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ limit = 10 }) => {
     queryFn: () => AuditLogService.getAuditLogs({ limit }),
   });
 
+  // Patch: ensure logs is always an array
+  const safeLogs = Array.isArray(logs) ? logs : [];
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -31,7 +34,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ limit = 10 }) => {
     );
   }
 
-  if (!logs || logs.length === 0) {
+  if (!safeLogs || safeLogs.length === 0) {
     return (
       <div className="text-center py-8">
         <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -43,7 +46,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ limit = 10 }) => {
 
   return (
     <div className="space-y-4">
-      {logs.map((log: any) => (
+      {safeLogs.map((log: any) => (
         <div key={log.id} className="bg-white p-4 rounded-lg shadow-sm border">
           <div className="flex items-start justify-between">
             <div className="flex-1">

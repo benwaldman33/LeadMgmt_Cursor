@@ -66,60 +66,71 @@ class WebSocketService {
     });
 
     this.io.on('connection', (socket) => {
-      console.log(`User connected: ${socket.data.user.id}`);
-      
+      console.log('[WebSocket] Connection attempt:', socket.id);
+      const token = socket.handshake.auth?.token;
+      console.log('[WebSocket] Incoming token:', token);
+
+      // At this point, authentication has already been handled by io.use middleware
+      const user = socket.data.user;
+      if (!user) {
+        console.warn('[WebSocket] No user found on socket after authentication:', socket.id);
+        socket.disconnect(true);
+        return;
+      }
+      console.log('[WebSocket] Authenticated user:', user.email || user.id);
+
       const userData: WebSocketUser = {
-        userId: socket.data.user.id,
-        teamId: socket.data.user.teamId || undefined,
+        userId: user.id,
+        teamId: user.teamId || undefined,
         socketId: socket.id
       };
 
       this.connectedUsers.set(socket.id, userData);
-      
-      // Track user's sockets
-      const userSockets = this.userSockets.get(socket.data.user.id) || [];
-      userSockets.push(socket.id);
-      this.userSockets.set(socket.data.user.id, userSockets);
-
-      // Join user to their team room
-      if (userData.teamId) {
-        socket.join(`team:${userData.teamId}`);
-      }
-
-      // Join user to their personal room
-      socket.join(`user:${userData.userId}`);
-
-      // Send welcome message
-      socket.emit('connected', {
-        message: 'Connected to real-time updates',
-        userId: userData.userId,
-        teamId: userData.teamId
-      });
-
-      socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.data.user.id}`);
-        this.connectedUsers.delete(socket.id);
         
-        // Remove socket from user's socket list
+        // Track user's sockets
         const userSockets = this.userSockets.get(socket.data.user.id) || [];
-        const updatedSockets = userSockets.filter(id => id !== socket.id);
-        if (updatedSockets.length === 0) {
-          this.userSockets.delete(socket.data.user.id);
-        } else {
-          this.userSockets.set(socket.data.user.id, updatedSockets);
+        userSockets.push(socket.id);
+        this.userSockets.set(socket.data.user.id, userSockets);
+
+        // Join user to their team room
+        if (userData.teamId) {
+          socket.join(`team:${userData.teamId}`);
         }
-      });
 
-      socket.on('join_room', (room: string) => {
-        socket.join(room);
-        console.log(`User ${socket.data.user.id} joined room: ${room}`);
-      });
+        // Join user to their personal room
+        socket.join(`user:${userData.userId}`);
 
-      socket.on('leave_room', (room: string) => {
-        socket.leave(room);
-        console.log(`User ${socket.data.user.id} left room: ${room}`);
+        // Send welcome message
+        socket.emit('connected', {
+          message: 'Connected to real-time updates',
+          userId: userData.userId,
+          teamId: userData.teamId
+        });
+
+        socket.on('disconnect', (reason) => {
+          console.log('[WebSocket] Disconnected:', socket.id, 'Reason:', reason);
+          this.connectedUsers.delete(socket.id);
+          
+          // Remove socket from user's socket list
+          const userSockets = this.userSockets.get(socket.data.user.id) || [];
+          const updatedSockets = userSockets.filter(id => id !== socket.id);
+          if (updatedSockets.length === 0) {
+            this.userSockets.delete(socket.data.user.id);
+          } else {
+            this.userSockets.set(socket.data.user.id, updatedSockets);
+          }
+        });
+
+        socket.on('join_room', (room: string) => {
+          socket.join(room);
+          console.log(`User ${socket.data.user.id} joined room: ${room}`);
+        });
+
+        socket.on('leave_room', (room: string) => {
+          socket.leave(room);
+          console.log(`User ${socket.data.user.id} left room: ${room}`);
+        });
       });
-    });
 
     console.log('WebSocket service initialized');
   }

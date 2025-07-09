@@ -22,15 +22,12 @@ const LoginPage: React.FC = () => {
 
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
-  const { login } = useAuth();
+  const { login, setAuth } = useAuth();
 
   const loginMutation = useMutation({
     mutationFn: (credentials: { email: string; password: string }) => authService.login(credentials),
     onSuccess: (data) => {
-      // Store token and user data manually since AuthContext expects different format
-      localStorage.setItem('token', data.accessToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      
+      setAuth(data.user, data.accessToken);
       addNotification({
         type: 'success',
         title: 'Welcome back!',

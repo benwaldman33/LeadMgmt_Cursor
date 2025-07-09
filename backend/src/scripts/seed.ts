@@ -150,7 +150,14 @@ async function main() {
       name: 'Dental Technology',
       description: 'Advanced dental technology and equipment',
       searchTerms: JSON.stringify(['dental technology', 'digital x-ray', 'CAD/CAM', '3D printing', 'laser dentistry']),
-      weight: 25,
+      weight: 20,
+      type: 'KEYWORD'
+    },
+    {
+      name: 'Cone Beam Technology',
+      description: 'Cone beam computed tomography and advanced imaging',
+      searchTerms: JSON.stringify(['cone beam computed tomography', 'CBCT', '3D imaging', 'dental imaging']),
+      weight: 15,
       type: 'KEYWORD'
     },
     {
@@ -178,7 +185,7 @@ async function main() {
       name: 'Patient Reviews',
       description: 'Positive patient reviews and testimonials',
       searchTerms: JSON.stringify(['patient reviews', 'testimonials', '5-star', 'excellent care']),
-      weight: 20,
+      weight: 10,
       type: 'KEYWORD'
     }
   ];

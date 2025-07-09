@@ -48,6 +48,9 @@ const ReportsPage: React.FC = () => {
     limit: 50
   });
 
+  // Patch: ensure reportTypes is always an array
+  const safeReportTypes = Array.isArray(reportTypes) ? reportTypes : [];
+
   useEffect(() => {
     loadReportTypes();
     loadFilterOptions();
@@ -58,7 +61,7 @@ const ReportsPage: React.FC = () => {
       const types = await reportingService.getReportTypes();
       setReportTypes(types);
     } catch (error) {
-      showNotification('Failed to load report types', 'error');
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to load report types' });
     }
   };
 
@@ -67,12 +70,12 @@ const ReportsPage: React.FC = () => {
       const options = await reportingService.getFilterOptions();
       setFilterOptions(options);
     } catch (error) {
-      showNotification('Failed to load filter options', 'error');
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to load filter options' });
     }
   };
 
   const handleReportTypeChange = (type: string) => {
-    const selectedType = reportTypes.find(t => t.id === type);
+    const selectedType = safeReportTypes.find(t => t.id === type);
     if (selectedType) {
       setReportConfig(prev => ({
         ...prev,
@@ -86,7 +89,7 @@ const ReportsPage: React.FC = () => {
 
   const handleGenerateReport = async () => {
     if (!reportConfig.name || !reportConfig.type) {
-      showNotification('Please fill in all required fields', 'error');
+      addNotification({ type: 'error', title: 'Error', message: 'Please fill in all required fields' });
       return;
     }
 
@@ -97,7 +100,7 @@ const ReportsPage: React.FC = () => {
       setCurrentReport(report);
       addNotification({ type: 'success', title: 'Success', message: 'Report generated successfully' });
     } catch (error) {
-      showNotification('Failed to generate report', 'error');
+      addNotification({ type: 'error', title: 'Error', message: 'Failed to generate report' });
     } finally {
       setIsGenerating(false);
     }
@@ -105,7 +108,7 @@ const ReportsPage: React.FC = () => {
 
   const handleExport = async (format: 'excel' | 'pdf' | 'csv') => {
     if (!currentReport) {
-      showNotification('No report to export', 'error');
+      addNotification({ type: 'error', title: 'Error', message: 'No report to export' });
       return;
     }
 
@@ -127,9 +130,9 @@ const ReportsPage: React.FC = () => {
       }
       
       await reportingService.downloadExportedFile(exportResult);
-      showNotification(`${format.toUpperCase()} export completed`, 'success');
+      addNotification({ type: 'success', title: 'Success', message: `${format.toUpperCase()} export completed` });
     } catch (error) {
-      showNotification(`Failed to export to ${format.toUpperCase()}`, 'error');
+      addNotification({ type: 'error', title: 'Error', message: `Failed to export to ${format.toUpperCase()}` });
     } finally {
       setIsExporting(false);
     }
@@ -179,7 +182,7 @@ const ReportsPage: React.FC = () => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -299,7 +302,7 @@ const ReportsPage: React.FC = () => {
                     onChange={(e) => handleReportTypeChange(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {reportTypes.map(type => (
+                    {safeReportTypes.map(type => (
                       <option key={type.id} value={type.id}>
                         {type.name}
                       </option>
@@ -313,7 +316,7 @@ const ReportsPage: React.FC = () => {
                     Metrics
                   </label>
                   <div className="space-y-2">
-                    {reportTypes.find(t => t.id === reportConfig.type)?.metrics.map(metric => (
+                    {safeReportTypes.find(t => t.id === reportConfig.type)?.metrics.map(metric => (
                       <label key={metric} className="flex items-center">
                         <input
                           type="checkbox"
@@ -340,7 +343,7 @@ const ReportsPage: React.FC = () => {
                     Chart Types
                   </label>
                   <div className="space-y-2">
-                    {reportTypes.find(t => t.id === reportConfig.type)?.chartTypes.map(chartType => (
+                    {safeReportTypes.find(t => t.id === reportConfig.type)?.chartTypes.map(chartType => (
                       <label key={chartType} className="flex items-center">
                         <input
                           type="checkbox"
@@ -372,7 +375,7 @@ const ReportsPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">No grouping</option>
-                    {reportTypes.find(t => t.id === reportConfig.type)?.groupByOptions.map(option => (
+                    {safeReportTypes.find(t => t.id === reportConfig.type)?.groupByOptions.map(option => (
                       <option key={option} value={option}>
                         {option}
                       </option>

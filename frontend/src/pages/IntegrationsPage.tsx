@@ -192,6 +192,9 @@ const IntegrationsPage: React.FC = () => {
     return colors[type] || 'bg-gray-100 text-gray-800';
   };
 
+  // Patch: ensure integrations is always an array for mapping
+  const safeIntegrations = Array.isArray(integrations) ? integrations : [];
+
   if (integrationsLoading || providersLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -219,7 +222,7 @@ const IntegrationsPage: React.FC = () => {
 
       {/* Integrations Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {integrations.map((integration) => (
+        {safeIntegrations.map((integration) => (
           <div key={integration.id} className="bg-white rounded-lg shadow border border-gray-200 p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-3">
@@ -307,7 +310,7 @@ const IntegrationsPage: React.FC = () => {
         ))}
       </div>
 
-      {integrations.length === 0 && (
+      {safeIntegrations.length === 0 && (
         <div className="text-center py-12">
           <WrenchScrewdriverIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No integrations</h3>
@@ -366,10 +369,6 @@ const IntegrationsPage: React.FC = () => {
       {showTestPanel && selectedIntegrationForTest && (
         <IntegrationTestPanel
           integrationId={selectedIntegrationForTest?.id || ''}
-          onClose={() => {
-            setShowTestPanel(false);
-            setSelectedIntegrationForTest(null);
-          }}
         />
       )}
     </div>
@@ -397,8 +396,10 @@ const CreateIntegrationModal: React.FC<CreateIntegrationModalProps> = ({
     config: {} as Record<string, any>,
     isActive: true,
   });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Patch: ensure providers is always an array
+  const safeProviders = Array.isArray(providers) ? providers : [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -430,7 +431,7 @@ const CreateIntegrationModal: React.FC<CreateIntegrationModalProps> = ({
     }));
   };
 
-  const selectedProvider = providers.find(p => p.id === formData.provider);
+  const selectedProvider = safeProviders.find(p => p.id === formData.provider);
   const configFields = formData.provider ? integrationService.getProviderConfigFields(formData.provider) : [];
 
   return (
@@ -481,7 +482,7 @@ const CreateIntegrationModal: React.FC<CreateIntegrationModalProps> = ({
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select a provider</option>
-                {providers.map(provider => (
+                {safeProviders.map(provider => (
                   <option key={provider.id} value={provider.id}>
                     {provider.name}
                   </option>

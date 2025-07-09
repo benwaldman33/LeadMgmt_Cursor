@@ -18,6 +18,9 @@ const AdvancedFilters: React.FC<FilterProps> = ({
     value !== undefined && value !== null && value !== ''
   );
 
+  // Patch: ensure filterOptions is always an object
+  const safeFilterOptions = filterOptions || {};
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border">
       <div className="flex items-center justify-between mb-4">
@@ -38,7 +41,7 @@ const AdvancedFilters: React.FC<FilterProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Object.entries(filterOptions).map(([key, options]) => (
+        {Object.entries(safeFilterOptions).map(([key, options]) => (
           <div key={key}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
