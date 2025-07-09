@@ -38,7 +38,7 @@ const RegisterPage: React.FC = () => {
   const { addNotification } = useNotifications();
 
   const registerMutation = useMutation({
-    mutationFn: authService.register,
+    mutationFn: (data: { email: string; password: string; fullName: string; role: string }) => authService.register(data),
     onSuccess: (data) => {
       // Store token and user data
       localStorage.setItem('token', data.accessToken);

@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
 
   const loginMutation = useMutation({
-    mutationFn: authService.login,
+    mutationFn: (credentials: { email: string; password: string }) => authService.login(credentials),
     onSuccess: (data) => {
       // Store token and user data manually since AuthContext expects different format
       localStorage.setItem('token', data.accessToken);
