@@ -116,4 +116,7 @@ export const requireTeamAccess = async (req: Request, res: Response, next: NextF
 
 export const requireSuperAdmin = requireRole(['SUPER_ADMIN']);
 export const requireAnalyst = requireRole(['SUPER_ADMIN', 'ANALYST']);
-export const requireViewer = requireRole(['SUPER_ADMIN', 'ANALYST', 'VIEWER']); 
+export const requireViewer = requireRole(['SUPER_ADMIN', 'ANALYST', 'VIEWER']);
+
+// Default export for the main authentication middleware
+export default authenticateToken; 

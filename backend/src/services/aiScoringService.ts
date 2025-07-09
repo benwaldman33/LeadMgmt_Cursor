@@ -7,9 +7,42 @@ import { AuditLogService } from './auditLogService';
 
 const prisma = new PrismaClient();
 
-// Claude API Configuration
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
+// Claude API Configuration - will be loaded from database
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+
+// Helper function to get configuration from database
+async function getConfig(key: string): Promise<string | null> {
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key }
+    });
+    return config?.value || null;
+  } catch (error) {
+    console.error(`Error getting config ${key}:`, error);
+    return null;
+  }
+}
+
+// Helper function to decrypt configuration if needed
+async function getDecryptedConfig(key: string): Promise<string | null> {
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key }
+    });
+    
+    if (!config) return null;
+    
+    if (config.isEncrypted) {
+      // For now, return the encrypted value - in production you'd decrypt it
+      return '[ENCRYPTED]';
+    }
+    
+    return config.value;
+  } catch (error) {
+    console.error(`Error getting decrypted config ${key}:`, error);
+    return null;
+  }
+}
 
 export interface MLFeatures {
   companySize: number;
@@ -100,6 +133,7 @@ export class AIScoringService {
    * Call Claude API for lead scoring
    */
   async scoreLeadWithClaude(leadData: any, industry: string = 'dental'): Promise<MLPrediction> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
     if (!CLAUDE_API_KEY) {
       throw new Error('Claude API key not configured');
     }
@@ -122,6 +156,7 @@ export class AIScoringService {
     criteria: Array<{ name: string; weight: number; description: string }>;
     reasoning: string;
   }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
     if (!CLAUDE_API_KEY) {
       throw new Error('Claude API key not configured');
     }
@@ -148,6 +183,7 @@ export class AIScoringService {
     suggestedWeights: Record<string, number>;
     reasoning: string;
   }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
     if (!CLAUDE_API_KEY) {
       throw new Error('Claude API key not configured');
     }
@@ -173,6 +209,7 @@ export class AIScoringService {
     industryRelevance: number;
     insights: string[];
   }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
     if (!CLAUDE_API_KEY) {
       throw new Error('Claude API key not configured');
     }
@@ -191,9 +228,14 @@ export class AIScoringService {
   // Private Claude API helper methods
 
   private async callClaudeAPI(prompt: string): Promise<ClaudeResponse> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
     if (!CLAUDE_API_KEY) {
       throw new Error('Claude API key not configured');
     }
+
+    // Get model configuration from database
+    const model = await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229';
+    const maxTokens = await getConfig('CLAUDE_MAX_TOKENS') || '4000';
 
     const response = await fetch(CLAUDE_API_URL, {
       method: 'POST',
@@ -203,8 +245,8 @@ export class AIScoringService {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
-        max_tokens: 4000,
+        model: model,
+        max_tokens: parseInt(maxTokens),
         messages: [
           {
             role: 'user',

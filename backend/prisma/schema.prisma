@@ -39,6 +39,7 @@ model User {
   createdWorkflows  Workflow[] @relation("WorkflowCreator")
   createdBusinessRules BusinessRule[] @relation("BusinessRuleCreator")
   workflowExecutions WorkflowExecution[] @relation("UserWorkflowExecutions")
+  createdConfigs SystemConfig[] @relation("ConfigCreator")
   
   @@map("users")
 }
@@ -385,4 +386,24 @@ model BusinessRule {
   updatedAt DateTime @updatedAt
   
   @@map("business_rules")
+}
+
+// System Configuration Model
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  description String?
+  isEncrypted Boolean @default(false)
+  category  String   @default("GENERAL")
+  
+  // Relations
+  createdById String
+  createdBy   User     @relation("ConfigCreator", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("system_configs")
 }

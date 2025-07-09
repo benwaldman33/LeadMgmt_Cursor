@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { createServer } from 'http';
 import { webSocketService } from './services/websocketService';
+import authMiddleware from './middleware/auth';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,8 @@ import businessRuleRoutes from './routes/businessRules';
 console.log('businessRuleRoutes:', typeof businessRuleRoutes);
 import webScrapingRoutes from './routes/webScraping';
 console.log('webScrapingRoutes:', typeof webScrapingRoutes);
+import adminRouter from './routes/admin';
+console.log('adminRouter:', typeof adminRouter);
 
 const app = express();
 const server = createServer(app);
@@ -95,6 +98,7 @@ app.use('/api/integrations', integrationRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/business-rules', businessRuleRoutes);
 app.use('/api/web-scraping', webScrapingRoutes);
+app.use('/api/admin', authMiddleware, adminRouter);
 
 // 404 handler
 app.use('*', (req, res) => {

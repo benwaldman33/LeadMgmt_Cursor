@@ -601,10 +601,7 @@ async function main() {
       type: 'SCORING',
       config: JSON.stringify({
         modelId: 'ai-model-1'
-      }),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      })
     },
     {
       id: 'step-2',
@@ -614,10 +611,7 @@ async function main() {
       type: 'BUSINESS_RULES',
       config: JSON.stringify({
         ruleIds: ['rule-1', 'rule-2']
-      }),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      })
     },
     {
       id: 'step-3',
@@ -627,10 +621,7 @@ async function main() {
       type: 'ASSIGNMENT',
       config: JSON.stringify({
         assignmentType: 'ROUND_ROBIN'
-      }),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      })
     }
   ];
 
