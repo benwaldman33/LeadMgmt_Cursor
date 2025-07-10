@@ -142,15 +142,15 @@ export class AnalyticsService {
 
     return {
       daily: dailyData.map((item: any) => ({
-        date: item.createdAt.toISOString().split('T')[0],
+        date: item.createdAt ? item.createdAt.toISOString().split('T')[0] : '',
         count: item._count.id
       })),
       weekly: (weeklyData as any[]).map(item => ({
-        week: item.week.toISOString().split('T')[0],
+        week: item.week && typeof item.week.toISOString === 'function' ? item.week.toISOString().split('T')[0] : (item.week || ''),
         count: Number(item.count)
       })),
       monthly: (monthlyData as any[]).map(item => ({
-        month: item.month.toISOString().split('T')[0],
+        month: item.month && typeof item.month.toISOString === 'function' ? item.month.toISOString().split('T')[0] : (item.month || ''),
         count: Number(item.count)
       }))
     };
