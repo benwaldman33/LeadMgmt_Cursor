@@ -29,6 +29,7 @@ import BusinessRulesPage from './pages/BusinessRulesPage';
 import CreateBusinessRulePage from './pages/CreateBusinessRulePage';
 import BusinessRuleTestPage from './pages/BusinessRuleTestPage';
 import WebScrapingPage from './pages/WebScrapingPage';
+import AdminPanelPage from './pages/AdminPanelPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -304,6 +305,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <WebScrapingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPanelPage />
           </ProtectedRoute>
         }
       />
