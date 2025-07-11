@@ -7,6 +7,23 @@ All notable changes to this project will be documented in this file.
 - See engineering-log.md for technical notes and areas to revisit.
 
 ## [2025-07-11]
+### Added
+- **Automated Pipeline System**: Complete workflow automation for lead processing
+  - Implemented `PipelineService` with full workflow: Import → Scrape → Analyze → Score
+  - Added real-time progress tracking and WebSocket notifications
+  - Created `PipelineForm` component for URL input and campaign selection
+  - Built `PipelinePage` with comprehensive information and step-by-step process
+  - Added pipeline navigation and routing in sidebar
+  - Support for industry-specific processing and campaign scoring models
+  - Comprehensive error handling and validation
+
+- **Raw Data Viewer**: Advanced data visualization for scraped content
+  - Created `RawDataViewer` component with collapsible sections
+  - Display raw page content, metadata, and structured data
+  - Show processing status, timing, and error information
+  - Enhanced `LeadDetailPage` to include raw data viewer
+  - Support for viewing full scraped content and extracted information
+
 ### Enhanced
 - **Web Scraping Data Storage**: Significantly enhanced lead enrichment to store comprehensive scraped data
   - Added full page content storage (truncated to 10KB)
@@ -18,7 +35,6 @@ All notable changes to this project will be documented in this file.
   - Built comprehensive `EnrichmentDetails` component for data visualization
   - Applied database migration for enhanced `LeadEnrichment` model
 
-### Added
 - **Scoring Model Management**: Complete edit functionality for scoring models
   - Added PUT and DELETE endpoints for scoring models
   - Created `EditScoringModelPage` component with full CRUD operations
