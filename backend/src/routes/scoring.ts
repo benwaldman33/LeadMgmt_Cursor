@@ -141,4 +141,177 @@ router.get('/results/:leadId', authenticateToken, requireAnalyst, async (req: Re
   }
 });
 
+// Get single scoring model by ID
+router.get('/:id', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const scoringModel = await prisma.scoringModel.findUnique({
+      where: { id },
+      include: {
+        criteria: true,
+        createdBy: true,
+      },
+    });
+
+    if (!scoringModel) {
+      return res.status(404).json({ error: 'Scoring model not found' });
+    }
+
+    res.json({ scoringModel });
+  } catch (error) {
+    console.error('Get scoring model error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update scoring model
+router.put('/:id', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, industry, criteria } = req.body;
+
+    // Check if model exists
+    const existingModel = await prisma.scoringModel.findUnique({
+      where: { id },
+      include: { criteria: true }
+    });
+
+    if (!existingModel) {
+      return res.status(404).json({ error: 'Scoring model not found' });
+    }
+
+    // Update model and criteria in a transaction
+    const updatedModel = await prisma.$transaction(async (tx) => {
+      // Update the model
+      const model = await tx.scoringModel.update({
+        where: { id },
+        data: {
+          name,
+          industry,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Delete existing criteria
+      await tx.scoringCriterion.deleteMany({
+        where: { scoringModelId: id }
+      });
+
+      // Create new criteria
+      const newCriteria = await Promise.all(
+        criteria.map((criterion: any) =>
+          tx.scoringCriterion.create({
+            data: {
+              name: criterion.name,
+              description: criterion.description,
+              searchTerms: JSON.stringify(criterion.searchTerms),
+              weight: criterion.weight,
+              type: criterion.type,
+              scoringModelId: id,
+            },
+          })
+        )
+      );
+
+      return {
+        ...model,
+        criteria: newCriteria,
+      };
+    });
+
+    res.json({ scoringModel: updatedModel });
+  } catch (error) {
+    console.error('Update scoring model error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete scoring model
+router.delete('/:id', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Check if model exists
+    const existingModel = await prisma.scoringModel.findUnique({
+      where: { id },
+      include: { criteria: true }
+    });
+
+    if (!existingModel) {
+      return res.status(404).json({ error: 'Scoring model not found' });
+    }
+
+    // Check if model is being used by any campaigns
+    const campaignsUsingModel = await prisma.campaign.findMany({
+      where: { scoringModelId: id }
+    });
+
+    if (campaignsUsingModel.length > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete scoring model that is being used by campaigns',
+        campaigns: campaignsUsingModel.map(c => ({ id: c.id, name: c.name }))
+      });
+    }
+
+    // Delete model (criteria will be deleted automatically due to cascade)
+    await prisma.scoringModel.delete({
+      where: { id }
+    });
+
+    res.json({ 
+      success: true,
+      message: 'Scoring model deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete scoring model error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Duplicate scoring model
+router.post('/:id/duplicate', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    // Get the original model
+    const originalModel = await prisma.scoringModel.findUnique({
+      where: { id },
+      include: { criteria: true }
+    });
+
+    if (!originalModel) {
+      return res.status(404).json({ error: 'Scoring model not found' });
+    }
+
+    // Create duplicate model
+    const duplicatedModel = await prisma.scoringModel.create({
+      data: {
+        name: name || `${originalModel.name} (Copy)`,
+        industry: originalModel.industry,
+        createdById: req.user!.id,
+        criteria: {
+          create: originalModel.criteria.map(criterion => ({
+            name: criterion.name,
+            description: criterion.description,
+            searchTerms: criterion.searchTerms,
+            weight: criterion.weight,
+            type: criterion.type,
+          })),
+        },
+      },
+      include: {
+        criteria: true,
+        createdBy: true,
+      },
+    });
+
+    res.status(201).json({ scoringModel: duplicatedModel });
+  } catch (error) {
+    console.error('Duplicate scoring model error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

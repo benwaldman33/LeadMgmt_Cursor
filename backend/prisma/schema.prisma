@@ -210,13 +210,35 @@ model LeadEnrichment {
   industry    String?
   technologies String   // JSON string for SQLite compatibility
   
+  // Enhanced web scraping data storage
+  scrapedContent String?     // Full page content (truncated for storage)
+  pageTitle String?          // Page title from metadata
+  pageDescription String?    // Meta description
+  pageKeywords String?       // Meta keywords as JSON string
+  pageLanguage String?       // Page language
+  lastModified String?       // Last modified date
+  
+  // Structured data from scraping
+  companyName String?        // Extracted company name
+  services String?           // JSON string of detected services
+  certifications String?     // JSON string of certifications
+  contactEmail String?       // Primary contact email
+  contactPhone String?       // Primary contact phone
+  contactAddress String?     // Contact address
+  
+  // Scraping metadata
+  scrapingTimestamp DateTime @default(now())
+  processingTime Int?        // Time taken to scrape in milliseconds
+  scrapingSuccess Boolean @default(true)
+  scrapingError String?      // Error message if scraping failed
+  
   // Relations
   leadId      String @unique
   lead        Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
   contacts    Contact[]
   
   // Metadata
-  source      String @default("CLEARBIT")
+  source      String @default("WEB_SCRAPING")
   enrichedAt  DateTime @default(now())
   
   @@map("lead_enrichments")

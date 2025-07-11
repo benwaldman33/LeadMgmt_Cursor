@@ -153,12 +153,37 @@ export const leadsAPI = {
     return response.data;
   },
 
+  getEnrichment: async (id: string) => {
+    const response = await api.get(`/leads/${id}/enrichment`);
+    return response.data;
+  },
+
+  // Pipeline API methods
+  startPipeline: async (data: {
+    urls: string[];
+    campaignId: string;
+    industry?: string;
+  }) => {
+    const response = await api.post('/leads/pipeline', data);
+    return response.data;
+  },
+
+  getPipelineJob: async (jobId: string) => {
+    const response = await api.get(`/leads/pipeline/${jobId}`);
+    return response.data;
+  },
+
+  getCampaignPipelineJobs: async (campaignId: string) => {
+    const response = await api.get(`/leads/campaign/${campaignId}/pipeline`);
+    return response.data;
+  },
+
   update: async (id: string, leadData: {
     url: string;
     companyName: string;
     domain: string;
     industry: string;
-    campaignId: string;
+    campaignId?: string;
     status?: string;
     assignedToId?: string;
     assignedTeamId?: string;
@@ -192,12 +217,42 @@ export const leadsAPI = {
     const response = await api.delete('/leads/bulk', { data: { leadIds } });
     return response.data;
   },
+
+  exportLeads: async (options: {
+    format?: 'csv' | 'json';
+    includeEnrichment?: boolean;
+    includeScoring?: boolean;
+    filters?: Record<string, any>;
+  } = {}) => {
+    const response = await api.post('/leads/export', options, {
+      responseType: 'blob',
+    });
+    return response;
+  },
+
+  importLeads: async (file: File, campaignId: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('campaignId', campaignId);
+    
+    const response = await api.post('/leads/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 // Scoring API
 export const scoringAPI = {
   getAll: async (params?: { industry?: string }) => {
     const response = await api.get('/scoring', { params });
+    return response.data;
+  },
+  
+  getById: async (id: string) => {
+    const response = await api.get(`/scoring/${id}`);
     return response.data;
   },
   
@@ -213,6 +268,31 @@ export const scoringAPI = {
     }>;
   }) => {
     const response = await api.post('/scoring', scoringData);
+    return response.data;
+  },
+
+  update: async (id: string, scoringData: {
+    name: string;
+    industry: string;
+    criteria: Array<{
+      name: string;
+      description?: string;
+      searchTerms: string[];
+      weight: number;
+      type: string;
+    }>;
+  }) => {
+    const response = await api.put(`/scoring/${id}`, scoringData);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await api.delete(`/scoring/${id}`);
+    return response.data;
+  },
+
+  duplicate: async (id: string, name?: string) => {
+    const response = await api.post(`/scoring/${id}/duplicate`, { name });
     return response.data;
   },
 

@@ -36,7 +36,15 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
-    const id = Date.now().toString();
+    // NOTE: If absolute uniqueness is ever required, revisit this ID generation logic.
+    // While collisions are extremely unlikely with crypto.randomUUID() or the fallback,
+    // a check could be added to guarantee uniqueness if needed in the future.
+    let id: string;
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      id = crypto.randomUUID();
+    } else {
+      id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
     setNotifications(prev => [...prev, { ...notification, id }]);
   }, []);
 

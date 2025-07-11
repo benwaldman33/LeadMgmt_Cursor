@@ -43,6 +43,7 @@ const ScoringModelsPage: React.FC = () => {
   const [filters, setFilters] = useState({
     industry: '',
   });
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     fetchScoringModels();
@@ -84,6 +85,30 @@ const ScoringModelsPage: React.FC = () => {
       ...prev,
       industry: value
     }));
+  };
+
+  const handleDeleteModel = async (modelId: string, modelName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${modelName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await scoringAPI.delete(modelId);
+      addNotification({
+        type: 'success',
+        title: 'Success',
+        message: 'Scoring model deleted successfully'
+      });
+      // Refresh the list
+      fetchScoringModels();
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || 'Failed to delete scoring model';
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: errorMessage
+      });
+    }
   };
 
   if (loading) {
@@ -186,15 +211,24 @@ const ScoringModelsPage: React.FC = () => {
                   <Link
                     to={`/scoring/${model.id}`}
                     className="text-primary-600 hover:text-primary-900"
+                    title="View Details"
                   >
                     <EyeIcon className="h-4 w-4" />
                   </Link>
                   <Link
                     to={`/scoring/${model.id}/edit`}
                     className="text-gray-600 hover:text-gray-900"
+                    title="Edit Model"
                   >
                     <PencilIcon className="h-4 w-4" />
                   </Link>
+                  <button
+                    onClick={() => handleDeleteModel(model.id, model.name)}
+                    className="text-red-600 hover:text-red-900"
+                    title="Delete Model"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
 

@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 const prisma = new PrismaClient();
 
 export interface NotificationData {
-  type: 'lead_created' | 'lead_updated' | 'lead_assigned' | 'lead_scored' | 'campaign_created' | 'user_activity';
+  type: 'lead_created' | 'lead_updated' | 'lead_assigned' | 'lead_scored' | 'campaign_created' | 'user_activity' | 'pipeline_started' | 'pipeline_progress' | 'pipeline_completed' | 'pipeline_failed';
   title: string;
   message: string;
   data?: any;
@@ -244,15 +244,29 @@ class WebSocketService {
     const notification: NotificationData = {
       type: 'user_activity',
       title: 'User Activity',
-      message: `${user.fullName} ${activity}`,
-      data: { userId, activity, user },
-      timestamp: new Date()
+      message: activity,
+      data: { userId, activity },
+      timestamp: new Date(),
+      userId
     };
 
     // Send to team members
     if (user.teamId) {
       this.sendToTeam(user.teamId, notification);
     }
+  }
+
+  // Send pipeline notifications
+  async sendPipelineNotification(type: 'pipeline_started' | 'pipeline_progress' | 'pipeline_completed' | 'pipeline_failed', title: string, message: string, data?: any) {
+    const notification: NotificationData = {
+      type,
+      title,
+      message,
+      data,
+      timestamp: new Date()
+    };
+
+    this.sendToAll(notification);
   }
 
   // Get connected users count

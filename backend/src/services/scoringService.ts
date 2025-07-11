@@ -74,12 +74,28 @@ export class ScoringService {
     let score = 0;
     let confidence = 0;
 
-    // Combine all text content for analysis
+    // Get enrichment data if available
+    const enrichment = await prisma.leadEnrichment.findUnique({
+      where: { leadId: lead.id }
+    });
+
+    // Combine all text content for analysis - now including enhanced enrichment data
     const contentToAnalyze = [
       lead.companyName,
       lead.domain,
       lead.industry,
-      lead.url
+      lead.url,
+      // Enhanced enrichment data
+      enrichment?.companyName,
+      enrichment?.pageTitle,
+      enrichment?.pageDescription,
+      enrichment?.scrapedContent, // Full scraped content
+      enrichment?.pageKeywords ? JSON.parse(enrichment.pageKeywords).join(' ') : '',
+      enrichment?.services ? JSON.parse(enrichment.services).join(' ') : '',
+      enrichment?.certifications ? JSON.parse(enrichment.certifications).join(' ') : '',
+      enrichment?.contactEmail,
+      enrichment?.contactPhone,
+      enrichment?.contactAddress,
     ].filter(Boolean).join(' ').toLowerCase();
 
     // Score based on criterion type
@@ -91,14 +107,22 @@ export class ScoringService {
         score = this.scoreDomainMatch(lead.domain, searchTerms, matchedContent);
         break;
       case 'CONTENT':
-        score = this.scoreContentMatch(contentToAnalyze, searchTerms, matchedContent);
+        score = this.scoreContentQuality(contentToAnalyze, matchedContent);
         break;
       default:
-        score = 0;
+        score = this.scoreKeywordMatch(contentToAnalyze, searchTerms, matchedContent);
     }
 
-    // Calculate confidence based on number of matches
-    confidence = Math.min(100, (matchedContent.length / searchTerms.length) * 100);
+    // Calculate confidence based on content richness
+    const contentLength = contentToAnalyze.length;
+    const uniqueTerms = new Set(searchTerms).size;
+    const matchRatio = matchedContent.length / uniqueTerms;
+    
+    confidence = Math.min(100, Math.max(0, 
+      (contentLength / 1000) * 30 + // Content richness
+      (matchRatio * 40) + // Term matching
+      (enrichment ? 30 : 0) // Enrichment availability
+    ));
 
     return {
       criterionId: criterion.id,

@@ -62,6 +62,20 @@ interface ScoringModel {
   industry: string;
 }
 
+// Type guard for Lead
+function isLead(obj: any): obj is Lead {
+  return (
+    obj &&
+    typeof obj.id === 'string' &&
+    typeof obj.companyName === 'string' &&
+    typeof obj.domain === 'string' &&
+    typeof obj.industry === 'string' &&
+    typeof obj.status === 'string' &&
+    typeof obj.createdAt === 'string' &&
+    obj.campaign && typeof obj.campaign.id === 'string' && typeof obj.campaign.name === 'string'
+  );
+}
+
 const LeadsPage: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -72,7 +86,7 @@ const LeadsPage: React.FC = () => {
   const { addNotification } = useNotifications();
   const [filters, setFilters] = useState<LeadFilters>({
     query: '',
-    status: [],
+    status: '',
     campaignId: '',
     assignedToId: '',
     assignedTeamId: '',
@@ -91,11 +105,28 @@ const LeadsPage: React.FC = () => {
     fetchScoringModels();
   }, [filters]);
 
+  // Utility to clean filters before sending to backend
+  const cleanFilters = (filters: LeadFilters): LeadFilters => {
+    const cleaned: LeadFilters = {};
+    Object.entries(filters).forEach(([key, value]) => {
+      if (
+        value !== undefined &&
+        value !== '' &&
+        !(Array.isArray(value) && value.length === 0)
+      ) {
+        cleaned[key as keyof LeadFilters] = value;
+      }
+    });
+    return cleaned;
+  };
+
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const result = await SearchService.searchLeads(filters);
-      setLeads(result.leads || []);
+      const result = await SearchService.searchLeads(cleanFilters(filters));
+      // Only set valid leads
+      const validLeads = Array.isArray(result.leads) ? result.leads.filter(isLead).map(l => l as unknown as Lead) : [];
+      setLeads(validLeads);
     } catch (err: unknown) {
       addNotification(showNetworkError());
     } finally {
@@ -142,8 +173,37 @@ const LeadsPage: React.FC = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const handleFilterChange = (newFilters: LeadFilters) => {
-    setFilters(newFilters);
+  // AdvancedFilters expects filterOptions, onFilterChange, onClearFilters
+  const filterOptions = {
+    status: [
+      { value: 'RAW', label: 'Raw' },
+      { value: 'SCORED', label: 'Scored' },
+      { value: 'QUALIFIED', label: 'Qualified' },
+      { value: 'DELIVERED', label: 'Delivered' },
+      { value: 'REJECTED', label: 'Rejected' },
+    ],
+    // Add more filter options as needed
+  };
+
+  const handleAdvancedFilterChange = (key: string, value: any) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      query: '',
+      status: '',
+      campaignId: '',
+      assignedToId: '',
+      assignedTeamId: '',
+      industry: '',
+      scoreMin: undefined,
+      scoreMax: undefined,
+      dateFrom: '',
+      dateTo: '',
+      enriched: undefined,
+      scored: undefined,
+    });
   };
 
   const handleSelectLead = (leadId: string) => {
@@ -201,6 +261,44 @@ const LeadsPage: React.FC = () => {
     }
   };
 
+  // Export leads handler
+  const handleExportLeads = async () => {
+    try {
+      const response = await leadsAPI.exportLeads({
+        format: 'csv',
+        includeEnrichment: true,
+        includeScoring: true,
+        filters: cleanFilters(filters),
+      });
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      addNotification({
+        type: 'success',
+        title: 'Export Successful',
+        message: 'Leads exported successfully.'
+      });
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Export Failed',
+        message: 'Failed to export leads. Please try again.'
+      });
+    }
+  };
+
+  // Import leads handler
+  const handleImportLeads = async (importedData: any[]) => {
+    // Refresh the leads list after successful import
+    await fetchLeads();
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -228,7 +326,7 @@ const LeadsPage: React.FC = () => {
 
       {/* Import/Export */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <LeadImportExport />
+        <LeadImportExport onExport={handleExportLeads} onImport={handleImportLeads} />
       </div>
 
       {/* Search and Filters */}
@@ -249,8 +347,9 @@ const LeadsPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <AdvancedFilters
               filters={filters}
-              onFiltersChange={handleFilterChange}
-              filterTypes={['status', 'campaign', 'assignedTo', 'assignedTeam', 'industry', 'scoreRange', 'dateRange', 'enrichment', 'scoring']}
+              onFilterChange={handleAdvancedFilterChange}
+              onClearFilters={handleClearFilters}
+              filterOptions={filterOptions}
             />
           </div>
         </div>
@@ -338,7 +437,7 @@ const LeadsPage: React.FC = () => {
           </div>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No leads found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {filters.campaignId || filters.status?.length || filters.query 
+            {filters.campaignId || filters.status || filters.query 
               ? 'Try adjusting your filters or add new leads.'
               : 'Get started by adding your first lead.'
             }

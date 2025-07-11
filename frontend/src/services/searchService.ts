@@ -39,7 +39,7 @@ export interface SearchResponse {
 
 export interface LeadFilters {
   query?: string;
-  status?: string[];
+  status?: string;
   campaignId?: string;
   assignedToId?: string;
   assignedTeamId?: string;

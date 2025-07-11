@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeftIcon, PencilIcon, ChartBarIcon, GlobeAltIcon, BuildingOfficeIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { leadsAPI, scoringAPI } from '../services/api';
+import RawDataViewer from '../components/RawDataViewer';
 
 interface Contact {
   id: string;
@@ -394,6 +395,13 @@ const LeadDetailPage: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Raw Data Viewer */}
+          {lead.enrichment && (
+            <div className="card p-6">
+              <RawDataViewer enrichment={lead.enrichment} />
             </div>
           )}
         </div>

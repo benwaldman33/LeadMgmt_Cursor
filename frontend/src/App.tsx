@@ -14,6 +14,7 @@ import CreateLeadPage from './pages/CreateLeadPage';
 import EditLeadPage from './pages/EditLeadPage';
 import ScoringModelsPage from './pages/ScoringModelsPage';
 import CreateScoringModelPage from './pages/CreateScoringModelPage';
+import EditScoringModelPage from './pages/EditScoringModelPage';
 import ScoringModelDetailPage from './pages/ScoringModelDetailPage';
 import ScoringDashboardPage from './pages/ScoringDashboardPage';
 import LeadDetailPage from './pages/LeadDetailPage';
@@ -30,6 +31,8 @@ import CreateBusinessRulePage from './pages/CreateBusinessRulePage';
 import BusinessRuleTestPage from './pages/BusinessRuleTestPage';
 import WebScrapingPage from './pages/WebScrapingPage';
 import AdminPanelPage from './pages/AdminPanelPage';
+import CampaignDetailPage from './pages/CampaignDetailPage';
+import PipelinePage from './pages/PipelinePage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -121,6 +124,15 @@ const AppRoutes: React.FC = () => {
       />
 
       <Route
+        path="/campaigns/:id"
+        element={
+          <ProtectedRoute>
+            <CampaignDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/leads"
         element={
           <ProtectedRoute>
@@ -179,6 +191,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <ScoringModelDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/scoring/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditScoringModelPage />
           </ProtectedRoute>
         }
       />
@@ -305,6 +326,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <WebScrapingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/pipeline"
+        element={
+          <ProtectedRoute>
+            <PipelinePage />
           </ProtectedRoute>
         }
       />

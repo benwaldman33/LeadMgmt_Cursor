@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowUpTrayIcon,
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
+import { leadsAPI, campaignsAPI } from '../services/api';
+import { useNotifications } from '../contexts/NotificationContext';
 
 interface ImportExportProps {
   onImport?: (data: any[]) => void;
   onExport?: () => void;
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  industry: string;
 }
 
 const LeadImportExport: React.FC<ImportExportProps> = ({ onImport, onExport }) => {
@@ -14,6 +22,22 @@ const LeadImportExport: React.FC<ImportExportProps> = ({ onImport, onExport }) =
   const [isExporting, setIsExporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
+  const { addNotification } = useNotifications();
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
+
+  const fetchCampaigns = async () => {
+    try {
+      const response = await campaignsAPI.getAll();
+      setCampaigns(response.campaigns || []);
+    } catch (error) {
+      console.error('Failed to fetch campaigns:', error);
+    }
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -45,15 +69,24 @@ const LeadImportExport: React.FC<ImportExportProps> = ({ onImport, onExport }) =
   };
 
   const handleImport = async () => {
-    if (!importFile) return;
+    if (!importFile || !selectedCampaignId) {
+      addNotification({
+        type: 'error',
+        title: 'Import Failed',
+        message: 'Please select both a CSV file and a campaign.'
+      });
+      return;
+    }
     
     setIsImporting(true);
     try {
-      const formData = new FormData();
-      formData.append('file', importFile);
+      const result = await leadsAPI.importLeads(importFile, selectedCampaignId);
       
-      // Simulate import process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      addNotification({
+        type: 'success',
+        title: 'Import Successful',
+        message: `Successfully imported ${result.success} leads. ${result.errors.length > 0 ? `${result.errors.length} errors occurred.` : ''}`
+      });
       
       if (onImport) {
         onImport(preview);
@@ -61,8 +94,14 @@ const LeadImportExport: React.FC<ImportExportProps> = ({ onImport, onExport }) =
       
       setImportFile(null);
       setPreview([]);
+      setSelectedCampaignId('');
     } catch (error) {
       console.error('Import failed:', error);
+      addNotification({
+        type: 'error',
+        title: 'Import Failed',
+        message: 'Failed to import leads. Please check your CSV format and try again.'
+      });
     } finally {
       setIsImporting(false);
     }
@@ -102,6 +141,24 @@ const LeadImportExport: React.FC<ImportExportProps> = ({ onImport, onExport }) =
           </div>
           
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Campaign
+              </label>
+              <select
+                value={selectedCampaignId}
+                onChange={(e) => setSelectedCampaignId(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Select a campaign...</option>
+                {campaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select CSV File
