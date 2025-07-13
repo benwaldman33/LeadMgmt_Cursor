@@ -94,9 +94,27 @@ class AIDiscoveryService {
   /**
    * Add message to discovery session
    */
-  async addMessage(sessionId: string, message: string): Promise<DiscoverySession> {
-    const response = await api.post(`/ai-discovery/sessions/${sessionId}/messages`, { message });
+  async addMessage(sessionId: string, message: string, industry?: string, productVertical?: string): Promise<DiscoverySession> {
+    const response = await api.post(`/ai-discovery/sessions/${sessionId}/messages`, { 
+      message, 
+      industry, 
+      productVertical 
+    });
     return response.data.session;
+  }
+
+  /**
+   * Generate customer insights for product vertical
+   */
+  async generateCustomerInsights(industry: string, productVertical: string): Promise<{
+    content: string;
+    metadata?: any;
+  }> {
+    const response = await api.post('/ai-discovery/customer-insights', {
+      industry,
+      productVertical
+    });
+    return response.data.insights;
   }
 
   /**

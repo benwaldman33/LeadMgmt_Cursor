@@ -49,13 +49,13 @@ router.get('/industries/:industry/verticals', authenticateToken, requireAnalyst,
 router.post('/sessions/:sessionId/messages', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
-    const { message } = req.body;
+    const { message, industry, productVertical } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    const updatedSession = await AIDiscoveryService.addUserMessage(sessionId, message);
+    const updatedSession = await AIDiscoveryService.addUserMessage(sessionId, message, industry, productVertical);
 
     res.json({
       success: true,
@@ -64,6 +64,27 @@ router.post('/sessions/:sessionId/messages', authenticateToken, requireAnalyst, 
   } catch (error) {
     console.error('Error adding message to session:', error);
     res.status(500).json({ error: 'Failed to add message to session' });
+  }
+});
+
+// Generate customer insights for product vertical
+router.post('/customer-insights', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { industry, productVertical } = req.body;
+
+    if (!industry || !productVertical) {
+      return res.status(400).json({ error: 'Industry and product vertical are required' });
+    }
+
+    const insights = await AIDiscoveryService.generateCustomerInsights(industry, productVertical);
+
+    res.json({
+      success: true,
+      insights
+    });
+  } catch (error) {
+    console.error('Error generating customer insights:', error);
+    res.status(500).json({ error: 'Failed to generate customer insights' });
   }
 });
 

@@ -5,7 +5,8 @@ import type {
   Industry, 
   ProductVertical, 
   DiscoverySession,
-  WebSearchResult 
+  WebSearchResult,
+  ConversationMessage
 } from '../services/aiDiscoveryService';
 import { useNotifications } from '../contexts/NotificationContext';
 
@@ -105,8 +106,43 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     
     try {
       setLoadingSession(true);
+      
+      // Start discovery session
       const session = await aiDiscoveryService.startDiscoverySession(selectedIndustry);
       setDiscoverySession(session);
+      
+      // Generate customer insights for the selected product vertical
+      const selectedVertical = productVerticals.find(v => v.id === verticalId);
+      if (selectedVertical) {
+        try {
+          const insights = await aiDiscoveryService.generateCustomerInsights(selectedIndustry, verticalId);
+          
+          // Add customer insights as an AI message to the conversation
+          const insightsMessage: ConversationMessage = {
+            id: `msg_insights_${Date.now()}`,
+            role: 'assistant',
+            content: insights.content,
+            timestamp: new Date(),
+            metadata: insights.metadata
+          };
+          
+          // Update session with insights
+          const updatedSession = {
+            ...session,
+            conversationHistory: [...session.conversationHistory, insightsMessage]
+          };
+          setDiscoverySession(updatedSession);
+          
+          addNotification({
+            type: 'success',
+            title: 'Customer Insights Generated',
+            message: `AI has analyzed customers for ${selectedVertical.name}`
+          });
+        } catch (error: any) {
+          console.error('Error generating customer insights:', error);
+          // Don't show error notification as this is optional
+        }
+      }
     } catch (error: any) {
       addNotification({
         type: 'error',
@@ -125,7 +161,12 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     setUserMessage('');
 
     try {
-      const updatedSession = await aiDiscoveryService.addMessage(discoverySession.id, message);
+      const updatedSession = await aiDiscoveryService.addMessage(
+        discoverySession.id, 
+        message, 
+        selectedIndustry, 
+        selectedProductVertical
+      );
       setDiscoverySession(updatedSession);
     } catch (error: any) {
       addNotification({

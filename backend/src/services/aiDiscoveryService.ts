@@ -449,19 +449,20 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
   /**
    * Add user message to discovery session
    */
-  static async addUserMessage(sessionId: string, message: string): Promise<DiscoverySession> {
+  static async addUserMessage(sessionId: string, message: string, industry?: string, productVertical?: string): Promise<DiscoverySession> {
     // Get existing session (in a real app, this would be from database)
     // For now, we'll create a mock session with existing conversation
     const existingSession: DiscoverySession = {
       id: sessionId,
       userId: 'user_id',
-      industry: 'dental',
+      industry: industry || 'dental',
+      productVertical: productVertical,
       selectedCustomerTypes: [],
       conversationHistory: [
         {
           id: 'msg_initial',
           role: 'assistant',
-          content: 'Welcome to the AI Discovery session! I can help you explore customer opportunities and market insights. What would you like to know about your target customers?',
+          content: `Welcome to the AI Discovery session for ${industry || 'your selected industry'}! I can help you explore customer opportunities and market insights. What would you like to know about your target customers?`,
           timestamp: new Date(Date.now() - 60000)
         }
       ],
@@ -478,8 +479,8 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
       timestamp: new Date()
     };
 
-    // Generate AI response based on conversation context
-    const aiResponse = await this.generateAIResponse(sessionId, message);
+    // Generate AI response based on conversation context with industry/vertical awareness
+    const aiResponse = await this.generateAIResponse(sessionId, message, industry, productVertical);
     const aiMessage: ConversationMessage = {
       id: `msg_${Date.now() + 1}`,
       role: 'assistant',
@@ -499,21 +500,189 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
   }
 
   /**
-   * Generate AI response based on conversation context using Claude API
+   * Generate automatic customer insights when product vertical is selected
    */
-  private static async generateAIResponse(sessionId: string, userMessage: string): Promise<{
+  static async generateCustomerInsights(industry: string, productVertical: string): Promise<{
     content: string;
     metadata?: any;
   }> {
     try {
-      // Build Claude prompt for conversation response
-      const prompt = this.buildConversationPrompt(userMessage);
+      // Build Claude prompt for customer insights
+      const prompt = this.buildCustomerInsightsPrompt(industry, productVertical);
+      
+      // Call Claude API for customer insights
+      const claudeResponse = await callClaudeAPI(prompt);
+      
+      // Parse Claude's response
+      const content = claudeResponse.content[0]?.text || this.getFallbackCustomerInsights(industry, productVertical);
+      
+      return {
+        content: content,
+        metadata: {
+          industry: industry,
+          productVertical: productVertical,
+          customerTypes: [
+            {
+              id: 'primary_customers',
+              name: 'Primary Customers',
+              description: 'Main customer segments for this product vertical',
+              estimatedValue: '$50K-$500K'
+            },
+            {
+              id: 'secondary_customers', 
+              name: 'Secondary Customers',
+              description: 'Additional customer segments with growth potential',
+              estimatedValue: '$25K-$200K'
+            }
+          ]
+        }
+      };
+    } catch (error) {
+      console.error('[AI Discovery] Claude customer insights failed, using fallback:', error);
+      return {
+        content: this.getFallbackCustomerInsights(industry, productVertical),
+        metadata: {
+          industry: industry,
+          productVertical: productVertical
+        }
+      };
+    }
+  }
+
+  /**
+   * Build Claude prompt for customer insights
+   */
+  private static buildCustomerInsightsPrompt(industry: string, productVertical: string): string {
+    return `You are an expert in B2B customer analysis and market research. 
+
+I need you to analyze the customer landscape for ${productVertical} in the ${industry} industry.
+
+IMPORTANT: Focus on B2B customers (businesses that would buy this product), NOT end consumers.
+
+For ${productVertical} in the ${industry} industry, please provide:
+
+1. **Primary B2B Customer Types**: Who are the main businesses that would buy this product?
+2. **Customer Characteristics**: What defines these customers (size, type, needs)?
+3. **Buying Behavior**: How do these customers make purchasing decisions?
+4. **Market Opportunities**: What are the key selling points for each customer type?
+5. **Customer Value**: Estimated customer value and purchasing power
+
+Format your response in a clear, conversational way that would help a sales team understand their target customers.
+
+Focus on businesses that would be customers of the producer/manufacturer, not end consumers.`;
+  }
+
+  /**
+   * Get fallback customer insights if Claude API fails
+   */
+  private static getFallbackCustomerInsights(industry: string, productVertical: string): string {
+    const insights = {
+      'food_beverage': {
+        'plant_based_meat': `For Plant Based Meat in the Food & Beverage industry, your primary B2B customers include:
+
+**Primary Customers:**
+- Food Service Distributors: Large distributors supplying restaurants, cafeterias, and institutional kitchens
+- Restaurant Chains: Fast-casual and fine dining establishments looking to expand plant-based menu options
+- Food Manufacturers: Companies producing frozen meals, ready-to-eat products, and meal kits
+- Retail Grocery Chains: Supermarket chains and specialty food retailers
+- Food Service Providers: Catering companies, corporate dining services, and healthcare food services
+
+**Customer Characteristics:**
+- Focus on sustainability and health-conscious consumers
+- Need for consistent supply and quality assurance
+- Price-sensitive but willing to pay premium for quality
+- Require certifications (organic, non-GMO, allergen-free)
+
+**Buying Behavior:**
+- Long-term contracts with volume commitments
+- Require samples and product demonstrations
+- Need comprehensive documentation and certifications
+- Value supplier reliability and consistent quality
+
+**Market Opportunities:**
+- Growing demand for plant-based options in food service
+- Increasing consumer awareness of health and sustainability
+- Regulatory support for sustainable food production
+- Strong growth in food service and retail segments`,
+        'beverage_processing': `For Beverage Processing in the Food & Beverage industry, your primary B2B customers include:
+
+**Primary Customers:**
+- Beverage Manufacturers: Companies producing soft drinks, juices, and functional beverages
+- Dairy Processors: Companies producing milk, yogurt, and dairy alternatives
+- Craft Breweries: Small to medium-sized beer and cider producers
+- Distilleries: Producers of spirits and alcoholic beverages
+- Food Service Providers: Companies supplying beverages to restaurants and institutions
+
+**Customer Characteristics:**
+- Focus on efficiency and cost reduction
+- Need for food safety compliance and quality control
+- Require scalable solutions for production growth
+- Value energy efficiency and sustainability
+
+**Buying Behavior:**
+- Capital-intensive purchases with long ROI periods
+- Require extensive testing and validation
+- Need comprehensive service and maintenance support
+- Value supplier expertise and industry experience
+
+**Market Opportunities:**
+- Growing demand for functional and healthy beverages
+- Increasing automation in beverage production
+- Focus on sustainability and energy efficiency
+- Strong growth in craft and specialty beverages`
+      },
+      'dental': {
+        'cbct': `For CBCT Systems in the Dental industry, your primary B2B customers include:
+
+**Primary Customers:**
+- Dental Specialists: Endodontists, oral surgeons, and periodontists requiring advanced imaging
+- Multi-location Dental Groups: Large practices with multiple locations
+- Dental Schools: Educational institutions training future dentists
+- Dental Laboratories: Companies providing custom dental prosthetics
+- Dental Equipment Dealers: Distributors and resellers
+
+**Customer Characteristics:**
+- High-value procedures with premium pricing
+- Advanced technology adoption and training needs
+- Regulatory compliance requirements
+- Focus on patient safety and diagnostic accuracy
+
+**Buying Behavior:**
+- Long sales cycles with multiple decision makers
+- Require demonstrations and clinical validation
+- Need comprehensive training and support
+- Value ROI and clinical outcomes
+
+**Market Opportunities:**
+- Growing demand for advanced diagnostic imaging
+- Increasing adoption in general dentistry
+- Regulatory requirements for advanced imaging
+- Strong growth in dental specialty markets`
+      }
+    };
+
+    const industryInsights = insights[industry.toLowerCase() as keyof typeof insights];
+    const verticalInsights = industryInsights?.[productVertical.toLowerCase() as keyof typeof industryInsights];
+    
+    return verticalInsights || `For ${productVertical} in the ${industry} industry, your primary B2B customers include manufacturers, distributors, and service providers in this sector. Focus on businesses that would integrate or resell your products, not end consumers.`;
+  }
+
+  /**
+   * Generate AI response based on conversation context using Claude API
+   */
+  private static async generateAIResponse(sessionId: string, userMessage: string, industry?: string, productVertical?: string): Promise<{
+    content: string;
+    metadata?: any;
+  }> {
+    try {
+      // Build Claude prompt for conversation response with context
+      const prompt = this.buildConversationPrompt(userMessage, industry, productVertical);
       
       // Call Claude API for intelligent response
       const claudeResponse = await callClaudeAPI(prompt);
       
       // Parse Claude's response
-      const content = claudeResponse.content[0]?.text || this.getFallbackResponse(userMessage);
+      const content = claudeResponse.content[0]?.text || this.getFallbackResponse(userMessage, industry, productVertical);
       
       return {
         content: content,
@@ -537,7 +706,7 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
     } catch (error) {
       console.error('[AI Discovery] Claude conversation failed, using fallback:', error);
       return {
-        content: this.getFallbackResponse(userMessage),
+        content: this.getFallbackResponse(userMessage, industry, productVertical),
         metadata: {
           suggestedCustomerTypes: [
             {
@@ -561,17 +730,22 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
   /**
    * Build Claude prompt for conversation response
    */
-  private static buildConversationPrompt(userMessage: string): string {
-    return `You are an expert AI assistant helping with customer discovery and market analysis. 
+  private static buildConversationPrompt(userMessage: string, industry?: string, productVertical?: string): string {
+    const context = industry && productVertical 
+      ? `You are helping with customer discovery for ${productVertical} in the ${industry} industry. `
+      : 'You are an expert AI assistant helping with customer discovery and market analysis. ';
+
+    return `${context}
 
 A user has asked: "${userMessage}"
 
 Please provide a helpful, informative response that:
 1. Addresses their specific question or concern
-2. Provides actionable insights about customer discovery
+2. Provides actionable insights about customer discovery for ${productVertical || 'this product'}
 3. Suggests relevant customer types or market opportunities
 4. Maintains a conversational, helpful tone
 5. Keeps responses concise but informative (2-3 sentences)
+6. Focuses on B2B customers (businesses that would buy the product), not end consumers
 
 Focus on helping them discover potential customers and understand market opportunities.`;
   }
@@ -579,13 +753,13 @@ Focus on helping them discover potential customers and understand market opportu
   /**
    * Get fallback response if Claude API fails
    */
-  private static getFallbackResponse(userMessage: string): string {
+  private static getFallbackResponse(userMessage: string, industry?: string, productVertical?: string): string {
     const responses = [
-      "I understand you're interested in that area. Let me provide some specific insights about market opportunities and customer types.",
-      "Great question! This area has strong growth potential. Here are the key customer segments to target:",
-      "Excellent point. Based on market analysis, here are the most promising customer types for this vertical:",
-      "Perfect! Let me break down the customer types and their characteristics for this product vertical.",
-      "That's a great insight. Let me help you explore the customer opportunities in this market segment."
+      `I understand you're interested in ${productVertical || 'this area'}. Let me provide some specific insights about market opportunities and customer types.`,
+      `Great question about ${productVertical || 'this product'}! This area has strong growth potential. Here are the key customer segments to target:`,
+      `Excellent point about ${productVertical || 'this vertical'}. Based on market analysis, here are the most promising customer types:`,
+      `Perfect! Let me break down the customer types and their characteristics for ${productVertical || 'this product vertical'}.`,
+      `That's a great insight about ${productVertical || 'this market'}. Let me help you explore the customer opportunities.`
     ];
 
     const randomResponse = responses[Math.floor(Math.random() * responses.length)];
