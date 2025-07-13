@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- **AI Discovery Feature**: Complete AI-powered lead discovery system
+  - Implemented industry selection with 6 major industries (Dental, Construction, Manufacturing, Healthcare, Food & Beverage, Distribution)
+  - Added product vertical discovery with industry-specific verticals and customer types
+  - Built comprehensive search functionality with mock data for dental/CBCT, dental/lasers, and construction
+  - Created AI conversation interface for guided discovery sessions
+  - Added pipeline integration to send discovered customers to enrichment workflow
+  - Enhanced search constraints with geography and result limits
+  - Implemented real-time WebSocket notifications for discovery activities
+  - Fixed search functionality to properly use customer types from selected product verticals
+  - Added comprehensive debugging and error handling throughout the discovery flow
+
 - Project initialized with CHANGELOG.md and engineering-log.md for better documentation and tracking.
 - See engineering-log.md for technical notes and areas to revisit.
 

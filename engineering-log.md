@@ -4,6 +4,62 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
 
 ---
 
+## 2025-07-13
+
+### AI Discovery Feature Implementation
+- **Area:** AI-powered lead discovery, industry analysis, customer search, pipeline integration
+- **Changes Made:**
+  - Implemented complete AI Discovery system with industry selection and product vertical discovery
+  - Created `AIDiscoveryService` with mock data for 6 industries and their product verticals
+  - Built comprehensive search functionality with industry-specific customer types
+  - Added AI conversation interface for guided discovery sessions
+  - Integrated with pipeline system for seamless workflow from discovery to enrichment
+  - Enhanced search constraints with geography filtering and result limits
+  - Implemented real-time WebSocket notifications for discovery activities
+- **Technical Decisions:**
+  - Mock data structure with realistic industry/vertical/customer type hierarchies
+  - Customer types extracted from selected product verticals for accurate search
+  - Search results filtered by geography and result limits for scalability
+  - Pipeline integration sends discovered URLs directly to enrichment workflow
+  - WebSocket notifications track user activity throughout discovery process
+- **Architecture:**
+  - Industry → Product Vertical → Customer Types → Search → Pipeline workflow
+  - Mock data provides realistic examples for dental/CBCT, dental/lasers, construction
+  - Search results include relevance scores, locations, and company types
+  - Pipeline integration maintains context (industry, source) for downstream processing
+- **Benefits:**
+  - Complete AI-guided lead discovery workflow
+  - Industry-specific insights and customer targeting
+  - Seamless integration with existing pipeline system
+  - Scalable architecture for real web search integration
+- **Files Created/Modified:**
+  - `backend/src/services/aiDiscoveryService.ts` (new)
+  - `backend/src/routes/aiDiscovery.ts` (new)
+  - `frontend/src/services/aiDiscoveryService.ts` (new)
+  - `frontend/src/pages/AIDiscoveryPage.tsx` (new)
+  - `frontend/src/App.tsx` (AI Discovery routing)
+  - `frontend/src/components/DashboardLayout.tsx` (AI Discovery navigation)
+
+### Search Functionality Fix
+- **Area:** AI Discovery search, customer type handling, mock data enhancement
+- **Changes Made:**
+  - Fixed search functionality to properly extract customer types from selected product verticals
+  - Enhanced mock data with industry-specific results for dental/CBCT, dental/lasers, and construction
+  - Added comprehensive debugging logs to frontend search function
+  - Improved search results filtering and display
+- **Technical Decisions:**
+  - Customer types now sourced from selected product vertical instead of empty discovery session
+  - Mock data structured to match real industry/vertical combinations
+  - Debugging logs provide visibility into search process for development
+  - Search results include realistic company data with locations and descriptions
+- **Benefits:**
+  - Search now returns appropriate results based on industry/vertical selection
+  - Better user experience with realistic mock data
+  - Improved debugging capabilities for development
+  - Foundation ready for real web search integration
+
+---
+
 ## 2025-07-11
 
 ### Automated Pipeline System Implementation
