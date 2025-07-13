@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { AIScoringService } from '../services/aiScoringService';
 import { useNotifications } from '../contexts/NotificationContext';
+import ClaudeConfigPanel from '../components/ClaudeConfigPanel';
 import {
   LightBulbIcon,
   ArrowTrendingUpIcon,
@@ -19,7 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const AIScoringPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'predictions' | 'analysis' | 'claude'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'predictions' | 'analysis' | 'claude' | 'config'>('overview');
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [analysisText, setAnalysisText] = useState<string>('');
   const [newModel, setNewModel] = useState({
@@ -223,7 +224,8 @@ const AIScoringPage: React.FC = () => {
     { id: 'models', label: 'Models', icon: CogIcon },
     { id: 'predictions', label: 'Predictions', icon: ChartBarSquareIcon },
     { id: 'analysis', label: 'Text Analysis', icon: DocumentTextIcon },
-    { id: 'claude', label: 'Claude AI', icon: SparklesIcon }
+    { id: 'claude', label: 'Claude AI', icon: SparklesIcon },
+    { id: 'config', label: 'Configuration', icon: CogIcon }
   ];
 
   return (
@@ -808,6 +810,12 @@ const AIScoringPage: React.FC = () => {
                   <p className="text-gray-500 text-center py-4">No prediction available</p>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'config' && (
+            <div className="p-6">
+              <ClaudeConfigPanel />
             </div>
           )}
         </div>

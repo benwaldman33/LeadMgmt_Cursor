@@ -3,6 +3,42 @@ import Joi from 'joi';
 import { authenticateToken } from '../middleware/auth';
 import { auditLog } from '../middleware/auditLog';
 import { AIScoringService } from '../services/aiScoringService';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Helper functions from aiScoringService
+async function getConfig(key: string): Promise<string | null> {
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key }
+    });
+    return config?.value || null;
+  } catch (error) {
+    console.error(`Error getting config ${key}:`, error);
+    return null;
+  }
+}
+
+async function getDecryptedConfig(key: string): Promise<string | null> {
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key }
+    });
+    
+    if (!config) return null;
+    
+    if (config.isEncrypted) {
+      // For now, return the encrypted value - in production you'd decrypt it
+      return '[ENCRYPTED]';
+    }
+    
+    return config.value;
+  } catch (error) {
+    console.error(`Error getting decrypted config ${key}:`, error);
+    return null;
+  }
+}
 
 const router = express.Router();
 const aiScoringService = new AIScoringService();
@@ -283,6 +319,198 @@ router.post('/bulk-predict',
 );
 
 // Claude AI specific routes
+
+// Get Claude configuration
+router.get('/claude/config',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const config = {
+        model: await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229',
+        maxTokens: await getConfig('CLAUDE_MAX_TOKENS') || '4000',
+        temperature: await getConfig('CLAUDE_TEMPERATURE') || '0.7',
+        isConfigured: !!(await getDecryptedConfig('CLAUDE_API_KEY'))
+      };
+
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      console.error('Error getting Claude config:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get Claude configuration'
+      });
+    }
+  }
+);
+
+// Update Claude configuration
+router.post('/claude/config',
+  authenticateToken,
+  auditLog({ action: 'CLAUDE_CONFIG_UPDATE', entityType: 'SYSTEM_CONFIG' }),
+  async (req, res) => {
+    try {
+      const { model, maxTokens, temperature } = req.body;
+
+      // Update configuration in database
+      const updates = [];
+      if (model) updates.push(prisma.systemConfig.upsert({
+        where: { key: 'CLAUDE_MODEL' },
+        update: { value: model },
+        create: { 
+          key: 'CLAUDE_MODEL', 
+          value: model, 
+          description: 'Claude model to use for AI scoring',
+          category: 'AI_SCORING',
+          createdById: req.user!.id
+        }
+      }));
+
+      if (maxTokens) updates.push(prisma.systemConfig.upsert({
+        where: { key: 'CLAUDE_MAX_TOKENS' },
+        update: { value: maxTokens.toString() },
+        create: { 
+          key: 'CLAUDE_MAX_TOKENS', 
+          value: maxTokens.toString(), 
+          description: 'Maximum tokens for Claude API calls',
+          category: 'AI_SCORING',
+          createdById: req.user!.id
+        }
+      }));
+
+      if (temperature !== undefined) updates.push(prisma.systemConfig.upsert({
+        where: { key: 'CLAUDE_TEMPERATURE' },
+        update: { value: temperature.toString() },
+        create: { 
+          key: 'CLAUDE_TEMPERATURE', 
+          value: temperature.toString(), 
+          description: 'Temperature setting for Claude API calls',
+          category: 'AI_SCORING',
+          createdById: req.user!.id
+        }
+      }));
+
+      await Promise.all(updates);
+
+      res.json({
+        success: true,
+        message: 'Claude configuration updated successfully'
+      });
+    } catch (error) {
+      console.error('Error updating Claude config:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update Claude configuration'
+      });
+    }
+  }
+);
+
+// Test Claude API connection
+router.post('/claude/test-connection',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const testResult = await aiScoringService.testClaudeConnection();
+      
+      res.json({
+        success: true,
+        data: testResult
+      });
+    } catch (error) {
+      console.error('Error testing Claude connection:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to test Claude connection'
+      });
+    }
+  }
+);
+
+// Get Claude API usage statistics
+router.get('/claude/usage',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const usage = await aiScoringService.getClaudeUsageStats();
+      
+      res.json({
+        success: true,
+        data: usage
+      });
+    } catch (error) {
+      console.error('Error getting Claude usage:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get Claude usage statistics'
+      });
+    }
+  }
+);
+
+// Compare Claude vs ML model predictions
+router.post('/claude/compare-predictions',
+  authenticateToken,
+  auditLog({ action: 'CLAUDE_COMPARE_PREDICTIONS', entityType: 'LEAD' }),
+  async (req, res) => {
+    try {
+      const { leadId, modelIds } = req.body;
+
+      if (!leadId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Lead ID is required'
+        });
+      }
+
+      const comparison = await aiScoringService.compareClaudeVsML(leadId, modelIds);
+
+      res.json({
+        success: true,
+        data: comparison
+      });
+    } catch (error) {
+      console.error('Error comparing predictions:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to compare predictions'
+      });
+    }
+  }
+);
+
+// Enhanced content analysis with multiple perspectives
+router.post('/claude/enhanced-analysis',
+  authenticateToken,
+  auditLog({ action: 'CLAUDE_ENHANCED_ANALYSIS', entityType: 'LEAD' }),
+  async (req, res) => {
+    try {
+      const { content, industry = 'dental', analysisType = 'comprehensive' } = req.body;
+
+      if (!content) {
+        return res.status(400).json({
+          success: false,
+          error: 'Content is required'
+        });
+      }
+
+      const analysis = await aiScoringService.performEnhancedAnalysis(content, industry, analysisType);
+
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      console.error('Error performing enhanced analysis:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to perform enhanced analysis'
+      });
+    }
+  }
+);
 
 // Score lead with Claude AI
 router.post('/claude/score-lead', async (req, res) => {

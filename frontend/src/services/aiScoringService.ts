@@ -143,6 +143,115 @@ export class AIScoringService {
     return response.data.data;
   }
 
+  /**
+   * Get Claude configuration
+   */
+  async getClaudeConfig(): Promise<{
+    model: string;
+    maxTokens: string;
+    temperature: string;
+    isConfigured: boolean;
+  }> {
+    const response = await api.get('/ai-scoring/claude/config');
+    return response.data.data;
+  }
+
+  /**
+   * Update Claude configuration
+   */
+  async updateClaudeConfig(config: {
+    model?: string;
+    maxTokens?: number;
+    temperature?: number;
+  }): Promise<void> {
+    await api.post('/ai-scoring/claude/config', config);
+  }
+
+  /**
+   * Test Claude API connection
+   */
+  async testClaudeConnection(): Promise<{
+    success: boolean;
+    message: string;
+    model: string;
+    responseTime: number;
+  }> {
+    const response = await api.post('/ai-scoring/claude/test-connection');
+    return response.data.data;
+  }
+
+  /**
+   * Get Claude API usage statistics
+   */
+  async getClaudeUsageStats(): Promise<{
+    totalCalls: number;
+    totalTokens: number;
+    averageResponseTime: number;
+    costEstimate: number;
+    lastCall: Date | null;
+  }> {
+    const response = await api.get('/ai-scoring/claude/usage');
+    return response.data.data;
+  }
+
+  /**
+   * Compare Claude vs ML model predictions
+   */
+  async compareClaudeVsML(leadId: string, modelIds?: string[]): Promise<{
+    claudePrediction: MLPrediction;
+    mlPredictions: Array<{
+      modelId: string;
+      modelName: string;
+      prediction: MLPrediction;
+    }>;
+    comparison: {
+      scoreDifference: number;
+      confidenceDifference: number;
+      agreement: 'high' | 'medium' | 'low';
+      recommendations: string[];
+    };
+  }> {
+    const response = await api.post('/ai-scoring/claude/compare-predictions', {
+      leadId,
+      modelIds
+    });
+    return response.data.data;
+  }
+
+  /**
+   * Perform enhanced content analysis
+   */
+  async performEnhancedAnalysis(
+    content: string,
+    industry: string = 'dental',
+    analysisType: 'comprehensive' | 'sentiment' | 'technical' | 'business' = 'comprehensive'
+  ): Promise<{
+    sentiment: 'positive' | 'negative' | 'neutral';
+    keywords: string[];
+    topics: string[];
+    industryRelevance: number;
+    insights: string[];
+    technicalAnalysis: {
+      technologies: string[];
+      complexity: 'low' | 'medium' | 'high';
+      sophistication: number;
+    };
+    businessAnalysis: {
+      marketPosition: string;
+      growthPotential: number;
+      competitiveAdvantages: string[];
+      risks: string[];
+    };
+    recommendations: string[];
+  }> {
+    const response = await api.post('/ai-scoring/claude/enhanced-analysis', {
+      content,
+      industry,
+      analysisType
+    });
+    return response.data.data;
+  }
+
   // Existing ML Model Methods
 
   /**
