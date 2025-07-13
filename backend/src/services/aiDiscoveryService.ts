@@ -507,10 +507,10 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
     metadata?: any;
   }> {
     try {
-      // Build Claude prompt for customer insights
-      const prompt = this.buildCustomerInsightsPrompt(industry, productVertical);
+      // Build Claude prompt for self-prompting analysis
+      const prompt = this.buildSelfPromptingAnalysisPrompt(industry, productVertical);
       
-      // Call Claude API for customer insights
+      // Call Claude API for self-prompting analysis
       const claudeResponse = await callClaudeAPI(prompt);
       
       // Parse Claude's response
@@ -538,7 +538,7 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
         }
       };
     } catch (error) {
-      console.error('[AI Discovery] Claude customer insights failed, using fallback:', error);
+      console.error('[AI Discovery] Claude self-prompting analysis failed, using fallback:', error);
       return {
         content: this.getFallbackCustomerInsights(industry, productVertical),
         metadata: {
@@ -550,26 +550,36 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
   }
 
   /**
-   * Build Claude prompt for customer insights
+   * Build Claude prompt for self-prompting analysis
    */
-  private static buildCustomerInsightsPrompt(industry: string, productVertical: string): string {
-    return `You are an expert in B2B customer analysis and market research. 
+  private static buildSelfPromptingAnalysisPrompt(industry: string, productVertical: string): string {
+    return `You are an expert AI analyst specializing in B2B customer discovery and market research.
 
-I need you to analyze the customer landscape for ${productVertical} in the ${industry} industry.
+I need you to analyze ${productVertical} in the ${industry} industry, but instead of just providing information, I want you to:
+
+1. **Ask yourself key questions** about the customer landscape
+2. **Analyze the answers** to those questions
+3. **Generate insights** based on your analysis
+4. **Present your findings** in a conversational, analytical way
 
 IMPORTANT: Focus on B2B customers (businesses that would buy this product), NOT end consumers.
 
-For ${productVertical} in the ${industry} industry, please provide:
+Start by asking yourself these questions and then provide your analysis:
 
-1. **Primary B2B Customer Types**: Who are the main businesses that would buy this product?
-2. **Customer Characteristics**: What defines these customers (size, type, needs)?
-3. **Buying Behavior**: How do these customers make purchasing decisions?
-4. **Market Opportunities**: What are the key selling points for each customer type?
-5. **Customer Value**: Estimated customer value and purchasing power
+**Self-Analysis Questions:**
+- Who are the primary B2B customers for ${productVertical} in ${industry}?
+- What are their key characteristics and buying behaviors?
+- What market opportunities exist for this product vertical?
+- What are the main challenges and competitive factors?
+- What customer segments have the highest growth potential?
 
-Format your response in a clear, conversational way that would help a sales team understand their target customers.
+**Your Task:**
+1. Ask yourself these questions (or similar ones)
+2. Analyze each question thoroughly
+3. Provide your findings in a clear, analytical format
+4. Include specific customer types, market insights, and opportunities
 
-Focus on businesses that would be customers of the producer/manufacturer, not end consumers.`;
+Format your response as if you're conducting a thorough market analysis and sharing your findings. Be conversational but analytical.`;
   }
 
   /**
@@ -684,8 +694,15 @@ Focus on businesses that would be customers of the producer/manufacturer, not en
       // Parse Claude's response
       const content = claudeResponse.content[0]?.text || this.getFallbackResponse(userMessage, industry, productVertical);
       
+      // Generate additional self-prompting analysis if this is a follow-up question
+      const additionalAnalysis = await this.generateFollowUpAnalysis(userMessage, industry, productVertical);
+      
+      const fullResponse = additionalAnalysis 
+        ? `${content}\n\n${additionalAnalysis}`
+        : content;
+      
       return {
-        content: content,
+        content: fullResponse,
         metadata: {
           suggestedCustomerTypes: [
             {
@@ -728,6 +745,43 @@ Focus on businesses that would be customers of the producer/manufacturer, not en
   }
 
   /**
+   * Generate additional self-prompting analysis for follow-up questions
+   */
+  private static async generateFollowUpAnalysis(userMessage: string, industry?: string, productVertical?: string): Promise<string | null> {
+    try {
+      // Only generate additional analysis for certain types of follow-up questions
+      const followUpKeywords = ['customer', 'market', 'opportunity', 'segment', 'buyer', 'purchasing', 'growth', 'challenge', 'competitive'];
+      const hasFollowUpKeywords = followUpKeywords.some(keyword => 
+        userMessage.toLowerCase().includes(keyword)
+      );
+      
+      if (!hasFollowUpKeywords) {
+        return null;
+      }
+
+      const prompt = `You are analyzing ${productVertical || 'this product'} in the ${industry || 'this industry'} industry.
+
+The user has asked: "${userMessage}"
+
+Based on this question, ask yourself 2-3 additional analytical questions that would provide deeper insights, then answer them:
+
+1. What specific aspects of this question need deeper analysis?
+2. What additional customer segments or market factors should be considered?
+3. What insights would be most valuable for the user's specific question?
+
+Provide a brief but insightful analysis that addresses the user's question with additional self-generated insights.`;
+      
+      const claudeResponse = await callClaudeAPI(prompt);
+      const analysis = claudeResponse.content[0]?.text;
+      
+      return analysis ? `\n\n**Additional Analysis:**\n${analysis}` : null;
+    } catch (error) {
+      console.error('[AI Discovery] Follow-up analysis failed:', error);
+      return null;
+    }
+  }
+
+  /**
    * Build Claude prompt for conversation response
    */
   private static buildConversationPrompt(userMessage: string, industry?: string, productVertical?: string): string {
@@ -746,8 +800,15 @@ Please provide a helpful, informative response that:
 4. Maintains a conversational, helpful tone
 5. Keeps responses concise but informative (2-3 sentences)
 6. Focuses on B2B customers (businesses that would buy the product), not end consumers
+7. **Ask follow-up questions** to deepen the analysis and help the user explore further
 
-Focus on helping them discover potential customers and understand market opportunities.`;
+After providing your answer, ask 1-2 thoughtful follow-up questions that would help the user:
+- Explore specific customer segments in more detail
+- Understand market opportunities better
+- Identify potential challenges or competitive factors
+- Discover additional customer types or market segments
+
+Format your response as: [Your answer] + [Follow-up questions to continue the analysis]`;
   }
 
   /**
