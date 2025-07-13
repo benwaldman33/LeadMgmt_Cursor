@@ -450,6 +450,26 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
    * Add user message to discovery session
    */
   static async addUserMessage(sessionId: string, message: string): Promise<DiscoverySession> {
+    // Get existing session (in a real app, this would be from database)
+    // For now, we'll create a mock session with existing conversation
+    const existingSession: DiscoverySession = {
+      id: sessionId,
+      userId: 'user_id',
+      industry: 'dental',
+      selectedCustomerTypes: [],
+      conversationHistory: [
+        {
+          id: 'msg_initial',
+          role: 'assistant',
+          content: 'Welcome to the AI Discovery session! I can help you explore customer opportunities and market insights. What would you like to know about your target customers?',
+          timestamp: new Date(Date.now() - 60000)
+        }
+      ],
+      status: 'exploring',
+      createdAt: new Date(Date.now() - 60000),
+      updatedAt: new Date(Date.now() - 60000)
+    };
+
     // Add user message to conversation
     const userMessage: ConversationMessage = {
       id: `msg_${Date.now()}`,
@@ -468,57 +488,108 @@ Make sure the JSON is valid and properly formatted. Include 3-5 product vertical
       metadata: aiResponse.metadata
     };
 
-    // Update session with new messages
-    const session: DiscoverySession = {
-      id: sessionId,
-      userId: 'user_id', // This would come from the actual session
-      industry: 'dental', // This would come from the actual session
-      selectedCustomerTypes: [],
-      conversationHistory: [userMessage, aiMessage],
-      status: 'exploring',
-      createdAt: new Date(),
+    // Update session with new messages appended to existing history
+    const updatedSession: DiscoverySession = {
+      ...existingSession,
+      conversationHistory: [...existingSession.conversationHistory, userMessage, aiMessage],
       updatedAt: new Date()
     };
 
-    return session;
+    return updatedSession;
   }
 
   /**
-   * Generate AI response based on conversation context
+   * Generate AI response based on conversation context using Claude API
    */
   private static async generateAIResponse(sessionId: string, userMessage: string): Promise<{
     content: string;
     metadata?: any;
   }> {
-    // Simple response generation - in production, this would use Claude API
+    try {
+      // Build Claude prompt for conversation response
+      const prompt = this.buildConversationPrompt(userMessage);
+      
+      // Call Claude API for intelligent response
+      const claudeResponse = await callClaudeAPI(prompt);
+      
+      // Parse Claude's response
+      const content = claudeResponse.content[0]?.text || this.getFallbackResponse(userMessage);
+      
+      return {
+        content: content,
+        metadata: {
+          suggestedCustomerTypes: [
+            {
+              id: 'customer_1',
+              name: 'High-Value Customers',
+              description: 'Premium customers with high purchasing power',
+              estimatedValue: '$100K-$500K'
+            },
+            {
+              id: 'customer_2', 
+              name: 'Growth Customers',
+              description: 'Expanding businesses with technology adoption focus',
+              estimatedValue: '$50K-$200K'
+            }
+          ]
+        }
+      };
+    } catch (error) {
+      console.error('[AI Discovery] Claude conversation failed, using fallback:', error);
+      return {
+        content: this.getFallbackResponse(userMessage),
+        metadata: {
+          suggestedCustomerTypes: [
+            {
+              id: 'customer_1',
+              name: 'High-Value Customers',
+              description: 'Premium customers with high purchasing power',
+              estimatedValue: '$100K-$500K'
+            },
+            {
+              id: 'customer_2', 
+              name: 'Growth Customers',
+              description: 'Expanding businesses with technology adoption focus',
+              estimatedValue: '$50K-$200K'
+            }
+          ]
+        }
+      };
+    }
+  }
+
+  /**
+   * Build Claude prompt for conversation response
+   */
+  private static buildConversationPrompt(userMessage: string): string {
+    return `You are an expert AI assistant helping with customer discovery and market analysis. 
+
+A user has asked: "${userMessage}"
+
+Please provide a helpful, informative response that:
+1. Addresses their specific question or concern
+2. Provides actionable insights about customer discovery
+3. Suggests relevant customer types or market opportunities
+4. Maintains a conversational, helpful tone
+5. Keeps responses concise but informative (2-3 sentences)
+
+Focus on helping them discover potential customers and understand market opportunities.`;
+  }
+
+  /**
+   * Get fallback response if Claude API fails
+   */
+  private static getFallbackResponse(userMessage: string): string {
     const responses = [
       "I understand you're interested in that area. Let me provide some specific insights about market opportunities and customer types.",
-      "Great choice! This product vertical has strong growth potential. Here are the key customer segments to target:",
-      "Excellent selection. Based on market analysis, here are the most promising customer types for this vertical:",
-      "Perfect! Let me break down the customer types and their characteristics for this product vertical."
+      "Great question! This area has strong growth potential. Here are the key customer segments to target:",
+      "Excellent point. Based on market analysis, here are the most promising customer types for this vertical:",
+      "Perfect! Let me break down the customer types and their characteristics for this product vertical.",
+      "That's a great insight. Let me help you explore the customer opportunities in this market segment."
     ];
 
     const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    
-    return {
-      content: randomResponse,
-      metadata: {
-        suggestedCustomerTypes: [
-          {
-            id: 'customer_1',
-            name: 'High-Value Customers',
-            description: 'Premium customers with high purchasing power',
-            estimatedValue: '$100K-$500K'
-          },
-          {
-            id: 'customer_2', 
-            name: 'Growth Customers',
-            description: 'Expanding businesses with technology adoption focus',
-            estimatedValue: '$50K-$200K'
-          }
-        ]
-      }
-    };
+    return randomResponse;
   }
 
   /**
