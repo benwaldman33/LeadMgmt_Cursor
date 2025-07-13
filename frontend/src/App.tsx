@@ -33,6 +33,7 @@ import WebScrapingPage from './pages/WebScrapingPage';
 import AdminPanelPage from './pages/AdminPanelPage';
 import CampaignDetailPage from './pages/CampaignDetailPage';
 import PipelinePage from './pages/PipelinePage';
+import AIDiscoveryPage from './pages/AIDiscoveryPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -335,6 +336,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <PipelinePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/ai-discovery"
+        element={
+          <ProtectedRoute>
+            <AIDiscoveryPage />
           </ProtectedRoute>
         }
       />

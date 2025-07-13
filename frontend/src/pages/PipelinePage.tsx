@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import PipelineForm from '../components/PipelineForm';
 import { 
   CogIcon, 
@@ -9,6 +10,19 @@ import {
 
 const PipelinePage: React.FC = () => {
   const [showInfo, setShowInfo] = useState(false);
+  const location = useLocation();
+  const [prefilledData, setPrefilledData] = useState<{
+    urls?: string[];
+    industry?: string;
+    source?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    // Check if we have data from AI Discovery
+    if (location.state) {
+      setPrefilledData(location.state);
+    }
+  }, [location.state]);
 
   const handlePipelineComplete = () => {
     // This will be called when pipeline completes
@@ -156,7 +170,10 @@ const PipelinePage: React.FC = () => {
         )}
 
         {/* Pipeline Form */}
-        <PipelineForm onPipelineComplete={handlePipelineComplete} />
+        <PipelineForm 
+          onPipelineComplete={handlePipelineComplete}
+          prefilledData={prefilledData}
+        />
       </div>
     </div>
   );

@@ -10,6 +10,11 @@ import {
 
 interface PipelineFormProps {
   onPipelineComplete?: () => void;
+  prefilledData?: {
+    urls?: string[];
+    industry?: string;
+    source?: string;
+  } | null;
 }
 
 interface Campaign {
@@ -22,7 +27,7 @@ interface Campaign {
   };
 }
 
-const PipelineForm: React.FC<PipelineFormProps> = ({ onPipelineComplete }) => {
+const PipelineForm: React.FC<PipelineFormProps> = ({ onPipelineComplete, prefilledData }) => {
   const [urls, setUrls] = useState<string>('');
   const [campaignId, setCampaignId] = useState<string>('');
   const [industry, setIndustry] = useState<string>('');
@@ -34,6 +39,18 @@ const PipelineForm: React.FC<PipelineFormProps> = ({ onPipelineComplete }) => {
   useEffect(() => {
     fetchCampaigns();
   }, []);
+
+  // Handle prefilled data from AI Discovery
+  useEffect(() => {
+    if (prefilledData) {
+      if (prefilledData.urls) {
+        setUrls(prefilledData.urls.join('\n'));
+      }
+      if (prefilledData.industry) {
+        setIndustry(prefilledData.industry);
+      }
+    }
+  }, [prefilledData]);
 
   const fetchCampaigns = async () => {
     try {
