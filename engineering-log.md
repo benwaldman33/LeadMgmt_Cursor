@@ -6,6 +6,35 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
 
 ## 2025-07-13
 
+### Self-Prompting AI Analysis Enhancement
+- **Area:** AI Discovery service, Claude API integration, autonomous analysis capabilities
+- **Changes Made:**
+  - Modified `generateCustomerInsights()` to use self-prompting analysis instead of static information
+  - Added `buildSelfPromptingAnalysisPrompt()` that makes AI ask itself analytical questions
+  - Enhanced `buildConversationPrompt()` to include follow-up questions in responses
+  - Added `generateFollowUpAnalysis()` for deeper analysis on follow-up questions
+  - Implemented keyword detection for triggering additional self-prompting analysis
+  - Enhanced AI responses to include both answers and follow-up questions
+- **Technical Decisions:**
+  - AI now conducts autonomous analysis by asking itself key questions about customer landscape
+  - Self-prompting questions focus on: primary B2B customers, characteristics, market opportunities, challenges, growth potential
+  - Follow-up questions generated automatically to continue analysis flow
+  - Keyword detection triggers additional analysis for customer/market-related questions
+  - Responses combine direct answers with follow-up questions for deeper exploration
+- **Architecture:**
+  - Product vertical selection → AI self-prompting analysis → Customer insights generation
+  - Conversation flow: User question → AI answer → Follow-up questions → Additional analysis
+  - Keyword detection: customer, market, opportunity, segment, buyer, purchasing, growth, challenge, competitive
+  - Multi-layered analysis: Primary response + Additional self-prompting analysis
+- **Benefits:**
+  - Autonomous AI analysis without requiring user to ask specific questions
+  - Deeper market insights through self-generated analytical questions
+  - Continuous analysis flow with follow-up questions
+  - More comprehensive customer discovery through multi-layered analysis
+  - AI-driven exploration of market opportunities and challenges
+- **Files Modified:**
+  - `backend/src/services/aiDiscoveryService.ts` (enhanced with self-prompting capabilities)
+
 ### Claude-Powered Product Vertical Discovery Enhancement
 - **Area:** AI Discovery service, Claude API integration, dynamic vertical discovery
 - **Changes Made:**

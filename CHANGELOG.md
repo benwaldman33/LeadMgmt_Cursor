@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- **Self-Prompting AI Analysis**: Enhanced AI Discovery with autonomous analytical capabilities
+  - Modified `generateCustomerInsights()` to use self-prompting analysis instead of static information
+  - Added `buildSelfPromptingAnalysisPrompt()` that makes AI ask itself analytical questions
+  - Enhanced `buildConversationPrompt()` to include follow-up questions in responses
+  - Added `generateFollowUpAnalysis()` for deeper analysis on follow-up questions
+  - AI now automatically prompts itself with key questions about customer landscape
+  - Responses include both answers and follow-up questions to continue analysis
+  - Added keyword detection for triggering additional self-prompting analysis
+  - AI conducts thorough market analysis by asking itself questions and analyzing answers
+
 - **Claude-Powered Product Vertical Discovery**: Enhanced AI Discovery with dynamic vertical discovery
   - Modified `getProductVerticals()` to use Claude AI for real-time industry analysis
   - Added `buildProductVerticalDiscoveryPrompt()` for intelligent Claude API calls

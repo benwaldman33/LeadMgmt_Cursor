@@ -48,6 +48,19 @@ This document tracks the implementation status of PRD features and ongoing devel
     - [x] Graceful fallback to mock data if Claude API fails
     - [x] Enhanced UI with AI analysis progress indicators and notifications
     - [x] Scalable architecture that works with any industry Claude can analyze
+  - [x] **Contextual Customer Insights** (2025-07-13)
+    - [x] Context-aware AI conversations based on selected industry and product vertical
+    - [x] B2B customer focus (businesses that buy the product, not end consumers)
+    - [x] Automatic customer insights generation when product vertical is selected
+    - [x] Comprehensive customer analysis for Plant Based Meat, Beverage Processing, and CBCT Systems
+    - [x] Enhanced conversation prompts with industry/vertical context
+  - [x] **Self-Prompting AI Analysis** (2025-07-13)
+    - [x] Autonomous AI analysis that asks itself analytical questions
+    - [x] Self-prompting questions about customer landscape, market opportunities, and challenges
+    - [x] Follow-up questions automatically generated to continue analysis flow
+    - [x] Keyword detection for triggering additional self-prompting analysis
+    - [x] Multi-layered analysis combining direct answers with additional insights
+    - [x] AI-driven exploration of market opportunities and competitive factors
 
 ### Campaign Management
 - [x] Campaign creation and management
