@@ -691,11 +691,19 @@ Format your response as if you're conducting a thorough market analysis and shar
       // Call Claude API for intelligent response
       const claudeResponse = await callClaudeAPI(prompt);
       
-      // Parse Claude's response
+      // Parse Claude's response - keep it focused and concise
       const content = claudeResponse.content[0]?.text || this.getFallbackResponse(userMessage, industry, productVertical);
       
-      // Generate additional self-prompting analysis if this is a follow-up question
-      const additionalAnalysis = await this.generateFollowUpAnalysis(userMessage, industry, productVertical);
+      // Only generate additional analysis for explicit follow-up requests or specific keywords
+      const followUpKeywords = ['analyze', 'deep dive', 'detailed analysis', 'explore further', 'tell me more'];
+      const hasExplicitFollowUpRequest = followUpKeywords.some(keyword => 
+        userMessage.toLowerCase().includes(keyword)
+      );
+      
+      let additionalAnalysis = null;
+      if (hasExplicitFollowUpRequest) {
+        additionalAnalysis = await this.generateFollowUpAnalysis(userMessage, industry, productVertical);
+      }
       
       const fullResponse = additionalAnalysis 
         ? `${content}\n\n${additionalAnalysis}`
@@ -749,32 +757,32 @@ Format your response as if you're conducting a thorough market analysis and shar
    */
   private static async generateFollowUpAnalysis(userMessage: string, industry?: string, productVertical?: string): Promise<string | null> {
     try {
-      // Only generate additional analysis for certain types of follow-up questions
-      const followUpKeywords = ['customer', 'market', 'opportunity', 'segment', 'buyer', 'purchasing', 'growth', 'challenge', 'competitive'];
-      const hasFollowUpKeywords = followUpKeywords.some(keyword => 
+      // Only generate additional analysis for explicit requests
+      const explicitKeywords = ['analyze', 'deep dive', 'detailed analysis', 'explore further', 'tell me more', 'break down'];
+      const hasExplicitRequest = explicitKeywords.some(keyword => 
         userMessage.toLowerCase().includes(keyword)
       );
       
-      if (!hasFollowUpKeywords) {
+      if (!hasExplicitRequest) {
         return null;
       }
 
       const prompt = `You are analyzing ${productVertical || 'this product'} in the ${industry || 'this industry'} industry.
 
-The user has asked: "${userMessage}"
+The user has explicitly requested deeper analysis: "${userMessage}"
 
-Based on this question, ask yourself 2-3 additional analytical questions that would provide deeper insights, then answer them:
+Provide a focused, analytical response that:
+1. Addresses the specific aspect they want analyzed
+2. Provides concrete insights and data points
+3. Identifies key customer segments and market opportunities
+4. Suggests actionable next steps
 
-1. What specific aspects of this question need deeper analysis?
-2. What additional customer segments or market factors should be considered?
-3. What insights would be most valuable for the user's specific question?
-
-Provide a brief but insightful analysis that addresses the user's question with additional self-generated insights.`;
+Keep the analysis concise but thorough. Focus on practical insights that help with customer discovery.`;
       
       const claudeResponse = await callClaudeAPI(prompt);
       const analysis = claudeResponse.content[0]?.text;
       
-      return analysis ? `\n\n**Additional Analysis:**\n${analysis}` : null;
+      return analysis ? `\n\n**Detailed Analysis:**\n${analysis}` : null;
     } catch (error) {
       console.error('[AI Discovery] Follow-up analysis failed:', error);
       return null;
@@ -793,22 +801,18 @@ Provide a brief but insightful analysis that addresses the user's question with 
 
 A user has asked: "${userMessage}"
 
-Please provide a helpful, informative response that:
-1. Addresses their specific question or concern
+Please provide a helpful, focused response that:
+1. Addresses their specific question directly
 2. Provides actionable insights about customer discovery for ${productVertical || 'this product'}
 3. Suggests relevant customer types or market opportunities
 4. Maintains a conversational, helpful tone
-5. Keeps responses concise but informative (2-3 sentences)
+5. Keeps responses concise (2-3 sentences maximum)
 6. Focuses on B2B customers (businesses that would buy the product), not end consumers
-7. **Ask follow-up questions** to deepen the analysis and help the user explore further
+7. **Ask 1-2 follow-up questions** to help the user explore further
 
-After providing your answer, ask 1-2 thoughtful follow-up questions that would help the user:
-- Explore specific customer segments in more detail
-- Understand market opportunities better
-- Identify potential challenges or competitive factors
-- Discover additional customer types or market segments
+IMPORTANT: Keep your response brief and focused. Don't provide lengthy analysis unless specifically requested. The user should control the depth of exploration.
 
-Format your response as: [Your answer] + [Follow-up questions to continue the analysis]`;
+Format your response as: [Brief answer] + [1-2 follow-up questions to continue the conversation]`;
   }
 
   /**
