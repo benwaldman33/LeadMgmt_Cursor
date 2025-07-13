@@ -6,6 +6,36 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
 
 ## 2025-07-13
 
+### Claude-Powered Product Vertical Discovery Enhancement
+- **Area:** AI Discovery service, Claude API integration, dynamic vertical discovery
+- **Changes Made:**
+  - Enhanced `getProductVerticals()` method to use Claude AI for real-time industry analysis
+  - Added `buildProductVerticalDiscoveryPrompt()` for intelligent Claude API calls with structured JSON output
+  - Implemented `parseClaudeProductVerticals()` to parse and validate Claude's JSON responses
+  - Created `getMockProductVerticals()` as fallback method for reliability
+  - Enhanced frontend with AI discovery notifications and improved loading states
+  - Added comprehensive error handling with graceful fallback to mock data
+- **Technical Decisions:**
+  - Claude API calls made dynamically when industry is selected (not cached)
+  - Structured JSON prompt ensures consistent response format for parsing
+  - Fallback to mock data ensures system reliability if Claude API fails
+  - Frontend notifications provide clear feedback on AI analysis progress
+  - Loading states show "Claude AI is analyzing..." with spinner animation
+- **Architecture:**
+  - Industry selection → Claude API call → JSON parsing → Product verticals display
+  - Error handling: Claude failure → Mock data fallback → User notification
+  - Frontend state management: Loading → Success/Error notification → Results display
+  - Maintains backward compatibility with existing mock data structure
+- **Benefits:**
+  - Dynamic product vertical discovery for any industry (not limited to predefined ones)
+  - Real-time market intelligence with current trends and opportunities
+  - Scalable architecture that works with any industry Claude can analyze
+  - Reliable system with fallback ensures always functional
+  - Enhanced user experience with clear AI analysis feedback
+- **Files Modified:**
+  - `backend/src/services/aiDiscoveryService.ts` (enhanced with Claude integration)
+  - `frontend/src/pages/AIDiscoveryPage.tsx` (enhanced UI and notifications)
+
 ### AI Discovery Feature Implementation
 - **Area:** AI-powered lead discovery, industry analysis, customer search, pipeline integration
 - **Changes Made:**

@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- **Claude-Powered Product Vertical Discovery**: Enhanced AI Discovery with dynamic vertical discovery
+  - Modified `getProductVerticals()` to use Claude AI for real-time industry analysis
+  - Added `buildProductVerticalDiscoveryPrompt()` for intelligent Claude API calls
+  - Implemented `parseClaudeProductVerticals()` to parse Claude's JSON responses
+  - Enhanced frontend with AI discovery notifications and loading states
+  - Added fallback to mock data if Claude API fails for reliability
+  - Improved UI to show Claude AI analysis progress with spinner and status messages
+  - Maintains backward compatibility with existing mock data structure
+  - Dynamic discovery works for any industry Claude can analyze (not limited to predefined ones)
+  - Real-time market intelligence with current trends and opportunities
+
 - **AI Discovery Feature**: Complete AI-powered lead discovery system
   - Implemented industry selection with 6 major industries (Dental, Construction, Manufacturing, Healthcare, Food & Beverage, Distribution)
   - Added product vertical discovery with industry-specific verticals and customer types
