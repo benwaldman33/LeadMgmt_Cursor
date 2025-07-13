@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { campaignsAPI, teamsAPI, scoringAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,14 +10,20 @@ interface Team {
   industry: string;
 }
 
-const CreateCampaignPage: React.FC = () => {
+interface ScoringModel {
+  id: string;
+  name: string;
+  industry: string;
+}
+
+const EditCampaignPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
+  const [scoringModels, setScoringModels] = useState<ScoringModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [scoringModels, setScoringModels] = useState<{ id: string; name: string; industry: string }[]>([]);
-
   const [formData, setFormData] = useState({
     name: '',
     industry: '',
@@ -32,7 +38,9 @@ const CreateCampaignPage: React.FC = () => {
   useEffect(() => {
     fetchTeams();
     fetchScoringModels();
-  }, []);
+    if (id) fetchCampaign();
+    // eslint-disable-next-line
+  }, [id]);
 
   const fetchTeams = async () => {
     try {
@@ -52,6 +60,32 @@ const CreateCampaignPage: React.FC = () => {
     }
   };
 
+  const fetchCampaign = async () => {
+    try {
+      setLoading(true);
+      const response = await campaignsAPI.getAll();
+      const found = response.campaigns.find((c: any) => c.id === id);
+      if (!found) {
+        setError('Campaign not found');
+        return;
+      }
+      setFormData({
+        name: found.name || '',
+        industry: found.industry || '',
+        status: found.status || 'PLANNING',
+        assignedTeamId: found.assignedTeam?.id || '',
+        scoringModelId: found.scoringModel?.id || '',
+        targetLeadCount: found.targetLeadCount ? String(found.targetLeadCount) : '',
+        startDate: found.startDate ? found.startDate.slice(0, 10) : '',
+        targetEndDate: found.targetEndDate ? found.targetEndDate.slice(0, 10) : '',
+      });
+    } catch (err: any) {
+      setError('Failed to fetch campaign');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -64,7 +98,6 @@ const CreateCampaignPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       const campaignData = {
         name: formData.name,
@@ -76,15 +109,22 @@ const CreateCampaignPage: React.FC = () => {
         startDate: formData.startDate || undefined,
         targetEndDate: formData.targetEndDate || undefined,
       };
-
-      await campaignsAPI.create(campaignData);
+      await campaignsAPI.update(id!, campaignData);
       navigate('/campaigns');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create campaign');
+      setError(err.response?.data?.error || 'Failed to update campaign');
     } finally {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -97,8 +137,8 @@ const CreateCampaignPage: React.FC = () => {
           <ArrowLeftIcon className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Create Campaign</h1>
-          <p className="text-gray-600">Set up a new lead scoring campaign</p>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Campaign</h1>
+          <p className="text-gray-600">Update campaign details and scoring model</p>
         </div>
       </div>
 
@@ -270,7 +310,7 @@ const CreateCampaignPage: React.FC = () => {
             disabled={loading}
             className="btn-primary flex-1"
           >
-            {loading ? 'Creating...' : 'Create Campaign'}
+            {loading ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>
@@ -278,4 +318,4 @@ const CreateCampaignPage: React.FC = () => {
   );
 };
 
-export default CreateCampaignPage; 
+export default EditCampaignPage; 

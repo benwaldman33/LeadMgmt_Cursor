@@ -1,5 +1,7 @@
 import { prisma } from '../index';
 import { AIScoringService } from './aiScoringService';
+import { webScrapingService } from './webScrapingService';
+import axios from 'axios';
 
 // Helper function to get configuration from database
 async function getConfig(key: string): Promise<string | null> {
@@ -132,6 +134,38 @@ export interface WebSearchResult {
   relevanceScore: number;
   location?: string;
   companyType?: string;
+  // Enhanced fields for historical analysis
+  currentContent?: string;
+  historicalContent?: string;
+  contentChanges?: {
+    addedPhrases: string[];
+    removedPhrases: string[];
+    messagingEvolution: string;
+  };
+  keyPhrases?: string[];
+  lastScraped?: Date;
+}
+
+export interface HistoricalAnalysis {
+  url: string;
+  currentSnapshot: {
+    content: string;
+    keyPhrases: string[];
+    technologies: string[];
+    services: string[];
+  };
+  historicalSnapshots: {
+    date: string;
+    content: string;
+    keyPhrases: string[];
+    changes: string[];
+  }[];
+  messagingEvolution: {
+    addedTechnologies: string[];
+    removedTechnologies: string[];
+    serviceChanges: string[];
+    messagingShifts: string[];
+  };
 }
 
 export class AIDiscoveryService {
@@ -691,11 +725,19 @@ Format your response as if you're conducting a thorough market analysis and shar
       // Call Claude API for intelligent response
       const claudeResponse = await callClaudeAPI(prompt);
       
-      // Parse Claude's response
+      // Parse Claude's response - keep it focused and concise
       const content = claudeResponse.content[0]?.text || this.getFallbackResponse(userMessage, industry, productVertical);
       
-      // Generate additional self-prompting analysis if this is a follow-up question
-      const additionalAnalysis = await this.generateFollowUpAnalysis(userMessage, industry, productVertical);
+      // Only generate additional analysis for explicit follow-up requests or specific keywords
+      const followUpKeywords = ['analyze', 'deep dive', 'detailed analysis', 'explore further', 'tell me more'];
+      const hasExplicitFollowUpRequest = followUpKeywords.some(keyword => 
+        userMessage.toLowerCase().includes(keyword)
+      );
+      
+      let additionalAnalysis = null;
+      if (hasExplicitFollowUpRequest) {
+        additionalAnalysis = await this.generateFollowUpAnalysis(userMessage, industry, productVertical);
+      }
       
       const fullResponse = additionalAnalysis 
         ? `${content}\n\n${additionalAnalysis}`
@@ -749,32 +791,32 @@ Format your response as if you're conducting a thorough market analysis and shar
    */
   private static async generateFollowUpAnalysis(userMessage: string, industry?: string, productVertical?: string): Promise<string | null> {
     try {
-      // Only generate additional analysis for certain types of follow-up questions
-      const followUpKeywords = ['customer', 'market', 'opportunity', 'segment', 'buyer', 'purchasing', 'growth', 'challenge', 'competitive'];
-      const hasFollowUpKeywords = followUpKeywords.some(keyword => 
+      // Only generate additional analysis for explicit requests
+      const explicitKeywords = ['analyze', 'deep dive', 'detailed analysis', 'explore further', 'tell me more', 'break down'];
+      const hasExplicitRequest = explicitKeywords.some(keyword => 
         userMessage.toLowerCase().includes(keyword)
       );
       
-      if (!hasFollowUpKeywords) {
+      if (!hasExplicitRequest) {
         return null;
       }
 
       const prompt = `You are analyzing ${productVertical || 'this product'} in the ${industry || 'this industry'} industry.
 
-The user has asked: "${userMessage}"
+The user has explicitly requested deeper analysis: "${userMessage}"
 
-Based on this question, ask yourself 2-3 additional analytical questions that would provide deeper insights, then answer them:
+Provide a focused, analytical response that:
+1. Addresses the specific aspect they want analyzed
+2. Provides concrete insights and data points
+3. Identifies key customer segments and market opportunities
+4. Suggests actionable next steps
 
-1. What specific aspects of this question need deeper analysis?
-2. What additional customer segments or market factors should be considered?
-3. What insights would be most valuable for the user's specific question?
-
-Provide a brief but insightful analysis that addresses the user's question with additional self-generated insights.`;
+Keep the analysis concise but thorough. Focus on practical insights that help with customer discovery.`;
       
       const claudeResponse = await callClaudeAPI(prompt);
       const analysis = claudeResponse.content[0]?.text;
       
-      return analysis ? `\n\n**Additional Analysis:**\n${analysis}` : null;
+      return analysis ? `\n\n**Detailed Analysis:**\n${analysis}` : null;
     } catch (error) {
       console.error('[AI Discovery] Follow-up analysis failed:', error);
       return null;
@@ -785,30 +827,38 @@ Provide a brief but insightful analysis that addresses the user's question with 
    * Build Claude prompt for conversation response
    */
   private static buildConversationPrompt(userMessage: string, industry?: string, productVertical?: string): string {
+    // Add explicit system context at the top of every prompt
+    let systemContext = 'SYSTEM MESSAGE: You are assisting a user with B2B lead discovery.';
+    if (industry && productVertical) {
+      systemContext += `\nThe user has selected the industry: ${industry}.`;
+      systemContext += `\nThe user has selected the product vertical: ${productVertical}.`;
+      systemContext += '\nAll your answers should be specific to this context.';
+    } else if (industry) {
+      systemContext += `\nThe user has selected the industry: ${industry}.`;
+      systemContext += '\nAll your answers should be specific to this industry.';
+    }
+    systemContext += '\nAlways focus on B2B customers (businesses that would buy from manufacturers), not end consumers.';
+
     const context = industry && productVertical 
       ? `You are helping with customer discovery for ${productVertical} in the ${industry} industry. `
       : 'You are an expert AI assistant helping with customer discovery and market analysis. ';
 
-    return `${context}
+    return `${systemContext}\n\n${context}
 
 A user has asked: "${userMessage}"
 
-Please provide a helpful, informative response that:
-1. Addresses their specific question or concern
+Please provide a helpful, focused response that:
+1. Addresses their specific question directly
 2. Provides actionable insights about customer discovery for ${productVertical || 'this product'}
 3. Suggests relevant customer types or market opportunities
 4. Maintains a conversational, helpful tone
-5. Keeps responses concise but informative (2-3 sentences)
+5. Keeps responses concise (2-3 sentences maximum)
 6. Focuses on B2B customers (businesses that would buy the product), not end consumers
-7. **Ask follow-up questions** to deepen the analysis and help the user explore further
+7. **Ask 1-2 follow-up questions** to help the user explore further
 
-After providing your answer, ask 1-2 thoughtful follow-up questions that would help the user:
-- Explore specific customer segments in more detail
-- Understand market opportunities better
-- Identify potential challenges or competitive factors
-- Discover additional customer types or market segments
+IMPORTANT: Keep your response brief and focused. Don't provide lengthy analysis unless specifically requested. The user should control the depth of exploration.
 
-Format your response as: [Your answer] + [Follow-up questions to continue the analysis]`;
+Format your response as: [Brief answer] + [1-2 follow-up questions to continue the conversation]`;
   }
 
   /**
@@ -852,9 +902,12 @@ Format your response as: [Your answer] + [Follow-up questions to continue the an
       // Parse Claude's response into structured results
       const results = this.parseClaudeCustomerResults(claudeResponse);
       
-      console.log(`[AI Discovery] Found ${results.length} customers using Claude AI`);
+      // Enhance results with web scraping and historical analysis
+      const enhancedResults = await this.enhanceResultsWithWebScraping(results, industry, productVertical);
       
-      return results;
+      console.log(`[AI Discovery] Found ${enhancedResults.length} customers using Claude AI with web scraping`);
+      
+      return enhancedResults;
       
     } catch (error) {
       console.error('[AI Discovery] Claude search failed, falling back to mock data:', error);
@@ -880,35 +933,43 @@ Format your response as: [Your answer] + [Follow-up questions to continue the an
     const maxResults = constraints?.maxResults || 10;
     const geography = constraints?.geography?.join(', ') || 'United States';
     
-    return `You are an expert in customer discovery and market research. 
+    return `You are an expert in B2B customer discovery and market research. 
 
-I need you to find potential customers for ${productVertical} in the ${industry} industry.
+I need you to find potential B2B customers for ${productVertical} in the ${industry} industry.
+
+IMPORTANT: We are looking for B2B customers (businesses that would BUY this product from manufacturers), NOT end consumers.
+
+For example:
+- If searching for "dental implants", we want DENTISTS who buy implants from manufacturers
+- If searching for "dental lasers", we want DENTAL PRACTICES who buy laser equipment
+- If searching for "construction equipment", we want CONSTRUCTION COMPANIES who buy equipment
+- If searching for "manufacturing software", we want MANUFACTURERS who buy software
 
 Requirements:
 - Industry: ${industry}
 - Product Vertical: ${productVertical}
-- Customer Types: ${customerTypes.join(', ') || 'All relevant types'}
+- Customer Types: ${customerTypes.join(', ') || 'All relevant B2B customer types'}
 - Geography: ${geography}
 - Max Results: ${maxResults}
 
-Please provide a list of potential customers in this JSON format:
+Please provide a list of potential B2B customers in this JSON format:
 [
   {
     "url": "company website or LinkedIn",
     "title": "Company Name",
-    "description": "Brief description of the company and why they would be interested in this product",
+    "description": "Brief description of the company and why they would be interested in buying this product",
     "relevanceScore": 0.85,
     "location": "City, State",
-    "companyType": "Type of business"
+    "companyType": "Type of B2B customer (e.g., Dental Practice, Construction Company, Manufacturer)"
   }
 ]
 
 Focus on:
-1. Companies that would actually need ${productVertical}
+1. B2B customers that would actually BUY ${productVertical} from manufacturers
 2. Real companies with online presence
 3. High-value prospects with purchasing power
 4. Companies in the specified geography
-5. Relevance scores based on how well they match the criteria
+5. Relevance scores based on how likely they are to buy this product
 
 Make sure the JSON is valid and properly formatted.`;
   }
@@ -948,6 +1009,438 @@ Make sure the JSON is valid and properly formatted.`;
   }
 
   /**
+   * Enhance search results with web scraping and historical analysis
+   */
+  private static async enhanceResultsWithWebScraping(
+    results: WebSearchResult[], 
+    industry: string, 
+    productVertical: string
+  ): Promise<WebSearchResult[]> {
+    const enhancedResults: WebSearchResult[] = [];
+    
+    for (const result of results) {
+      try {
+        console.log(`[AI Discovery] Enhancing result: ${result.url}`);
+        
+        // Scrape current website
+        const currentScraping = await webScrapingService.scrapeUrl(result.url, industry);
+        
+        if (currentScraping.success) {
+          // Extract key phrases related to the product vertical
+          const keyPhrases = this.extractKeyPhrases(currentScraping.content, productVertical);
+          
+          // Analyze historical content via Wayback Machine
+          const historicalAnalysis = await this.analyzeHistoricalContent(result.url, productVertical);
+          
+          // Calculate relevance score based on content analysis
+          const enhancedRelevanceScore = this.calculateEnhancedRelevanceScore(
+            currentScraping.content,
+            keyPhrases,
+            historicalAnalysis,
+            productVertical
+          );
+          
+          enhancedResults.push({
+            ...result,
+            currentContent: currentScraping.content.substring(0, 2000), // Truncate for storage
+            keyPhrases,
+            relevanceScore: enhancedRelevanceScore,
+            lastScraped: new Date(),
+            contentChanges: {
+              addedPhrases: historicalAnalysis.messagingEvolution.addedTechnologies,
+              removedPhrases: historicalAnalysis.messagingEvolution.removedTechnologies,
+              messagingEvolution: historicalAnalysis.messagingEvolution.serviceChanges.join(', ')
+            },
+            historicalContent: historicalAnalysis.historicalSnapshots.length > 0 
+              ? historicalAnalysis.historicalSnapshots[0].content.substring(0, 2000) 
+              : undefined
+          });
+        } else {
+          // Keep original result if scraping fails
+          enhancedResults.push(result);
+        }
+        
+      } catch (error) {
+        console.error(`[AI Discovery] Failed to enhance result ${result.url}:`, error);
+        enhancedResults.push(result);
+      }
+    }
+    
+    return enhancedResults;
+  }
+
+  /**
+   * Extract key phrases related to the product vertical from content
+   */
+  private static extractKeyPhrases(content: string, productVertical: string): string[] {
+    const phrases: string[] = [];
+    const lowerContent = content.toLowerCase();
+    const lowerVertical = productVertical.toLowerCase();
+    
+    // Define key phrases based on product vertical - focusing on B2B customer indicators
+    const verticalPhrases: { [key: string]: string[] } = {
+      'cbct': [
+        'cbct', 'cone beam', '3d imaging', 'dental imaging', 'ct scan', 'digital imaging',
+        'advanced imaging', 'diagnostic imaging', '3d scanning', 'cone beam computed tomography'
+      ],
+      'dental_lasers': [
+        'dental laser', 'laser treatment', 'laser therapy', 'soft tissue laser', 'hard tissue laser',
+        'laser dentistry', 'laser surgery', 'laser procedures', 'laser technology'
+      ],
+      'cad_cam': [
+        'cad/cam', 'digital restoration', 'crown', 'bridge', 'digital dentistry', 'milling',
+        'digital crown', 'digital bridge', 'same day crown', 'digital restoration'
+      ],
+      'practice_management': [
+        'practice management', 'dental software', 'patient management', 'scheduling', 'billing',
+        'dental practice software', 'office management', 'dental practice management'
+      ],
+      'dental_implants': [
+        'dental implants', 'implant surgery', 'restorative dentistry', 'osseointegration',
+        'implant placement', 'implant restoration', 'dental implant surgery', 'implant dentistry'
+      ],
+      'orthodontics': [
+        'orthodontics', 'braces', 'invisalign', 'clear aligners', 'orthodontic treatment',
+        'orthodontic care', 'braces treatment', 'orthodontic services'
+      ],
+      'endodontics': [
+        'endodontics', 'root canal', 'endodontic treatment', 'microscopic dentistry',
+        'root canal therapy', 'endodontic care', 'root canal treatment'
+      ],
+      'periodontics': [
+        'periodontics', 'gum disease', 'periodontal treatment', 'gum surgery',
+        'periodontal care', 'gum disease treatment', 'periodontal surgery'
+      ],
+      // Construction examples
+      'excavators': [
+        'excavation', 'site preparation', 'earthmoving', 'excavation services',
+        'site development', 'excavation equipment', 'earthmoving services'
+      ],
+      'safety_equipment': [
+        'safety equipment', 'ppe', 'personal protective equipment', 'safety gear',
+        'construction safety', 'safety compliance', 'safety training'
+      ],
+      // Manufacturing examples
+      'industrial_automation': [
+        'automation', 'industrial automation', 'robotics', 'automated systems',
+        'manufacturing automation', 'automated production', 'industrial robotics'
+      ],
+      'quality_control': [
+        'quality control', 'quality assurance', 'inspection', 'testing',
+        'quality management', 'quality systems', 'quality testing'
+      ]
+    };
+    
+    const relevantPhrases = verticalPhrases[lowerVertical] || [lowerVertical];
+    
+    for (const phrase of relevantPhrases) {
+      if (lowerContent.includes(phrase)) {
+        phrases.push(phrase);
+      }
+    }
+    
+    // Also look for B2B customer indicators
+    const b2bIndicators = [
+      'services', 'solutions', 'equipment', 'technology', 'professional',
+      'specialists', 'experts', 'certified', 'licensed', 'accredited',
+      'practice', 'clinic', 'center', 'group', 'associates', 'partners'
+    ];
+    
+    for (const indicator of b2bIndicators) {
+      if (lowerContent.includes(indicator)) {
+        phrases.push(indicator);
+      }
+    }
+    
+    return phrases;
+  }
+
+  /**
+   * Analyze historical content via Wayback Machine
+   */
+  private static async analyzeHistoricalContent(url: string, productVertical: string): Promise<HistoricalAnalysis> {
+    try {
+      // Get Wayback Machine snapshots
+      const waybackUrl = `http://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(url)}&output=json&fl=timestamp,original&collapse=timestamp:4`;
+      const response = await axios.get(waybackUrl);
+      
+      if (!response.data || !Array.isArray(response.data) || response.data.length < 2) {
+        return this.createEmptyHistoricalAnalysis();
+      }
+      
+      const snapshots = response.data.slice(1) as any[]; // Remove header row
+      const historicalSnapshots: any[] = [];
+      
+      // Get current content for comparison
+      const currentScraping = await webScrapingService.scrapeUrl(url);
+      const currentSnapshot = {
+        content: currentScraping.content,
+        keyPhrases: this.extractKeyPhrases(currentScraping.content, productVertical),
+        technologies: currentScraping.structuredData.technologies || [],
+        services: currentScraping.structuredData.services || []
+      };
+      
+      // Analyze historical snapshots (limit to last 5 years, max 10 snapshots)
+      const recentSnapshots = snapshots
+        .filter((snapshot: any) => {
+          const year = parseInt(snapshot[0].substring(0, 4));
+          return year >= new Date().getFullYear() - 5;
+        })
+        .slice(0, 10);
+      
+      for (const snapshot of recentSnapshots) {
+        try {
+          const timestamp = snapshot[0] as string;
+          const originalUrl = snapshot[1] as string;
+          const waybackUrl = `http://web.archive.org/web/${timestamp}/${originalUrl}`;
+          
+          const historicalScraping = await webScrapingService.scrapeUrl(waybackUrl);
+          
+          if (historicalScraping.success) {
+            historicalSnapshots.push({
+              date: `${timestamp.substring(0, 4)}-${timestamp.substring(4, 6)}-${timestamp.substring(6, 8)}`,
+              content: historicalScraping.content,
+              keyPhrases: this.extractKeyPhrases(historicalScraping.content, productVertical),
+              changes: this.detectContentChanges(currentSnapshot.content, historicalScraping.content, productVertical)
+            });
+          }
+        } catch (error) {
+          console.error(`[AI Discovery] Failed to analyze historical snapshot:`, error);
+        }
+      }
+      
+      // Analyze messaging evolution
+      const messagingEvolution = this.analyzeMessagingEvolution(currentSnapshot, historicalSnapshots);
+      
+      return {
+        url,
+        currentSnapshot,
+        historicalSnapshots,
+        messagingEvolution
+      };
+      
+    } catch (error) {
+      console.error(`[AI Discovery] Historical analysis failed for ${url}:`, error);
+      return this.createEmptyHistoricalAnalysis();
+    }
+  }
+
+  /**
+   * Detect content changes between current and historical content
+   */
+  private static detectContentChanges(currentContent: string, historicalContent: string, productVertical: string): string[] {
+    const changes: string[] = [];
+    const currentPhrases = this.extractKeyPhrases(currentContent, productVertical);
+    const historicalPhrases = this.extractKeyPhrases(historicalContent, productVertical);
+    
+    // Find added phrases
+    const addedPhrases = currentPhrases.filter(phrase => !historicalPhrases.includes(phrase));
+    if (addedPhrases.length > 0) {
+      changes.push(`Added key phrases: ${addedPhrases.join(', ')}`);
+    }
+    
+    // Find removed phrases
+    const removedPhrases = historicalPhrases.filter(phrase => !currentPhrases.includes(phrase));
+    if (removedPhrases.length > 0) {
+      changes.push(`Removed key phrases: ${removedPhrases.join(', ')}`);
+    }
+    
+    return changes;
+  }
+
+  /**
+   * Analyze messaging evolution over time
+   */
+  private static analyzeMessagingEvolution(currentSnapshot: any, historicalSnapshots: any[]): any {
+    const evolution = {
+      addedTechnologies: [] as string[],
+      removedTechnologies: [] as string[],
+      serviceChanges: [] as string[],
+      messagingShifts: [] as string[]
+    };
+    
+    if (historicalSnapshots.length === 0) {
+      return evolution;
+    }
+    
+    // Compare current vs historical
+    const oldestSnapshot = historicalSnapshots[historicalSnapshots.length - 1];
+    
+    // Technology changes
+    const currentTech = new Set(currentSnapshot.technologies);
+    const historicalTech = new Set(oldestSnapshot.technologies || []);
+    
+    for (const tech of currentTech) {
+      if (!historicalTech.has(tech as string)) {
+        evolution.addedTechnologies.push(tech as string);
+      }
+    }
+    
+    for (const tech of historicalTech) {
+      if (!currentTech.has(tech as string)) {
+        evolution.removedTechnologies.push(tech as string);
+      }
+    }
+    
+    // Service changes
+    if (currentSnapshot.services && oldestSnapshot.services) {
+      const currentServices = new Set(currentSnapshot.services);
+      const historicalServices = new Set(oldestSnapshot.services);
+      
+      for (const service of currentServices) {
+        if (!historicalServices.has(service as string)) {
+          evolution.serviceChanges.push(`Added: ${service as string}`);
+        }
+      }
+      
+      for (const service of historicalServices) {
+        if (!currentServices.has(service as string)) {
+          evolution.serviceChanges.push(`Removed: ${service as string}`);
+        }
+      }
+    }
+    
+    return evolution;
+  }
+
+  /**
+   * Calculate enhanced relevance score based on content analysis
+   */
+  private static calculateEnhancedRelevanceScore(
+    content: string,
+    keyPhrases: string[],
+    historicalAnalysis: HistoricalAnalysis,
+    productVertical: string
+  ): number {
+    let score = 0.5; // Base score
+    
+    // Content relevance (40% weight)
+    const contentRelevance = keyPhrases.length / 10; // Normalize by expected phrase count
+    score += contentRelevance * 0.4;
+    
+    // Historical evolution (30% weight)
+    const evolutionScore = this.calculateEvolutionScore(historicalAnalysis);
+    score += evolutionScore * 0.3;
+    
+    // Technology adoption (20% weight)
+    const technologyScore = this.calculateTechnologyScore(historicalAnalysis, productVertical);
+    score += technologyScore * 0.2;
+    
+    // Service alignment (10% weight)
+    const serviceScore = this.calculateServiceScore(historicalAnalysis, productVertical);
+    score += serviceScore * 0.1;
+    
+    return Math.min(score, 1.0); // Cap at 1.0
+  }
+
+  /**
+   * Calculate evolution score based on historical changes
+   */
+  private static calculateEvolutionScore(historicalAnalysis: HistoricalAnalysis): number {
+    const { messagingEvolution } = historicalAnalysis;
+    
+    let score = 0.5; // Base score
+    
+    // Positive indicators
+    if (messagingEvolution.addedTechnologies.length > 0) score += 0.2;
+    if (messagingEvolution.serviceChanges.some(change => change.startsWith('Added:'))) score += 0.2;
+    
+    // Negative indicators
+    if (messagingEvolution.removedTechnologies.length > 0) score -= 0.1;
+    if (messagingEvolution.serviceChanges.some(change => change.startsWith('Removed:'))) score -= 0.1;
+    
+    return Math.max(0, Math.min(score, 1.0));
+  }
+
+  /**
+   * Calculate technology adoption score
+   */
+  private static calculateTechnologyScore(historicalAnalysis: HistoricalAnalysis, productVertical: string): number {
+    const { currentSnapshot } = historicalAnalysis;
+    const technologies = currentSnapshot.technologies || [];
+    
+    // Define relevant technologies for each vertical - focusing on B2B customer indicators
+    const relevantTechnologies: { [key: string]: string[] } = {
+      'cbct': ['cbct', '3d imaging', 'digital imaging', 'cone beam', 'imaging system', 'diagnostic'],
+      'dental_lasers': ['laser', 'soft tissue', 'hard tissue', 'laser system', 'laser technology'],
+      'cad_cam': ['cad/cam', 'digital restoration', 'milling', 'crown', 'digital dentistry', 'restoration'],
+      'practice_management': ['software', 'management', 'digital', 'practice management', 'patient management'],
+      'dental_implants': ['implant', 'surgery', 'restorative', 'implant system', 'surgical'],
+      'orthodontics': ['orthodontics', 'braces', 'aligners', 'orthodontic', 'alignment'],
+      'endodontics': ['endodontics', 'microscopic', 'root canal', 'endodontic', 'microscopy'],
+      'periodontics': ['periodontics', 'gum disease', 'surgery', 'periodontal', 'gum'],
+      // Construction examples
+      'excavators': ['excavation', 'earthmoving', 'site preparation', 'excavation equipment', 'heavy equipment'],
+      'safety_equipment': ['safety', 'ppe', 'protective', 'safety equipment', 'safety gear'],
+      // Manufacturing examples
+      'industrial_automation': ['automation', 'robotics', 'automated', 'industrial', 'manufacturing'],
+      'quality_control': ['quality', 'inspection', 'testing', 'quality control', 'quality assurance']
+    };
+    
+    const relevantTech = relevantTechnologies[productVertical] || [];
+    const matchingTech = technologies.filter(tech => 
+      relevantTech.some(relevant => tech.toLowerCase().includes(relevant))
+    );
+    
+    return Math.min(matchingTech.length / Math.max(relevantTech.length, 1), 1.0);
+  }
+
+  /**
+   * Calculate service alignment score
+   */
+  private static calculateServiceScore(historicalAnalysis: HistoricalAnalysis, productVertical: string): number {
+    const { currentSnapshot } = historicalAnalysis;
+    const services = currentSnapshot.services || [];
+    
+    // Define relevant services for each vertical - focusing on B2B customer indicators
+    const relevantServices: { [key: string]: string[] } = {
+      'cbct': ['imaging', 'diagnostic', '3d', 'scanning', 'diagnostic imaging', 'advanced imaging'],
+      'dental_lasers': ['laser treatment', 'therapy', 'surgery', 'laser procedures', 'laser therapy'],
+      'cad_cam': ['restoration', 'crown', 'bridge', 'milling', 'digital restoration', 'same day crown'],
+      'practice_management': ['management', 'software', 'digital', 'practice management', 'patient management'],
+      'dental_implants': ['implant', 'surgery', 'restorative', 'implant placement', 'implant restoration'],
+      'orthodontics': ['orthodontics', 'braces', 'alignment', 'orthodontic treatment', 'braces treatment'],
+      'endodontics': ['endodontics', 'root canal', 'treatment', 'endodontic treatment', 'root canal therapy'],
+      'periodontics': ['periodontics', 'gum disease', 'surgery', 'periodontal treatment', 'gum surgery'],
+      // Construction examples
+      'excavators': ['excavation', 'site preparation', 'earthmoving', 'excavation services', 'site development'],
+      'safety_equipment': ['safety', 'ppe', 'safety training', 'safety compliance', 'safety services'],
+      // Manufacturing examples
+      'industrial_automation': ['automation', 'manufacturing', 'production', 'automated systems', 'industrial'],
+      'quality_control': ['quality', 'inspection', 'testing', 'quality control', 'quality assurance']
+    };
+    
+    const relevantServicesList = relevantServices[productVertical] || [];
+    const matchingServices = services.filter(service => 
+      relevantServicesList.some(relevant => service.toLowerCase().includes(relevant))
+    );
+    
+    return Math.min(matchingServices.length / Math.max(relevantServicesList.length, 1), 1.0);
+  }
+
+  /**
+   * Create empty historical analysis for fallback
+   */
+  private static createEmptyHistoricalAnalysis(): HistoricalAnalysis {
+    return {
+      url: '',
+      currentSnapshot: {
+        content: '',
+        keyPhrases: [],
+        technologies: [],
+        services: []
+      },
+      historicalSnapshots: [],
+      messagingEvolution: {
+        addedTechnologies: [],
+        removedTechnologies: [],
+        serviceChanges: [],
+        messagingShifts: []
+      }
+    };
+  }
+
+  /**
    * Fallback mock results
    */
   private static getMockResults(
@@ -964,90 +1457,119 @@ Make sure the JSON is valid and properly formatted.`;
     if (industry === 'dental' && productVertical === 'cbct') {
       mockResults = [
         {
-          url: 'https://example-dental-practice.com',
+          url: 'https://advanceddentalcare.com',
           title: 'Advanced Dental Care Center',
-          description: 'Modern dental practice specializing in advanced imaging and CBCT technology',
+          description: 'Modern dental practice specializing in advanced imaging and CBCT technology for comprehensive patient care',
           relevanceScore: 0.95,
           location: 'New York, NY',
-          companyType: 'Dental Practice'
+          companyType: 'Dental Practice',
+          keyPhrases: ['cbct', '3d imaging', 'advanced imaging', 'diagnostic imaging'],
+          lastScraped: new Date(),
+          contentChanges: {
+            addedPhrases: ['cbct', '3d imaging'],
+            removedPhrases: ['traditional x-ray'],
+            messagingEvolution: 'Upgraded from traditional x-ray to CBCT technology'
+          }
         },
         {
-          url: 'https://premium-dental-specialists.com',
+          url: 'https://premiumdental.com',
           title: 'Premium Dental Specialists',
-          description: 'Specialized dental practice with CBCT and advanced imaging systems',
+          description: 'Specialized dental practice with CBCT and advanced imaging systems for precise diagnostics',
           relevanceScore: 0.92,
           location: 'Los Angeles, CA',
-          companyType: 'Dental Specialists'
+          companyType: 'Dental Specialists',
+          keyPhrases: ['cbct', 'cone beam', 'digital imaging', 'diagnostic'],
+          lastScraped: new Date(),
+          contentChanges: {
+            addedPhrases: ['cone beam', 'digital imaging'],
+            removedPhrases: [],
+            messagingEvolution: 'Added advanced diagnostic imaging capabilities'
+          }
         },
         {
-          url: 'https://cosmetic-dental-experts.com',
+          url: 'https://cosmeticdental.com',
           title: 'Cosmetic Dental Experts',
-          description: 'High-end cosmetic dentistry practice with CBCT technology',
+          description: 'High-end cosmetic dentistry practice with CBCT technology for treatment planning',
           relevanceScore: 0.88,
           location: 'Miami, FL',
-          companyType: 'Cosmetic Dentistry'
-        },
-        {
-          url: 'https://dental-imaging-center.com',
-          title: 'Dental Imaging Center',
-          description: 'Specialized dental imaging facility with CBCT and 3D scanning',
-          relevanceScore: 0.85,
-          location: 'Chicago, IL',
-          companyType: 'Dental Imaging'
-        },
-        {
-          url: 'https://advanced-dental-tech.com',
-          title: 'Advanced Dental Technology',
-          description: 'Modern dental practice with CBCT, laser, and digital workflow',
-          relevanceScore: 0.82,
-          location: 'Houston, TX',
-          companyType: 'Dental Practice'
+          companyType: 'Cosmetic Dentistry',
+          keyPhrases: ['cbct', '3d scanning', 'treatment planning'],
+          lastScraped: new Date(),
+          contentChanges: {
+            addedPhrases: ['3d scanning', 'treatment planning'],
+            removedPhrases: [],
+            messagingEvolution: 'Enhanced treatment planning with 3D technology'
+          }
         }
       ];
-    } else if (industry === 'dental' && productVertical === 'dental_lasers') {
+    } else if (industry === 'dental' && productVertical === 'dental_implants') {
       mockResults = [
         {
-          url: 'https://laser-dental-specialists.com',
-          title: 'Laser Dental Specialists',
-          description: 'Specialized practice using advanced laser technology for treatments',
+          url: 'https://implantdental.com',
+          title: 'Implant Dental Center',
+          description: 'Specialized dental practice focusing on implant surgery and restorative dentistry',
           relevanceScore: 0.94,
           location: 'San Francisco, CA',
-          companyType: 'Dental Specialists'
+          companyType: 'Dental Practice',
+          keyPhrases: ['dental implants', 'implant surgery', 'restorative dentistry'],
+          lastScraped: new Date(),
+          contentChanges: {
+            addedPhrases: ['implant surgery', 'osseointegration'],
+            removedPhrases: [],
+            messagingEvolution: 'Expanded implant services with advanced surgical techniques'
+          }
         },
         {
-          url: 'https://cosmetic-laser-dental.com',
-          title: 'Cosmetic Laser Dental',
-          description: 'High-end cosmetic dentistry with laser technology',
+          url: 'https://restorativedental.com',
+          title: 'Restorative Dental Group',
+          description: 'Comprehensive dental practice with advanced implant and restorative services',
           relevanceScore: 0.91,
-          location: 'Beverly Hills, CA',
-          companyType: 'Cosmetic Dentistry'
+          location: 'Chicago, IL',
+          companyType: 'Dental Practice',
+          keyPhrases: ['dental implants', 'restorative', 'implant placement'],
+          lastScraped: new Date(),
+          contentChanges: {
+            addedPhrases: ['implant placement', 'restorative'],
+            removedPhrases: [],
+            messagingEvolution: 'Enhanced restorative services with implant technology'
+          }
+        }
+      ];
+    } else if (industry === 'construction' && productVertical === 'excavators') {
+      mockResults = [
+        {
+          url: 'https://earthmovingcontractors.com',
+          title: 'Earthmoving Contractors Inc.',
+          description: 'Professional excavation and site preparation company with heavy equipment fleet',
+          relevanceScore: 0.93,
+          location: 'Houston, TX',
+          companyType: 'Construction Company',
+          keyPhrases: ['excavation', 'site preparation', 'earthmoving', 'excavation services'],
+          lastScraped: new Date(),
+          contentChanges: {
+            addedPhrases: ['excavation services', 'site preparation'],
+            removedPhrases: [],
+            messagingEvolution: 'Expanded excavation and site preparation services'
+          }
         },
         {
-          url: 'https://periodontal-laser-center.com',
-          title: 'Periodontal Laser Center',
-          description: 'Specialized periodontal practice with laser treatment systems',
+          url: 'https://siteexcavation.com',
+          title: 'Site Excavation Specialists',
+          description: 'Specialized excavation company providing comprehensive site development services',
           relevanceScore: 0.89,
-          location: 'Boston, MA',
-          companyType: 'Periodontal Practice'
+          location: 'Dallas, TX',
+          companyType: 'Excavation Company',
+          keyPhrases: ['excavation', 'site development', 'earthmoving services'],
+          lastScraped: new Date(),
+          contentChanges: {
+            addedPhrases: ['site development', 'earthmoving services'],
+            removedPhrases: [],
+            messagingEvolution: 'Added comprehensive site development capabilities'
+          }
         }
       ];
     }
-
-    // Apply constraints
-    let filteredResults = mockResults;
     
-    if (constraints?.maxResults) {
-      filteredResults = filteredResults.slice(0, constraints.maxResults);
-    }
-
-    if (constraints?.geography && constraints.geography.length > 0) {
-      filteredResults = filteredResults.filter(result => 
-        constraints.geography!.some(geo => 
-          result.location?.toLowerCase().includes(geo.toLowerCase())
-        )
-      );
-    }
-
-    return filteredResults;
+    return mockResults;
   }
 } 

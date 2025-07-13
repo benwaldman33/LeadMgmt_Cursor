@@ -194,4 +194,41 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
 ### [Date]
 - **Area:** [File or feature]
 - **Note/Decision:** [Description]
-- **Action/Follow-up:** [If any] 
+- **Action/Follow-up:** [If any]
+
+---
+
+## 2025-07-13
+
+### AI Discovery Conversation Flow Improvement
+- **Area:** AI Discovery service, conversation flow, user experience
+- **Changes Made:**
+  - Modified `generateAIResponse()` to only trigger additional analysis for explicit user requests
+  - Updated `generateFollowUpAnalysis()` to use explicit keywords like 'analyze', 'deep dive', 'detailed analysis'
+  - Removed automatic customer insights generation when product vertical is selected
+  - Added user-controlled "Generate Customer Insights" button in the UI
+  - Updated conversation prompts to be more concise and focused
+- **Technical Decisions:**
+  - User now controls the depth of AI analysis through explicit requests
+  - Initial responses are brief and focused, with follow-up questions
+  - Additional analysis only triggers for keywords like 'analyze', 'deep dive', 'tell me more'
+  - Conversation flow: Industry selection → Product vertical selection → User-guided exploration
+- **Benefits:**
+  - Better user experience with controlled conversation flow
+  - No more automatic verbose responses
+  - Users can choose when to get detailed analysis
+  - More natural conversation progression
+- **Files Modified:**
+  - `backend/src/services/aiDiscoveryService.ts` (conversation flow improvements)
+  - `frontend/src/pages/AIDiscoveryPage.tsx` (UI improvements and user control) 
+
+## [2025-07-13] AI Discovery, Campaign, and Pipeline UX Improvements
+
+- AI Discovery: Added state persistence, debug tools, and ensured context-aware prompts for Claude.
+- Campaigns: Implemented scoring model assignment in both create and edit forms. Added Edit Campaign page and route.
+- Pipeline: Enforced campaign selection with scoring model for pipeline processing. Improved error handling and user feedback.
+- Scoring Model: Improved search term parsing, added visual feedback for parsed terms, and clarified instructions.
+- Fixed: 'Send to Pipeline' now navigates to the Pipeline page for campaign selection, rather than making a direct API call.
+- Backend: Ensured prompt context is always included and campaign/scoring model API support is robust.
+
+See TODO.md for remaining tasks and follow-ups. 

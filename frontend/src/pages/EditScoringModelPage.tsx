@@ -396,15 +396,26 @@ const EditScoringModelPage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={Array.isArray(criterion.searchTerms) ? criterion.searchTerms.join(', ') : criterion.searchTerms}
+                      value={criterion.searchTerms.join(', ')}
                       onChange={(e) => handleCriterionChange(index, 'searchTerms', e.target.value)}
                       className="input-field"
-                      placeholder="e.g., dental, equipment, technology"
-                      required
+                      placeholder="cone beam computed tomography, dental laser, CAD/CAM (comma separated)"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Separate multiple terms with commas
+                      Enter search terms separated by commas. Multi-word phrases like "cone beam computed tomography" will be treated as single search terms.
                     </p>
+                    {criterion.searchTerms.length > 0 && criterion.searchTerms[0] !== '' && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                        <span className="font-medium text-blue-800">Parsed terms:</span>
+                        <div className="text-blue-700 mt-1">
+                          {criterion.searchTerms.map((term, i) => (
+                            <span key={i} className="inline-block bg-blue-100 px-2 py-1 rounded mr-1 mb-1">
+                              "{term}"
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">

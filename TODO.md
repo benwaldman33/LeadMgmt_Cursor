@@ -228,6 +228,21 @@ This document tracks the implementation status of PRD features and ongoing devel
 3. **Enhanced Analytics** - Improve dashboard with advanced visualizations
 4. **Pipeline Job Persistence** - Add job history and scheduling capabilities
 
+## [2025-07-13] Completed
+- Persist AI Discovery state and context
+- Add debug tools and context-aware prompts to AI Discovery
+- Add scoring model assignment to campaign create/edit forms
+- Implement Edit Campaign page and route
+- Enforce campaign selection and scoring model for pipeline processing
+- Improve error handling and user feedback in pipeline
+- Improve search term parsing and add visual feedback in scoring model forms
+- Fix 'Send to Pipeline' to navigate to campaign selection, not direct API call
+
+## Follow-ups
+- Monitor user feedback on new pipeline flow
+- Consider bulk pipeline send for multiple URLs
+- Continue refining error messages and onboarding UX
+
 ---
 
 *Last Updated: 2025-07-13*

@@ -121,6 +121,20 @@ export const campaignsAPI = {
     const response = await api.post('/campaigns', campaignData);
     return response.data;
   },
+
+  update: async (id: string, campaignData: {
+    name: string;
+    industry: string;
+    scoringModelId?: string;
+    assignedTeamId?: string;
+    targetLeadCount?: number;
+    status?: string;
+    startDate?: string;
+    targetEndDate?: string;
+  }) => {
+    const response = await api.put(`/campaigns/${id}`, campaignData);
+    return response.data;
+  },
 };
 
 // Leads API

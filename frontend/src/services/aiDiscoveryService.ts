@@ -54,6 +54,16 @@ export interface WebSearchResult {
   relevanceScore: number;
   location?: string;
   companyType?: string;
+  // Enhanced fields for historical analysis
+  currentContent?: string;
+  historicalContent?: string;
+  contentChanges?: {
+    addedPhrases: string[];
+    removedPhrases: string[];
+    messagingEvolution: string;
+  };
+  keyPhrases?: string[];
+  lastScraped?: Date;
 }
 
 export interface SearchConstraints {
@@ -141,6 +151,101 @@ class AIDiscoveryService {
     });
     
     console.log('Frontend searchForCustomers response:', response.data);
+    return response.data;
+  }
+
+  /**
+   * Enhanced customer search with web scraping and historical analysis
+   */
+  async searchCustomersEnhanced(
+    industry: string,
+    productVertical: string,
+    customerTypes?: string[],
+    constraints?: {
+      geography?: string[];
+      maxResults?: number;
+      companySize?: string[];
+    }
+  ): Promise<{
+    results: WebSearchResult[];
+    metadata: {
+      industry: string;
+      productVertical: string;
+      customerTypes: string[];
+      constraints?: any;
+      enhancedSearch: boolean;
+      webScrapingEnabled: boolean;
+      historicalAnalysisEnabled: boolean;
+    };
+  }> {
+    console.log('Enhanced customer search:', { industry, productVertical, customerTypes, constraints });
+    
+    const response = await api.post('/ai-discovery/search-customers', {
+      industry,
+      productVertical,
+      customerTypes: customerTypes || [],
+      constraints
+    });
+    
+    return response.data;
+  }
+
+  /**
+   * Analyze a specific URL for historical content and messaging evolution
+   */
+  async analyzeUrl(
+    url: string,
+    industry: string,
+    productVertical: string
+  ): Promise<{
+    url: string;
+    industry: string;
+    productVertical: string;
+    currentContent?: string;
+    historicalContent?: string;
+    keyPhrases?: string[];
+    contentChanges?: {
+      addedPhrases: string[];
+      removedPhrases: string[];
+      messagingEvolution: string;
+    };
+    relevanceScore: number;
+    lastScraped: Date;
+  }> {
+    console.log('Analyzing URL:', { url, industry, productVertical });
+    
+    const response = await api.post('/ai-discovery/analyze-url', {
+      url,
+      industry,
+      productVertical
+    });
+    
+    return response.data.data;
+  }
+
+  /**
+   * Start a pipeline session for processing discovered URLs
+   */
+  async startPipelineSession(
+    industry: string,
+    productVertical: string,
+    url: string
+  ): Promise<{
+    id: string;
+    status: string;
+    urls: string[];
+    industry: string;
+    productVertical: string;
+  }> {
+    console.log('Starting pipeline session:', { industry, productVertical, url });
+    
+    const response = await api.post('/pipeline/start', {
+      urls: [url],
+      industry,
+      productVertical,
+      source: 'ai-discovery'
+    });
+    
     return response.data;
   }
 }

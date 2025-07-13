@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useAIDiscovery } from '../contexts/AIDiscoveryContext';
 import GlobalSearch from './GlobalSearch';
 import RealTimeNotifications from './RealTimeNotifications';
 import { webSocketService } from '../services/websocketService';
@@ -28,28 +29,34 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'AI Discovery', href: '/ai-discovery', icon: MagnifyingGlassIcon },
-  { name: 'Campaigns', href: '/campaigns', icon: ChartBarIcon },
-  { name: 'Pipeline', href: '/pipeline', icon: PlayIcon },
-  { name: 'Leads', href: '/leads', icon: DocumentTextIcon },
-  { name: 'Scoring Models', href: '/scoring', icon: CogIcon },
-  { name: 'AI/ML Scoring', href: '/ai-scoring', icon: CpuChipIcon },
-  { name: 'Web Scraping', href: '/web-scraping', icon: GlobeAltIcon },
-  { name: 'Workflows', href: '/workflows', icon: Cog6ToothIcon },
-  { name: 'Business Rules', href: '/business-rules', icon: ShieldCheckIcon },
-  { name: 'Integrations', href: '/integrations', icon: PuzzlePieceIcon },
-  { name: 'Teams', href: '/teams', icon: UserGroupIcon },
-  { name: 'Reports', href: '/reports', icon: ChartPieIcon },
-  { name: 'Audit Logs', href: '/audit-logs', icon: ClockIcon },
-];
-
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout, token } = useAuth();
+  const { hasActiveSession } = useAIDiscovery();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { 
+      name: 'AI Discovery', 
+      href: '/ai-discovery', 
+      icon: MagnifyingGlassIcon,
+      badge: hasActiveSession ? 'Active' : undefined
+    },
+    { name: 'Campaigns', href: '/campaigns', icon: ChartBarIcon },
+    { name: 'Pipeline', href: '/pipeline', icon: PlayIcon },
+    { name: 'Leads', href: '/leads', icon: DocumentTextIcon },
+    { name: 'Scoring Models', href: '/scoring', icon: CogIcon },
+    { name: 'AI/ML Scoring', href: '/ai-scoring', icon: CpuChipIcon },
+    { name: 'Web Scraping', href: '/web-scraping', icon: GlobeAltIcon },
+    { name: 'Workflows', href: '/workflows', icon: Cog6ToothIcon },
+    { name: 'Business Rules', href: '/business-rules', icon: ShieldCheckIcon },
+    { name: 'Integrations', href: '/integrations', icon: PuzzlePieceIcon },
+    { name: 'Teams', href: '/teams', icon: UserGroupIcon },
+    { name: 'Reports', href: '/reports', icon: ChartPieIcon },
+    { name: 'Audit Logs', href: '/audit-logs', icon: ClockIcon },
+  ];
 
   // Connect to WebSocket when user is authenticated
   useEffect(() => {
@@ -101,7 +108,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   onClick={() => setSidebarOpen(false)}
                 >
                   <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {item.badge && (
+                    <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -144,7 +156,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   }`}
                 >
                   <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {item.badge && (
+                    <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}

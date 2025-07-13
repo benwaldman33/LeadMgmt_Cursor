@@ -3,7 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { AIDiscoveryProvider } from './contexts/AIDiscoveryContext';
 import ToastContainer from './components/ToastContainer';
+import AIDiscoveryDebug from './components/AIDiscoveryDebug';
 import DashboardLayout from './components/DashboardLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -34,6 +36,7 @@ import AdminPanelPage from './pages/AdminPanelPage';
 import CampaignDetailPage from './pages/CampaignDetailPage';
 import PipelinePage from './pages/PipelinePage';
 import AIDiscoveryPage from './pages/AIDiscoveryPage';
+import EditCampaignPage from './pages/EditCampaignPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -129,6 +132,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <CampaignDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/campaigns/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditCampaignPage />
           </ProtectedRoute>
         }
       />
@@ -372,10 +384,13 @@ const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <NotificationProvider>
-          <Router>
-            <AppRoutes />
-            <ToastContainer />
-          </Router>
+          <AIDiscoveryProvider>
+            <Router>
+              <AppRoutes />
+              <ToastContainer />
+              <AIDiscoveryDebug />
+            </Router>
+          </AIDiscoveryProvider>
         </NotificationProvider>
       </AuthProvider>
     </QueryClientProvider>
