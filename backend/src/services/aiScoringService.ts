@@ -10,6 +10,62 @@ const prisma = new PrismaClient();
 // Claude API Configuration - will be loaded from database
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 
+// Rate limiting and usage tracking
+interface ClaudeUsage {
+  totalCalls: number;
+  totalTokens: number;
+  lastCall: Date | null;
+  averageResponseTime: number;
+  errors: number;
+}
+
+class ClaudeRateLimiter {
+  private callsThisMinute = 0;
+  private lastReset = Date.now();
+  private readonly maxCallsPerMinute = 50; // Claude's rate limit
+  private usage: ClaudeUsage = {
+    totalCalls: 0,
+    totalTokens: 0,
+    lastCall: null,
+    averageResponseTime: 0,
+    errors: 0
+  };
+
+  async checkRateLimit(): Promise<boolean> {
+    const now = Date.now();
+    if (now - this.lastReset >= 60000) {
+      this.callsThisMinute = 0;
+      this.lastReset = now;
+    }
+    
+    if (this.callsThisMinute >= this.maxCallsPerMinute) {
+      return false;
+    }
+    
+    this.callsThisMinute++;
+    return true;
+  }
+
+  recordCall(tokens: number, responseTime: number, success: boolean) {
+    this.usage.totalCalls++;
+    this.usage.totalTokens += tokens;
+    this.usage.lastCall = new Date();
+    
+    if (success) {
+      this.usage.averageResponseTime = 
+        (this.usage.averageResponseTime * (this.usage.totalCalls - 1) + responseTime) / this.usage.totalCalls;
+    } else {
+      this.usage.errors++;
+    }
+  }
+
+  getUsage(): ClaudeUsage {
+    return { ...this.usage };
+  }
+}
+
+const claudeRateLimiter = new ClaudeRateLimiter();
+
 // Helper function to get configuration from database
 async function getConfig(key: string): Promise<string | null> {
   try {
@@ -41,6 +97,35 @@ async function getDecryptedConfig(key: string): Promise<string | null> {
   } catch (error) {
     console.error(`Error getting decrypted config ${key}:`, error);
     return null;
+  }
+}
+
+// Helper function to save Claude usage statistics
+async function saveClaudeUsage(usage: ClaudeUsage) {
+  try {
+    await prisma.claudeUsage.upsert({
+      where: { id: 'claude_usage_stats' },
+      update: {
+        totalCalls: usage.totalCalls,
+        totalTokens: usage.totalTokens,
+        averageResponseTime: usage.averageResponseTime,
+        errors: usage.errors,
+        lastCall: usage.lastCall,
+        updatedAt: new Date()
+      },
+      create: {
+        id: 'claude_usage_stats',
+        totalCalls: usage.totalCalls,
+        totalTokens: usage.totalTokens,
+        averageResponseTime: usage.averageResponseTime,
+        errors: usage.errors,
+        lastCall: usage.lastCall,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Error saving Claude usage:', error);
   }
 }
 
@@ -228,39 +313,80 @@ export class AIScoringService {
   // Private Claude API helper methods
 
   private async callClaudeAPI(prompt: string): Promise<ClaudeResponse> {
-    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
-    if (!CLAUDE_API_KEY) {
-      throw new Error('Claude API key not configured');
+    const startTime = Date.now();
+    
+    // Check rate limiting
+    const canProceed = await claudeRateLimiter.checkRateLimit();
+    if (!canProceed) {
+      throw new Error('Rate limit exceeded. Please wait before making another request.');
+    }
+
+    // Try multiple possible key names
+    let CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
+    if (!CLAUDE_API_KEY || CLAUDE_API_KEY === '[ENCRYPTED]') {
+      CLAUDE_API_KEY = await getDecryptedConfig('Claude_API_Key');
+    }
+    if (!CLAUDE_API_KEY || CLAUDE_API_KEY === '[ENCRYPTED]') {
+      throw new Error('Claude API key not configured or encrypted. Please configure a valid API key.');
     }
 
     // Get model configuration from database
     const model = await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229';
     const maxTokens = await getConfig('CLAUDE_MAX_TOKENS') || '4000';
 
-    const response = await fetch(CLAUDE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: model,
-        max_tokens: parseInt(maxTokens),
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      })
-    });
+    try {
+      console.log(`[Claude API] Making request to model: ${model}`);
+      
+      const response = await fetch(CLAUDE_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': CLAUDE_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: parseInt(maxTokens),
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
+        })
+      });
 
-    if (!response.ok) {
-      throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+      const responseTime = Date.now() - startTime;
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Claude API] Error ${response.status}: ${errorText}`);
+        
+        // Record failed call
+        claudeRateLimiter.recordCall(0, responseTime, false);
+        await saveClaudeUsage(claudeRateLimiter.getUsage());
+        
+        throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      // Record successful call
+      const totalTokens = (result.usage?.input_tokens || 0) + (result.usage?.output_tokens || 0);
+      claudeRateLimiter.recordCall(totalTokens, responseTime, true);
+      await saveClaudeUsage(claudeRateLimiter.getUsage());
+      
+      console.log(`[Claude API] Success - Tokens: ${totalTokens}, Time: ${responseTime}ms`);
+      
+      return result;
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      claudeRateLimiter.recordCall(0, responseTime, false);
+      await saveClaudeUsage(claudeRateLimiter.getUsage());
+      
+      console.error('[Claude API] Request failed:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
   private buildScoringPrompt(leadData: any, industry: string): string {
@@ -1094,30 +1220,39 @@ Focus on ${industry}-specific relevance and business potential.`;
     message: string;
     model: string;
     responseTime: number;
+    details?: any;
   }> {
-    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
-    if (!CLAUDE_API_KEY) {
-      throw new Error('Claude API key not configured');
-    }
-
-    const startTime = Date.now();
     try {
-      const testPrompt = "Please respond with 'Connection successful' if you can read this message.";
+      const startTime = Date.now();
+      
+      // Test with a simple prompt
+      const testPrompt = 'Hello, this is a test message. Please respond with "Connection successful." and your model name.';
       const response = await this.callClaudeAPI(testPrompt);
       const responseTime = Date.now() - startTime;
-
+      
+      const model = await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229';
+      
       return {
         success: true,
         message: 'Claude API connection successful',
-        model: await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229',
-        responseTime
+        model,
+        responseTime,
+        details: {
+          response: response.content[0]?.text,
+          tokens: response.usage
+        }
       };
     } catch (error) {
+      console.error('[Claude Test] Connection failed:', error);
+      
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error',
         model: await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229',
-        responseTime: Date.now() - startTime
+        responseTime: 0,
+        details: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       };
     }
   }

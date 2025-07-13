@@ -70,9 +70,24 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     try {
       setLoadingVerticals(true);
       console.log('Loading product verticals for industry:', industryId);
+      
+      // Show notification that Claude is discovering verticals
+      addNotification({
+        type: 'info',
+        title: 'AI Discovery in Progress',
+        message: `Claude AI is analyzing the ${industryId} industry to discover product verticals...`
+      });
+      
       const verticals = await aiDiscoveryService.getProductVerticals(industryId);
       console.log('Product verticals loaded:', verticals);
       setProductVerticals(verticals);
+      
+      // Show success notification
+      addNotification({
+        type: 'success',
+        title: 'Discovery Complete',
+        message: `Claude discovered ${verticals.length} product verticals for ${industryId}`
+      });
     } catch (error: any) {
       console.error('Error loading product verticals:', error);
       addNotification({
@@ -265,10 +280,21 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">2. Select Product Vertical</h2>
                 
                 {loadingVerticals ? (
-                  <div className="animate-pulse space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-20 bg-gray-200 rounded"></div>
-                    ))}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center py-8">
+                      <div className="flex items-center space-x-3">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <div className="text-gray-600">
+                          <div className="font-medium">Claude AI is analyzing...</div>
+                          <div className="text-sm">Discovering product verticals for {selectedIndustry}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="animate-pulse space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-20 bg-gray-200 rounded"></div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">

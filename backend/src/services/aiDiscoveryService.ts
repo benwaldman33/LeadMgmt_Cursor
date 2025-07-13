@@ -1,4 +1,81 @@
 import { prisma } from '../index';
+import { AIScoringService } from './aiScoringService';
+
+// Helper function to get configuration from database
+async function getConfig(key: string): Promise<string | null> {
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key }
+    });
+    return config?.value || null;
+  } catch (error) {
+    console.error(`Error getting config ${key}:`, error);
+    return null;
+  }
+}
+
+// Helper function to decrypt configuration if needed
+async function getDecryptedConfig(key: string): Promise<string | null> {
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { key }
+    });
+    
+    if (!config) return null;
+    
+    if (config.isEncrypted) {
+      return '[ENCRYPTED]';
+    }
+    
+    return config.value;
+  } catch (error) {
+    console.error(`Error getting decrypted config ${key}:`, error);
+    return null;
+  }
+}
+
+// Claude API call function
+async function callClaudeAPI(prompt: string): Promise<any> {
+  const CLAUDE_API_KEY = await getDecryptedConfig('Claude_API_Key') || await getDecryptedConfig('CLAUDE_API_KEY');
+  if (!CLAUDE_API_KEY || CLAUDE_API_KEY === '[ENCRYPTED]') {
+    throw new Error('Claude API key not configured');
+  }
+
+  const model = await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229';
+  const maxTokens = await getConfig('CLAUDE_MAX_TOKENS') || '4000';
+
+  try {
+    console.log(`[AI Discovery] Making Claude API request for customer search`);
+    
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: parseInt(maxTokens),
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('[AI Discovery] Claude API request failed:', error);
+    throw error;
+  }
+}
 
 export interface IndustryExploration {
   id: string;
@@ -142,9 +219,124 @@ What specific area of healthcare would you like to explore? I can provide market
   }
 
   /**
-   * Get product verticals for an industry
+   * Get product verticals for an industry using Claude AI
    */
   static async getProductVerticals(industry: string): Promise<ProductVertical[]> {
+    try {
+      console.log(`[AI Discovery] Using Claude to discover product verticals for industry: ${industry}`);
+      
+      // Build Claude prompt for product vertical discovery
+      const prompt = this.buildProductVerticalDiscoveryPrompt(industry);
+      
+      // Call Claude API for dynamic vertical discovery
+      const claudeResponse = await callClaudeAPI(prompt);
+      
+      // Parse Claude's response into structured product verticals
+      const verticals = this.parseClaudeProductVerticals(claudeResponse, industry);
+      
+      console.log(`[AI Discovery] Claude discovered ${verticals.length} product verticals for ${industry}`);
+      
+      return verticals;
+      
+    } catch (error) {
+      console.error('[AI Discovery] Claude vertical discovery failed, falling back to mock data:', error);
+      
+      // Fallback to existing mock data
+      return this.getMockProductVerticals(industry);
+    }
+  }
+
+  /**
+   * Build Claude prompt for product vertical discovery
+   */
+  private static buildProductVerticalDiscoveryPrompt(industry: string): string {
+    return `You are an expert in market analysis and industry research. 
+
+I need you to analyze the ${industry} industry and identify the most promising product verticals (specific product categories or service areas) within this industry.
+
+Requirements:
+- Industry: ${industry}
+- Focus on high-growth, high-value product verticals
+- Include market size estimates and growth rates
+- Identify key customer types for each vertical
+- Provide realistic market data
+
+Please provide the product verticals in this JSON format:
+[
+  {
+    "id": "unique_identifier",
+    "name": "Product Vertical Name",
+    "description": "Brief description of the product vertical",
+    "marketSize": "Estimated market size (e.g., $1.2B)",
+    "growthRate": "Annual growth rate (e.g., 8.5% annually)",
+    "customerTypes": [
+      {
+        "id": "customer_type_id",
+        "name": "Customer Type Name",
+        "description": "Description of this customer segment",
+        "characteristics": ["Characteristic 1", "Characteristic 2"],
+        "buyingBehavior": "Description of buying behavior",
+        "marketSegment": "Premium/Mid-market/Budget",
+        "estimatedValue": "Estimated customer value (e.g., $50K-$200K)"
+      }
+    ]
+  }
+]
+
+Focus on:
+1. Product verticals that represent significant market opportunities
+2. Realistic market sizes and growth rates
+3. Specific customer types that would buy these products
+4. High-value prospects with purchasing power
+5. Current market trends and opportunities
+
+Make sure the JSON is valid and properly formatted. Include 3-5 product verticals for this industry.`;
+  }
+
+  /**
+   * Parse Claude's response into structured product verticals
+   */
+  private static parseClaudeProductVerticals(claudeResponse: any, industry: string): ProductVertical[] {
+    try {
+      const content = claudeResponse.content[0]?.text;
+      
+      // Extract JSON from Claude's response
+      const jsonMatch = content?.match(/\[[\s\S]*\]/);
+      
+      if (!jsonMatch) {
+        throw new Error('Invalid response format from Claude');
+      }
+
+      const verticals = JSON.parse(jsonMatch[0]);
+      
+      // Validate and transform the data
+      return verticals.map((vertical: any, index: number) => ({
+        id: vertical.id || `${industry}_vertical_${index}`,
+        name: vertical.name || 'Unknown Vertical',
+        description: vertical.description || 'No description available',
+        marketSize: vertical.marketSize || '$Unknown',
+        growthRate: vertical.growthRate || 'Unknown',
+        customerTypes: (vertical.customerTypes || []).map((ct: any, ctIndex: number) => ({
+          id: ct.id || `customer_${index}_${ctIndex}`,
+          name: ct.name || 'Unknown Customer Type',
+          description: ct.description || 'No description available',
+          characteristics: ct.characteristics || [],
+          buyingBehavior: ct.buyingBehavior || 'Unknown',
+          marketSegment: ct.marketSegment || 'Unknown',
+          estimatedValue: ct.estimatedValue || '$Unknown'
+        }))
+      }));
+      
+    } catch (error) {
+      console.error('Error parsing Claude product verticals response:', error);
+      throw new Error('Failed to parse Claude API response for product verticals');
+    }
+  }
+
+  /**
+   * Get mock product verticals (fallback method)
+   */
+  private static getMockProductVerticals(industry: string): ProductVertical[] {
     const verticals = {
       'dental': [
         {
@@ -330,7 +522,7 @@ What specific area of healthcare would you like to explore? I can provide market
   }
 
   /**
-   * Search for potential customers based on criteria
+   * Search for potential customers based on criteria using Claude AI
    */
   static async searchForCustomers(
     industry: string,
@@ -342,8 +534,125 @@ What specific area of healthcare would you like to explore? I can provide market
       companySize?: string[];
     }
   ): Promise<WebSearchResult[]> {
-    // This would integrate with web search APIs or scraping services
-    // For now, return mock results based on industry and product vertical
+    try {
+      console.log(`[AI Discovery] Searching for customers: ${industry}/${productVertical}`);
+      
+      // Build Claude prompt for customer search
+      const prompt = this.buildCustomerSearchPrompt(industry, productVertical, customerTypes, constraints);
+      
+      // Call Claude API for real-time customer discovery
+      const claudeResponse = await callClaudeAPI(prompt);
+      
+      // Parse Claude's response into structured results
+      const results = this.parseClaudeCustomerResults(claudeResponse);
+      
+      console.log(`[AI Discovery] Found ${results.length} customers using Claude AI`);
+      
+      return results;
+      
+    } catch (error) {
+      console.error('[AI Discovery] Claude search failed, falling back to mock data:', error);
+      
+      // Fallback to mock data if Claude fails
+      return this.getMockResults(industry, productVertical, constraints);
+    }
+  }
+
+  /**
+   * Build Claude prompt for customer search
+   */
+  private static buildCustomerSearchPrompt(
+    industry: string,
+    productVertical: string,
+    customerTypes: string[],
+    constraints?: {
+      geography?: string[];
+      maxResults?: number;
+      companySize?: string[];
+    }
+  ): string {
+    const maxResults = constraints?.maxResults || 10;
+    const geography = constraints?.geography?.join(', ') || 'United States';
+    
+    return `You are an expert in customer discovery and market research. 
+
+I need you to find potential customers for ${productVertical} in the ${industry} industry.
+
+Requirements:
+- Industry: ${industry}
+- Product Vertical: ${productVertical}
+- Customer Types: ${customerTypes.join(', ') || 'All relevant types'}
+- Geography: ${geography}
+- Max Results: ${maxResults}
+
+Please provide a list of potential customers in this JSON format:
+[
+  {
+    "url": "company website or LinkedIn",
+    "title": "Company Name",
+    "description": "Brief description of the company and why they would be interested in this product",
+    "relevanceScore": 0.85,
+    "location": "City, State",
+    "companyType": "Type of business"
+  }
+]
+
+Focus on:
+1. Companies that would actually need ${productVertical}
+2. Real companies with online presence
+3. High-value prospects with purchasing power
+4. Companies in the specified geography
+5. Relevance scores based on how well they match the criteria
+
+Make sure the JSON is valid and properly formatted.`;
+  }
+
+  /**
+   * Parse Claude's response into structured customer results
+   */
+  private static parseClaudeCustomerResults(claudeResponse: any): WebSearchResult[] {
+    try {
+      const content = claudeResponse.content[0]?.text;
+      if (!content) {
+        throw new Error('No content in Claude response');
+      }
+
+      // Extract JSON from Claude's response
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('No JSON array found in Claude response');
+      }
+
+      const results = JSON.parse(jsonMatch[0]);
+      
+      // Validate and format results
+      return results.map((result: any, index: number) => ({
+        url: result.url || `https://example-company-${index}.com`,
+        title: result.title || `Company ${index + 1}`,
+        description: result.description || 'Company description',
+        relevanceScore: result.relevanceScore || 0.8,
+        location: result.location || 'Unknown',
+        companyType: result.companyType || 'Unknown'
+      }));
+
+    } catch (error) {
+      console.error('[AI Discovery] Error parsing Claude response:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fallback mock results
+   */
+  private static getMockResults(
+    industry: string,
+    productVertical: string,
+    constraints?: {
+      geography?: string[];
+      maxResults?: number;
+      companySize?: string[];
+    }
+  ): WebSearchResult[] {
     let mockResults: WebSearchResult[] = [];
     
     if (industry === 'dental' && productVertical === 'cbct') {
@@ -414,25 +723,6 @@ What specific area of healthcare would you like to explore? I can provide market
           relevanceScore: 0.89,
           location: 'Boston, MA',
           companyType: 'Periodontal Practice'
-        }
-      ];
-    } else if (industry === 'construction' && productVertical === 'excavators') {
-      mockResults = [
-        {
-          url: 'https://construction-equipment.com',
-          title: 'ABC Construction Company',
-          description: 'Large construction firm with heavy equipment fleet',
-          relevanceScore: 0.93,
-          location: 'Dallas, TX',
-          companyType: 'Construction Company'
-        },
-        {
-          url: 'https://excavation-specialists.com',
-          title: 'Excavation Specialists Inc',
-          description: 'Specialized excavation and site preparation company',
-          relevanceScore: 0.90,
-          location: 'Phoenix, AZ',
-          companyType: 'Excavation Company'
         }
       ];
     }

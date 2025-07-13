@@ -77,16 +77,19 @@ router.post('/search-customers', authenticateToken, requireAnalyst, async (req: 
       constraints 
     } = req.body;
 
-    if (!industry || !productVertical || !customerTypes) {
+    if (!industry || !productVertical) {
       return res.status(400).json({ 
-        error: 'Industry, product vertical, and customer types are required' 
+        error: 'Industry and product vertical are required' 
       });
     }
+
+    // Ensure customerTypes is an array (can be empty)
+    const customerTypesArray = Array.isArray(customerTypes) ? customerTypes : [];
 
     const results = await AIDiscoveryService.searchForCustomers(
       industry,
       productVertical,
-      customerTypes,
+      customerTypesArray,
       constraints
     );
 
