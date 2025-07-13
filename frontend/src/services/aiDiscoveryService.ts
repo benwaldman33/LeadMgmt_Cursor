@@ -67,7 +67,9 @@ class AIDiscoveryService {
    * Get available industries
    */
   async getIndustries(): Promise<Industry[]> {
+    console.log('Fetching industries...');
     const response = await api.get('/ai-discovery/industries');
+    console.log('Industries response:', response.data);
     return response.data.industries;
   }
 
@@ -83,7 +85,9 @@ class AIDiscoveryService {
    * Get product verticals for an industry
    */
   async getProductVerticals(industry: string): Promise<ProductVertical[]> {
+    console.log('Fetching product verticals for industry:', industry);
     const response = await api.get(`/ai-discovery/industries/${industry}/verticals`);
+    console.log('Product verticals response:', response.data);
     return response.data.verticals;
   }
 
@@ -104,12 +108,21 @@ class AIDiscoveryService {
     customerTypes: string[],
     constraints?: SearchConstraints
   ): Promise<{ results: WebSearchResult[]; totalFound: number }> {
+    console.log('Frontend searchForCustomers called with:', {
+      industry,
+      productVertical,
+      customerTypes,
+      constraints
+    });
+    
     const response = await api.post('/ai-discovery/search-customers', {
       industry,
       productVertical,
       customerTypes,
       constraints
     });
+    
+    console.log('Frontend searchForCustomers response:', response.data);
     return response.data;
   }
 }

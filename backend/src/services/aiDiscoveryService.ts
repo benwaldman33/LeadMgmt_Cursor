@@ -343,33 +343,99 @@ What specific area of healthcare would you like to explore? I can provide market
     }
   ): Promise<WebSearchResult[]> {
     // This would integrate with web search APIs or scraping services
-    // For now, return mock results
-    const mockResults: WebSearchResult[] = [
-      {
-        url: 'https://example-dental-practice.com',
-        title: 'Advanced Dental Care Center',
-        description: 'Modern dental practice specializing in advanced imaging and laser treatments',
-        relevanceScore: 0.95,
-        location: 'New York, NY',
-        companyType: 'Dental Practice'
-      },
-      {
-        url: 'https://premium-dental-specialists.com',
-        title: 'Premium Dental Specialists',
-        description: 'Specialized dental practice with CBCT and laser technology',
-        relevanceScore: 0.92,
-        location: 'Los Angeles, CA',
-        companyType: 'Dental Specialists'
-      },
-      {
-        url: 'https://cosmetic-dental-experts.com',
-        title: 'Cosmetic Dental Experts',
-        description: 'High-end cosmetic dentistry practice with advanced laser systems',
-        relevanceScore: 0.88,
-        location: 'Miami, FL',
-        companyType: 'Cosmetic Dentistry'
-      }
-    ];
+    // For now, return mock results based on industry and product vertical
+    let mockResults: WebSearchResult[] = [];
+    
+    if (industry === 'dental' && productVertical === 'cbct') {
+      mockResults = [
+        {
+          url: 'https://example-dental-practice.com',
+          title: 'Advanced Dental Care Center',
+          description: 'Modern dental practice specializing in advanced imaging and CBCT technology',
+          relevanceScore: 0.95,
+          location: 'New York, NY',
+          companyType: 'Dental Practice'
+        },
+        {
+          url: 'https://premium-dental-specialists.com',
+          title: 'Premium Dental Specialists',
+          description: 'Specialized dental practice with CBCT and advanced imaging systems',
+          relevanceScore: 0.92,
+          location: 'Los Angeles, CA',
+          companyType: 'Dental Specialists'
+        },
+        {
+          url: 'https://cosmetic-dental-experts.com',
+          title: 'Cosmetic Dental Experts',
+          description: 'High-end cosmetic dentistry practice with CBCT technology',
+          relevanceScore: 0.88,
+          location: 'Miami, FL',
+          companyType: 'Cosmetic Dentistry'
+        },
+        {
+          url: 'https://dental-imaging-center.com',
+          title: 'Dental Imaging Center',
+          description: 'Specialized dental imaging facility with CBCT and 3D scanning',
+          relevanceScore: 0.85,
+          location: 'Chicago, IL',
+          companyType: 'Dental Imaging'
+        },
+        {
+          url: 'https://advanced-dental-tech.com',
+          title: 'Advanced Dental Technology',
+          description: 'Modern dental practice with CBCT, laser, and digital workflow',
+          relevanceScore: 0.82,
+          location: 'Houston, TX',
+          companyType: 'Dental Practice'
+        }
+      ];
+    } else if (industry === 'dental' && productVertical === 'dental_lasers') {
+      mockResults = [
+        {
+          url: 'https://laser-dental-specialists.com',
+          title: 'Laser Dental Specialists',
+          description: 'Specialized practice using advanced laser technology for treatments',
+          relevanceScore: 0.94,
+          location: 'San Francisco, CA',
+          companyType: 'Dental Specialists'
+        },
+        {
+          url: 'https://cosmetic-laser-dental.com',
+          title: 'Cosmetic Laser Dental',
+          description: 'High-end cosmetic dentistry with laser technology',
+          relevanceScore: 0.91,
+          location: 'Beverly Hills, CA',
+          companyType: 'Cosmetic Dentistry'
+        },
+        {
+          url: 'https://periodontal-laser-center.com',
+          title: 'Periodontal Laser Center',
+          description: 'Specialized periodontal practice with laser treatment systems',
+          relevanceScore: 0.89,
+          location: 'Boston, MA',
+          companyType: 'Periodontal Practice'
+        }
+      ];
+    } else if (industry === 'construction' && productVertical === 'excavators') {
+      mockResults = [
+        {
+          url: 'https://construction-equipment.com',
+          title: 'ABC Construction Company',
+          description: 'Large construction firm with heavy equipment fleet',
+          relevanceScore: 0.93,
+          location: 'Dallas, TX',
+          companyType: 'Construction Company'
+        },
+        {
+          url: 'https://excavation-specialists.com',
+          title: 'Excavation Specialists Inc',
+          description: 'Specialized excavation and site preparation company',
+          relevanceScore: 0.90,
+          location: 'Phoenix, AZ',
+          companyType: 'Excavation Company'
+        }
+      ];
+    }
 
     // Apply constraints
     let filteredResults = mockResults;
@@ -378,7 +444,7 @@ What specific area of healthcare would you like to explore? I can provide market
       filteredResults = filteredResults.slice(0, constraints.maxResults);
     }
 
-    if (constraints?.geography) {
+    if (constraints?.geography && constraints.geography.length > 0) {
       filteredResults = filteredResults.filter(result => 
         constraints.geography!.some(geo => 
           result.location?.toLowerCase().includes(geo.toLowerCase())

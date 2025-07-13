@@ -43,9 +43,12 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   const loadIndustries = async () => {
     try {
       setLoadingIndustries(true);
+      console.log('Loading industries...');
       const industriesData = await aiDiscoveryService.getIndustries();
+      console.log('Industries loaded:', industriesData);
       setIndustries(industriesData);
     } catch (error: any) {
+      console.error('Error loading industries:', error);
       addNotification({
         type: 'error',
         title: 'Failed to Load Industries',
@@ -57,6 +60,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   };
 
   const handleIndustrySelect = async (industryId: string) => {
+    console.log('Industry selected:', industryId);
     setSelectedIndustry(industryId);
     setSelectedProductVertical('');
     setProductVerticals([]);
@@ -65,9 +69,12 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
 
     try {
       setLoadingVerticals(true);
+      console.log('Loading product verticals for industry:', industryId);
       const verticals = await aiDiscoveryService.getProductVerticals(industryId);
+      console.log('Product verticals loaded:', verticals);
       setProductVerticals(verticals);
     } catch (error: any) {
+      console.error('Error loading product verticals:', error);
       addNotification({
         type: 'error',
         title: 'Failed to Load Product Verticals',
@@ -115,6 +122,19 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   };
 
   const handleSearchCustomers = async () => {
+    // Get customer types from the selected product vertical
+    const selectedVertical = productVerticals.find(v => v.id === selectedProductVertical);
+    const customerTypes = selectedVertical?.customerTypes?.map(ct => ct.id) || [];
+    
+    console.log('Selected vertical:', selectedVertical);
+    console.log('Customer types from vertical:', customerTypes);
+    console.log('Searching for customers with:', {
+      selectedIndustry,
+      selectedProductVertical,
+      customerTypes,
+      constraints: searchConstraints
+    });
+
     if (!selectedIndustry || !selectedProductVertical) {
       addNotification({
         type: 'error',
@@ -126,12 +146,14 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
 
     try {
       setLoadingSearch(true);
+      console.log('Calling searchForCustomers...');
       const result = await aiDiscoveryService.searchForCustomers(
         selectedIndustry,
         selectedProductVertical,
-        discoverySession?.selectedCustomerTypes || [],
+        customerTypes,
         searchConstraints
       );
+      console.log('Search result:', result);
       setSearchResults(result.results);
       
       addNotification({
@@ -140,6 +162,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
         message: `Found ${result.totalFound} potential customers`
       });
     } catch (error: any) {
+      console.error('Search error:', error);
       addNotification({
         type: 'error',
         title: 'Search Failed',
@@ -172,6 +195,23 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   };
 
   const selectedVertical = productVerticals.find(v => v.id === selectedProductVertical);
+
+  // Debug state values
+  console.log('Current state:', {
+    selectedIndustry,
+    selectedProductVertical,
+    productVerticals: productVerticals.length,
+    industries: industries.length,
+    loadingVerticals,
+    discoverySession: !!discoverySession
+  });
+
+  // Debug conditional rendering
+  console.log('Conditional rendering:', {
+    showProductVerticals: !!selectedIndustry,
+    showSearchConstraints: !!selectedProductVertical,
+    showDiscoverySession: !!discoverySession
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
