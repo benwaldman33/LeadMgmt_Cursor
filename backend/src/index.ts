@@ -49,6 +49,8 @@ import aiDiscoveryRoutes from './routes/aiDiscovery';
 console.log('aiDiscoveryRoutes:', typeof aiDiscoveryRoutes);
 import adminRouter from './routes/admin';
 console.log('adminRouter:', typeof adminRouter);
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger';
 
 const app = express();
 const server = createServer(app);
@@ -59,14 +61,15 @@ webSocketService.initialize(server);
 
 // Middleware
 app.use(helmet());
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [];
+
 app.use(cors({
-  // Allow all localhost ports for development; restrict in production!
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-      return callback(null, true);
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-    return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
 }));
@@ -107,6 +110,8 @@ app.use('/api/business-rules', businessRuleRoutes);
 app.use('/api/web-scraping', webScrapingRoutes);
 app.use('/api/ai-discovery', aiDiscoveryRoutes);
 app.use('/api/admin', authMiddleware, adminRouter);
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 404 handler
 app.use('*', (req, res) => {

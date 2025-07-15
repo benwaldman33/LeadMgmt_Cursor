@@ -14,7 +14,39 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'fallback-refresh-s
 const JWT_EXPIRES_IN = '24h';
 const JWT_REFRESH_EXPIRES_IN = '7d';
 
-// Register new user
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Registers a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               fullName:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *               teamId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: The user was successfully registered
+ *       400:
+ *         description: Bad request
+ *       409:
+ *         description: User with this email already exists
+ *       500:
+ *         description: Failed to register user
+ */
 router.post('/register', async (req, res) => {
   try {
     const { email, password, fullName, role = 'VIEWER', teamId } = req.body;
@@ -99,7 +131,33 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login user
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Logs in a user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: The user was successfully logged in
+ *       400:
+ *         description: Email and password are required
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Failed to login
+ */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -177,7 +235,20 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Logout user
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logs out the currently logged in user
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: The user was successfully logged out
+ *       500:
+ *         description: Failed to logout
+ */
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
     res.json({
@@ -193,7 +264,22 @@ router.post('/logout', authenticateToken, async (req, res) => {
   }
 });
 
-// Get current user profile
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   get:
+ *     summary: Gets the currently logged in user's profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: The user's profile
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Failed to get profile
+ */
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -231,7 +317,31 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Update user profile
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   put:
+ *     summary: Updates the currently logged in user's profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: The user's profile was successfully updated
+ *       500:
+ *         description: Failed to update profile
+ */
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
     const { fullName, email } = req.body;
@@ -267,7 +377,37 @@ router.put('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// Change password
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Changes the currently logged in user's password
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: The user's password was successfully changed
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Current password is incorrect
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Failed to change password
+ */
 router.post('/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -332,7 +472,22 @@ router.post('/change-password', authenticateToken, async (req, res) => {
 
 
 
-// Get all users (admin only)
+/**
+ * @swagger
+ * /api/auth/users:
+ *   get:
+ *     summary: Gets all users (admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: A list of users
+ *       403:
+ *         description: Insufficient permissions
+ *       500:
+ *         description: Failed to get users
+ */
 router.get('/users', authenticateToken, async (req, res) => {
   try {
     // Check if user is admin
@@ -371,7 +526,41 @@ router.get('/users', authenticateToken, async (req, res) => {
   }
 });
 
-// Update user (admin only)
+/**
+ * @swagger
+ * /api/auth/users/{userId}:
+ *   put:
+ *     summary: Updates a user (admin only)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *               teamId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: The user was successfully updated
+ *       403:
+ *         description: Insufficient permissions
+ *       500:
+ *         description: Failed to update user
+ */
 router.put('/users/:userId', authenticateToken, async (req, res) => {
   try {
     // Check if user is admin

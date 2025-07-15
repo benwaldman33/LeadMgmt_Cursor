@@ -9,8 +9,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // User and Team Models
@@ -18,8 +18,8 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   fullName  String
-  role      String   @default("ANALYST")
-  status    String   @default("ACTIVE")
+  role      UserRole   @default(ANALYST)
+  status    UserStatus @default(ACTIVE)
   teamId    String?
   team      Team?    @relation(fields: [teamId], references: [id])
   
@@ -67,7 +67,7 @@ model Campaign {
   id              String         @id @default(cuid())
   name            String
   industry        String
-  status          String         @default("PLANNING")
+  status          CampaignStatus @default(PLANNING)
   scoringModelId  String?
   scoringModel    ScoringModel?  @relation(fields: [scoringModelId], references: [id])
   assignedTeamId  String?
@@ -117,9 +117,9 @@ model ScoringCriterion {
   id          String   @id @default(cuid())
   name        String
   description String?
-  searchTerms String   // JSON string for SQLite compatibility
+  searchTerms String[]
   weight      Int      // 0-100, must sum to 100 across all criteria
-  type        String   @default("KEYWORD")
+  type        CriterionType   @default(KEYWORD)
   
   // Relations
   scoringModelId String
@@ -139,7 +139,7 @@ model Lead {
   companyName String
   domain    String
   industry  String
-  status    String   @default("RAW")
+  status    LeadStatus   @default(RAW)
   score     Float?
   
   // Integration fields
@@ -192,7 +192,7 @@ model CriterionScore {
   id           String @id @default(cuid())
   criterionId  String
   score        Float
-  matchedContent String   // JSON string for SQLite compatibility
+  matchedContent String[]
   confidence   Float
   
   // Relations
@@ -208,7 +208,7 @@ model LeadEnrichment {
   companySize Int?
   revenue     String?
   industry    String?
-  technologies String   // JSON string for SQLite compatibility
+  technologies String[]
   
   // Enhanced web scraping data storage
   scrapedContent String?     // Full page content (truncated for storage)
@@ -238,7 +238,7 @@ model LeadEnrichment {
   contacts    Contact[]
   
   // Metadata
-  source      String @default("WEB_SCRAPING")
+  source      EnrichmentSource @default(MANUAL)
   enrichedAt  DateTime @default(now())
   
   @@map("lead_enrichments")
@@ -259,21 +259,54 @@ model Contact {
   @@map("contacts")
 }
 
-// Note: Using string fields instead of enums for SQLite compatibility
-// UserRole: "SUPER_ADMIN", "ANALYST", "VIEWER"
-// UserStatus: "ACTIVE", "INACTIVE", "SUSPENDED", "PENDING"
-// CampaignStatus: "PLANNING", "ACTIVE", "PAUSED", "COMPLETED", "CANCELLED"
-// LeadStatus: "RAW", "SCORED", "QUALIFIED", "DELIVERED", "REJECTED"
-// CriterionType: "KEYWORD", "PHRASE", "PRESENCE", "COUNT"
-// EnrichmentSource: "CLEARBIT", "MANUAL"
+enum UserRole {
+  SUPER_ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum CampaignStatus {
+  PLANNING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum LeadStatus {
+  RAW
+  SCORED
+  QUALIFIED
+  DELIVERED
+  REJECTED
+}
+
+enum CriterionType {
+  KEYWORD
+  PHRASE
+  PRESENCE
+  COUNT
+}
+
+enum EnrichmentSource {
+  CLEARBIT
+  MANUAL
+}
 
 // AI/ML Models
 model AIModel {
   id        String   @id @default(cuid())
   name      String
   type      String   // "regression", "classification", "ensemble"
-  features  String   // JSON string for SQLite compatibility
-  performance String  // JSON string for SQLite compatibility
+  features  Json
+  performance Json
   isActive  Boolean  @default(true)
   
   // Timestamps

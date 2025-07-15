@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useAuthStore } from '../store/useAuthStore';
 import { authAPI } from '../services/api';
 
 interface User {
@@ -42,50 +43,33 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const { token, user, setAuth, clearAuth } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-
-      if (storedToken && storedUser) {
+      if (storedToken) {
         try {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
-          setIsAuthenticated(true);
-          
-          // Verify token is still valid
-          await authAPI.getProfile();
+          const { data } = await authAPI.getProfile();
+          setAuth(storedToken, data);
         } catch (error) {
-          // Token is invalid, clear storage
           localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setToken(null);
-          setUser(null);
-          setIsAuthenticated(false);
+          clearAuth();
         }
       }
       setLoading(false);
     };
 
     initializeAuth();
-  }, []);
+  }, [setAuth, clearAuth]);
 
   const login = async (email: string, password: string) => {
     try {
       const response = await authAPI.login(email, password);
       const { token: newToken, user: userData } = response;
-      
       localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      setToken(newToken);
-      setUser(userData);
-      setIsAuthenticated(true);
+      setAuth(newToken, userData);
     } catch (error) {
       throw error;
     }
@@ -93,28 +77,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    setIsAuthenticated(false);
+    clearAuth();
   };
 
-  const setAuth = (userData: User, newToken: string) => {
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setToken(newToken);
-    setUser(userData);
-    setIsAuthenticated(true);
-  };
-
-  const value: AuthContextType & { setAuth: (user: User, token: string) => void } = {
+  const value: AuthContextType = {
     user,
     token,
     login,
     logout,
     loading,
-    isAuthenticated,
-    setAuth,
+    isAuthenticated: !!token,
+    setAuth: (user, token) => setAuth(token, user),
   };
 
   return (
