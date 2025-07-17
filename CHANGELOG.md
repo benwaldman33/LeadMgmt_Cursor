@@ -35,6 +35,13 @@ All notable changes to this project will be documented in this file.
   - Fixed search functionality to properly use customer types from selected product verticals
   - Added comprehensive debugging and error handling throughout the discovery flow
 
+- **Technical Fixes & Improvements** (2025-07-13)
+  - Fixed frontend/backend token storage mismatch (now consistently uses 'bbds_access_token')
+  - Installed missing backend dependencies: swagger-ui-express, swagger-jsdoc, cors
+  - Enabled and configured CORS for local development
+  - Provided error handling/debugging guidance for backend startup
+  - No new features added in this branch; all changes are technical or bug fixes
+
 - Project initialized with CHANGELOG.md and engineering-log.md for better documentation and tracking.
 - See engineering-log.md for technical notes and areas to revisit.
 

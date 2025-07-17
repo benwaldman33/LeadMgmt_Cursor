@@ -237,6 +237,11 @@ This document tracks the implementation status of PRD features and ongoing devel
 - Improve error handling and user feedback in pipeline
 - Improve search term parsing and add visual feedback in scoring model forms
 - Fix 'Send to Pipeline' to navigate to campaign selection, not direct API call
+- Technical fixes and improvements (no new features):
+  - Fixed frontend/backend token storage mismatch (bbds_access_token)
+  - Installed missing backend dependencies: swagger-ui-express, swagger-jsdoc, cors
+  - Enabled/configured CORS for local dev
+  - Provided error handling/debugging guidance for backend startup
 
 ## Follow-ups
 - Monitor user feedback on new pipeline flow

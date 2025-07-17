@@ -232,3 +232,26 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
 - Backend: Ensured prompt context is always included and campaign/scoring model API support is robust.
 
 See TODO.md for remaining tasks and follow-ups. 
+
+## 2025-07-13
+
+### Technical Fixes & Improvements (No Feature Updates)
+- **Area:** Frontend/backend integration, authentication, environment setup
+- **Changes Made:**
+  - Fixed token storage/retrieval mismatch: Axios interceptor now uses 'bbds_access_token' to match AuthService and backend
+  - Installed missing backend dependencies: swagger-ui-express, swagger-jsdoc, cors
+  - Enabled and configured CORS for local development (added CORS_ORIGIN to .env)
+  - Provided guidance for capturing backend errors that disappear quickly
+  - Ensured npm install and dev server restarts for both frontend and backend
+- **Technical Decisions:**
+  - Standardized token key across frontend and backend for consistent authentication
+  - Used .env for CORS origin configuration to support local dev
+- **Benefits:**
+  - Resolved 401 Unauthorized errors due to token mismatch
+  - Improved local development experience and reliability
+  - No new features or user-facing changes in this branch
+- **Files Modified:**
+  - frontend/src/services/api.ts (token handling)
+  - backend/src/index.ts (.env CORS config)
+  - backend/package.json (dependencies)
+  - backend/.env (CORS_ORIGIN) 
