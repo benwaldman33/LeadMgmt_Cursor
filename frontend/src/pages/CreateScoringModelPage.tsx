@@ -8,6 +8,7 @@ interface ScoringCriterion {
   name: string;
   description: string;
   searchTerms: string[];
+  searchTermsInput: string; // Raw input string for better UX
   weight: number;
   type: string;
 }
@@ -28,6 +29,7 @@ const CreateScoringModelPage: React.FC = () => {
       name: '',
       description: '',
       searchTerms: [''],
+      searchTermsInput: '',
       weight: 0,
       type: 'KEYWORD',
     },
@@ -43,12 +45,12 @@ const CreateScoringModelPage: React.FC = () => {
 
   const handleCriterionChange = (index: number, field: keyof ScoringCriterion, value: string | number) => {
     const updatedCriteria = [...criteria];
-    if (field === 'searchTerms') {
-      // Parse search terms more intelligently
-      // Split by comma but preserve spaces within each term
-      // Also handle quotes for complex phrases
+    if (field === 'searchTermsInput') {
+      // Store the raw input string for immediate display
+      updatedCriteria[index].searchTermsInput = value as string;
+      // Parse search terms for the actual data structure
       const parsedTerms = parseSearchTerms(value as string);
-      updatedCriteria[index][field] = parsedTerms;
+      updatedCriteria[index].searchTerms = parsedTerms;
     } else {
       (updatedCriteria[index] as any)[field] = value;
     }
@@ -75,6 +77,7 @@ const CreateScoringModelPage: React.FC = () => {
         name: '',
         description: '',
         searchTerms: [''],
+        searchTermsInput: '',
         weight: 0,
         type: 'KEYWORD',
       },
@@ -279,14 +282,34 @@ const CreateScoringModelPage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={criterion.searchTerms.join(', ')}
-                      onChange={(e) => handleCriterionChange(index, 'searchTerms', e.target.value)}
+                      value={criterion.searchTermsInput}
+                      onChange={(e) => handleCriterionChange(index, 'searchTermsInput', e.target.value)}
                       className="input-field"
-                      placeholder="cone beam computed tomography, dental laser, CAD/CAM (comma separated)"
+                      placeholder="cone beam computed tomography, dental laser, CAD/CAM"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Enter search terms separated by commas. Multi-word phrases like "cone beam computed tomography" will be treated as single search terms.
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-gray-500">
+                        Separate multiple search terms with commas. Include spaces for multi-word phrases.
+                      </p>
+                      <p className="text-xs text-blue-600">
+                        ✓ Example: "cone beam computed tomography, dental laser" creates 2 terms
+                      </p>
+                      {criterion.searchTerms.length > 0 && criterion.searchTerms[0] && (
+                        <div className="text-xs">
+                          <span className="text-gray-600">Search terms: </span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {criterion.searchTerms.filter(term => term.trim()).map((term, termIndex) => (
+                              <span
+                                key={termIndex}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                "{term}"
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="md:col-span-2">

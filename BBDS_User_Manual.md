@@ -937,7 +937,7 @@ A: Claude AI provides natural language analysis of lead content, industry-specif
 A: Navigate to "AI Scoring" → "Models" and use the model creation interface to define features, select model type, and configure parameters.
 
 **Q: How do I enter search terms with multiple words?**
-A: When entering search terms, separate different terms with commas. Multi-word phrases like "cone beam computed tomography" will be treated as single search terms. For example: "cone beam computed tomography, dental laser, CAD/CAM" will create three separate search terms.
+A: When entering search terms, separate different terms with commas. Multi-word phrases like "cone beam computed tomography" will be treated as single search terms. For example: "cone beam computed tomography, dental laser, CAD/CAM" will create three separate search terms. The system will show you a preview of how your terms are parsed below the input field with blue tags for each term.
 
 **Q: How do I optimize scoring weights?**
 A: Use the weight optimization feature in AI Scoring to get AI-recommended weight adjustments based on performance data and conversion analytics.

@@ -10,6 +10,7 @@ interface ScoringCriterion {
   name: string;
   description: string;
   searchTerms: string[];
+  searchTermsInput: string; // Raw input string for better UX
   weight: number;
   type: string;
 }
@@ -63,16 +64,20 @@ const EditScoringModelPage: React.FC = () => {
       });
 
       // Parse criteria and convert searchTerms from JSON string to array
-      const parsedCriteria = model.criteria.map((criterion: any) => ({
-        id: criterion.id,
-        name: criterion.name,
-        description: criterion.description || '',
-        searchTerms: typeof criterion.searchTerms === 'string' 
+      const parsedCriteria = model.criteria.map((criterion: any) => {
+        const searchTermsArray = typeof criterion.searchTerms === 'string' 
           ? JSON.parse(criterion.searchTerms) 
-          : criterion.searchTerms,
-        weight: criterion.weight,
-        type: criterion.type,
-      }));
+          : criterion.searchTerms;
+        return {
+          id: criterion.id,
+          name: criterion.name,
+          description: criterion.description || '',
+          searchTerms: searchTermsArray,
+          searchTermsInput: searchTermsArray.join(', '), // Store display string
+          weight: criterion.weight,
+          type: criterion.type,
+        };
+      });
 
       setCriteria(parsedCriteria);
     } catch (err: any) {
@@ -92,10 +97,12 @@ const EditScoringModelPage: React.FC = () => {
 
   const handleCriterionChange = (index: number, field: keyof ScoringCriterion, value: string | number) => {
     const updatedCriteria = [...criteria];
-    if (field === 'searchTerms') {
-      // Parse search terms more intelligently
+    if (field === 'searchTermsInput') {
+      // Store the raw input string for immediate display
+      updatedCriteria[index].searchTermsInput = value as string;
+      // Parse search terms for the actual data structure
       const parsedTerms = parseSearchTerms(value as string);
-      updatedCriteria[index][field] = parsedTerms;
+      updatedCriteria[index].searchTerms = parsedTerms;
     } else {
       (updatedCriteria[index] as any)[field] = value;
     }
@@ -122,6 +129,7 @@ const EditScoringModelPage: React.FC = () => {
         name: '',
         description: '',
         searchTerms: [''],
+        searchTermsInput: '',
         weight: 0,
         type: 'KEYWORD',
       },
@@ -396,15 +404,35 @@ const EditScoringModelPage: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      value={Array.isArray(criterion.searchTerms) ? criterion.searchTerms.join(', ') : criterion.searchTerms}
-                      onChange={(e) => handleCriterionChange(index, 'searchTerms', e.target.value)}
+                      value={criterion.searchTermsInput}
+                      onChange={(e) => handleCriterionChange(index, 'searchTermsInput', e.target.value)}
                       className="input-field"
-                      placeholder="e.g., dental, equipment, technology"
+                      placeholder="cone beam computed tomography, dental laser, CAD/CAM"
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Separate multiple terms with commas
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-gray-500">
+                        Separate multiple search terms with commas. Include spaces for multi-word phrases.
+                      </p>
+                      <p className="text-xs text-blue-600">
+                        ✓ Example: "cone beam computed tomography, dental laser" creates 2 terms
+                      </p>
+                      {Array.isArray(criterion.searchTerms) && criterion.searchTerms.length > 0 && criterion.searchTerms[0] && (
+                        <div className="text-xs">
+                          <span className="text-gray-600">Search terms: </span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {criterion.searchTerms.filter(term => term && term.trim()).map((term, termIndex) => (
+                              <span
+                                key={termIndex}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                "{term}"
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="md:col-span-2">
