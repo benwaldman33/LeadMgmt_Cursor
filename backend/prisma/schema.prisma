@@ -40,6 +40,7 @@ model User {
   createdBusinessRules BusinessRule[] @relation("BusinessRuleCreator")
   workflowExecutions WorkflowExecution[] @relation("UserWorkflowExecutions")
   createdConfigs SystemConfig[] @relation("ConfigCreator")
+  createdApifyActors ApifyActor[] @relation("ApifyActorCreator")
   
   @@map("users")
 }
@@ -444,4 +445,42 @@ model ClaudeUsage {
   updatedAt DateTime @updatedAt
   
   @@map("claude_usage")
+}
+
+// Apify Integration Models
+model ApifyActor {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  actorId     String   // Apify Actor ID
+  apiToken    String   // Encrypted API token
+  isActive    Boolean  @default(true)
+  defaultInput String? // Default input configuration as JSON string
+  
+  // Relations
+  createdById String
+  createdBy   User     @relation("ApifyActorCreator", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("apify_actors")
+}
+
+model ApifyScrapingJob {
+  id          String   @id @default(cuid())
+  actorId     String
+  urls        String   // JSON array of URLs
+  industry    String   @default("general")
+  status      String   @default("pending") // pending, running, completed, failed
+  results     String?  // Scraping results as JSON string
+  error       String?
+  apifyRunId  String?  // Apify run ID
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  @@map("apify_scraping_jobs")
 }

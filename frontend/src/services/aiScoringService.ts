@@ -147,6 +147,7 @@ export class AIScoringService {
    * Get Claude configuration
    */
   async getClaudeConfig(): Promise<{
+    apiKey?: string;
     model: string;
     maxTokens: string;
     temperature: string;
@@ -160,6 +161,7 @@ export class AIScoringService {
    * Update Claude configuration
    */
   async updateClaudeConfig(config: {
+    apiKey?: string;
     model?: string;
     maxTokens?: number;
     temperature?: number;

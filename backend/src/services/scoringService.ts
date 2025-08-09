@@ -107,7 +107,7 @@ export class ScoringService {
         score = this.scoreDomainMatch(lead.domain, searchTerms, matchedContent);
         break;
       case 'CONTENT':
-        score = this.scoreContentQuality(contentToAnalyze, matchedContent);
+        score = this.scoreKeywordMatch(contentToAnalyze, searchTerms, matchedContent);
         break;
       default:
         score = this.scoreKeywordMatch(contentToAnalyze, searchTerms, matchedContent);

@@ -47,6 +47,8 @@ import webScrapingRoutes from './routes/webScraping';
 console.log('webScrapingRoutes:', typeof webScrapingRoutes);
 import aiDiscoveryRoutes from './routes/aiDiscovery';
 console.log('aiDiscoveryRoutes:', typeof aiDiscoveryRoutes);
+import apifyRoutes from './routes/apify';
+console.log('apifyRoutes:', typeof apifyRoutes);
 import adminRouter from './routes/admin';
 console.log('adminRouter:', typeof adminRouter);
 
@@ -106,6 +108,7 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/business-rules', businessRuleRoutes);
 app.use('/api/web-scraping', webScrapingRoutes);
 app.use('/api/ai-discovery', aiDiscoveryRoutes);
+app.use('/api/apify', apifyRoutes);
 app.use('/api/admin', authMiddleware, adminRouter);
 
 // 404 handler

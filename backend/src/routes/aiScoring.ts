@@ -1,11 +1,36 @@
 import express from 'express';
 import Joi from 'joi';
+import crypto from 'crypto';
 import { authenticateToken } from '../middleware/auth';
 import { auditLog } from '../middleware/auditLog';
 import { AIScoringService } from '../services/aiScoringService';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
+
+// Helper function to encrypt sensitive values
+const encryptValue = (value: string): string => {
+  const algorithm = 'aes-256-cbc';
+  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || 'default-key', 'salt', 32);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  let encrypted = cipher.update(value, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+};
+
+// Helper function to decrypt sensitive values
+const decryptValue = (encryptedValue: string): string => {
+  const algorithm = 'aes-256-cbc';
+  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || 'default-key', 'salt', 32);
+  const parts = encryptedValue.split(':');
+  const iv = Buffer.from(parts[0], 'hex');
+  const encrypted = parts[1];
+  const decipher = crypto.createDecipheriv(algorithm, key, iv);
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+};
 
 // Helper functions from aiScoringService
 async function getConfig(key: string): Promise<string | null> {
@@ -29,8 +54,7 @@ async function getDecryptedConfig(key: string): Promise<string | null> {
     if (!config) return null;
     
     if (config.isEncrypted) {
-      // For now, return the encrypted value - in production you'd decrypt it
-      return '[ENCRYPTED]';
+      return decryptValue(config.value);
     }
     
     return config.value;
@@ -325,11 +349,13 @@ router.get('/claude/config',
   authenticateToken,
   async (req, res) => {
     try {
+      const apiKey = await getDecryptedConfig('CLAUDE_API_KEY');
       const config = {
+        apiKey: apiKey ? '[ENCRYPTED]' : undefined,
         model: await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229',
         maxTokens: await getConfig('CLAUDE_MAX_TOKENS') || '4000',
         temperature: await getConfig('CLAUDE_TEMPERATURE') || '0.7',
-        isConfigured: !!(await getDecryptedConfig('CLAUDE_API_KEY'))
+        isConfigured: !!apiKey
       };
 
       res.json({
@@ -352,10 +378,27 @@ router.post('/claude/config',
   auditLog({ action: 'CLAUDE_CONFIG_UPDATE', entityType: 'SYSTEM_CONFIG' }),
   async (req, res) => {
     try {
-      const { model, maxTokens, temperature } = req.body;
+      const { apiKey, model, maxTokens, temperature } = req.body;
 
       // Update configuration in database
       const updates = [];
+      
+      if (apiKey) updates.push(prisma.systemConfig.upsert({
+        where: { key: 'CLAUDE_API_KEY' },
+        update: { 
+          value: encryptValue(apiKey),
+          updatedAt: new Date()
+        },
+        create: { 
+          key: 'CLAUDE_API_KEY', 
+          value: encryptValue(apiKey), 
+          description: 'Claude API Key for AI scoring',
+          category: 'AI_SCORING',
+          isEncrypted: true,
+          createdById: req.user!.id
+        }
+      }));
+
       if (model) updates.push(prisma.systemConfig.upsert({
         where: { key: 'CLAUDE_MODEL' },
         update: { value: model },

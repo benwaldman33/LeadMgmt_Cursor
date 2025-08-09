@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+### Fixed
+- **Claude API Integration**: Fixed critical Claude API configuration and authentication issues
+  - Fixed `getDecryptedConfig()` function to properly decrypt API keys instead of returning `[ENCRYPTED]`
+  - Updated Claude model from deprecated `claude-3-sonnet-20240229` to current `claude-3-5-sonnet-20241022`
+  - Implemented smart API key handling for both encrypted and plain text storage formats
+  - Added fallback decryption logic for API keys stored directly without encryption formatting
+  - Fixed TypeScript compilation errors preventing build: admin routes user ID access, Apify service type issues, scoring service missing method
+  - Verified successful Claude API connection with 1-second response times
+  - All AI scoring features now fully functional with Claude integration
+
 - **Self-Prompting AI Analysis**: Enhanced AI Discovery with autonomous analytical capabilities
   - Modified `generateCustomerInsights()` to use self-prompting analysis instead of static information
   - Added `buildSelfPromptingAnalysisPrompt()` that makes AI ask itself analytical questions

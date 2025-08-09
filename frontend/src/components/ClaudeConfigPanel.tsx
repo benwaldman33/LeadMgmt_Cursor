@@ -9,11 +9,13 @@ import {
   ExclamationTriangleIcon,
   ChartBarIcon,
   CurrencyDollarIcon,
-  ClockIcon
+  ClockIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 
 const ClaudeConfigPanel: React.FC = () => {
   const [config, setConfig] = useState({
+    apiKey: '',
     model: 'claude-3-sonnet-20240229',
     maxTokens: '4000',
     temperature: '0.7'
@@ -65,15 +67,26 @@ const ClaudeConfigPanel: React.FC = () => {
   useEffect(() => {
     if (claudeConfig) {
       setConfig({
-        model: claudeConfig.model,
-        maxTokens: claudeConfig.maxTokens,
-        temperature: claudeConfig.temperature
+        apiKey: claudeConfig.apiKey || '',
+        model: claudeConfig.model || 'claude-3-sonnet-20240229',
+        maxTokens: claudeConfig.maxTokens || '4000',
+        temperature: claudeConfig.temperature || '0.7'
       });
     }
   }, [claudeConfig]);
 
   const handleSaveConfig = () => {
+    if (!config.apiKey.trim()) {
+      addNotification({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Claude API key is required'
+      });
+      return;
+    }
+
     updateConfigMutation.mutate({
+      apiKey: config.apiKey,
       model: config.model,
       maxTokens: parseInt(config.maxTokens),
       temperature: parseFloat(config.temperature)
@@ -120,6 +133,29 @@ const ClaudeConfigPanel: React.FC = () => {
 
       {/* Configuration Form */}
       <div className="space-y-4">
+        {/* API Key Field */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="flex items-center space-x-2">
+              <KeyIcon className="h-4 w-4 text-gray-500" />
+              <span>Claude API Key</span>
+            </div>
+          </label>
+          <input
+            type="password"
+            value={config.apiKey}
+            onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+            disabled={!isEditing}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+            placeholder={isEditing ? "sk-ant-..." : "••••••••••••••••"}
+          />
+          {isEditing && (
+            <p className="text-xs text-gray-500 mt-1">
+              Get your API key from <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">console.anthropic.com</a>
+            </p>
+          )}
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Model

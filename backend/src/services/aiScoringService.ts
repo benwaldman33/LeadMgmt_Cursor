@@ -79,6 +79,40 @@ async function getConfig(key: string): Promise<string | null> {
   }
 }
 
+// Helper function to decrypt sensitive values
+function decryptValue(encryptedValue: string): string {
+  try {
+    // If it looks like an API key that was stored directly, return it
+    if (encryptedValue.startsWith('sk-ant-')) {
+      return encryptedValue;
+    }
+    
+    const crypto = require('crypto');
+    const algorithm = 'aes-256-cbc';
+    const key = crypto.scryptSync(process.env.ENCRYPTION_KEY || 'default-key', 'salt', 32);
+    const parts = encryptedValue.split(':');
+    
+    if (parts.length !== 2) {
+      // If not properly formatted for decryption, return as-is
+      return encryptedValue;
+    }
+    
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts[1];
+    const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    // If decryption fails and it looks like an API key, return it directly
+    if (encryptedValue.startsWith('sk-ant-')) {
+      return encryptedValue;
+    }
+    return '[ENCRYPTED]';
+  }
+}
+
 // Helper function to decrypt configuration if needed
 async function getDecryptedConfig(key: string): Promise<string | null> {
   try {
@@ -89,8 +123,7 @@ async function getDecryptedConfig(key: string): Promise<string | null> {
     if (!config) return null;
     
     if (config.isEncrypted) {
-      // For now, return the encrypted value - in production you'd decrypt it
-      return '[ENCRYPTED]';
+      return decryptValue(config.value);
     }
     
     return config.value;
