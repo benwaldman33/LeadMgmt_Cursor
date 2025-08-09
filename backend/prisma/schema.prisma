@@ -42,6 +42,11 @@ model User {
   createdConfigs SystemConfig[] @relation("ConfigCreator")
   createdApifyActors ApifyActor[] @relation("ApifyActorCreator")
   
+  // AI Market Discovery Relations
+  marketAnalyses    MarketAnalysis[] @relation("UserMarketAnalyses")
+  discoveryModels   DiscoveryModel[] @relation("UserDiscoveryModels")
+  discoveryExecutions DiscoveryExecution[] @relation("UserDiscoveryExecutions")
+  
   @@map("users")
 }
 
@@ -164,6 +169,10 @@ model Lead {
   // Workflow executions
   workflowExecutions WorkflowExecution[] @relation("LeadWorkflowExecutions")
   
+  // AI Discovery Relations
+  discoveryExecution DiscoveryExecution? @relation("DiscoveryExecutionLeads", fields: [discoveryExecutionId], references: [id])
+  discoveryExecutionId String?
+  
   // Timestamps
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -282,6 +291,159 @@ model AIModel {
   updatedAt DateTime @updatedAt
   
   @@map("ai_models")
+}
+
+// AI Market Discovery Models
+model MarketAnalysis {
+  id        String   @id @default(cuid())
+  name      String   // e.g., "US Industries 300K+ Locations Analysis"
+  criteria  String   // JSON: {minLocations: 300000, geography: "US", filters: [...]}
+  results   String   // JSON: [{industry: "Plumbing", naicsCode: "238220", count: 412000, subIndustries: [...]}]
+  status    String   @default("completed") // "pending", "running", "completed", "failed"
+  
+  // User attribution
+  createdById String
+  createdBy   User   @relation("UserMarketAnalyses", fields: [createdById], references: [id])
+  
+  // Relations
+  discoveryModels DiscoveryModel[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("market_analyses")
+}
+
+model DiscoveryModel {
+  id        String   @id @default(cuid())
+  name      String   // e.g., "Commercial Plumbing - Water Jetting Equipment"
+  
+  // Market Context
+  industry      String   // e.g., "Plumbing"
+  subIndustry   String   // e.g., "Commercial Plumbing"
+  product       String   // e.g., "High-pressure water jetting systems"
+  marketSize    Int?     // Number of potential customers (e.g., 89000)
+  
+  // AI-Generated Configuration
+  buyerProfile    String   // JSON: {companySize: [10,100], services: [...], painPoints: [...], budget: [15000,50000]}
+  searchStrategy  String   // JSON: {keywords: [...], excludeTerms: [...], geoTargeting: [...], sources: [...]}
+  targetCriteria  String   // JSON: {industryIndicators: [...], sizeIndicators: [...], techAdoption: [...]}
+  
+  // Configuration & Status
+  isActive        Boolean  @default(true)
+  lastExecuted    DateTime?
+  executionCount  Int      @default(0)
+  
+  // Performance Metrics
+  performanceMetrics String? // JSON: {avgQualityScore: 85, avgConversionRate: 0.15, costPerLead: 2.50}
+  
+  // User Attribution
+  createdById String
+  createdBy   User   @relation("UserDiscoveryModels", fields: [createdById], references: [id])
+  
+  // Relations
+  marketAnalysisId String?
+  marketAnalysis   MarketAnalysis? @relation(fields: [marketAnalysisId], references: [id])
+  executions       DiscoveryExecution[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("discovery_models")
+}
+
+model DiscoveryExecution {
+  id        String   @id @default(cuid())
+  name      String   // e.g., "Commercial Plumbing Discovery - Dec 2024"
+  
+  // Status & Progress
+  status    String   @default("planning") // "planning", "discovering", "analyzing", "qualifying", "completed", "failed"
+  phase     String   @default("market_research") // "market_research", "web_discovery", "content_analysis", "qualification", "lead_creation"
+  
+  // Progress Tracking
+  prospectsFound     Int @default(0)
+  prospectsAnalyzed  Int @default(0)
+  leadsQualified     Int @default(0)
+  leadsCreated       Int @default(0)
+  
+  // Execution Configuration
+  executionConfig String   // JSON: {sources: ["google", "linkedin"], maxResults: 5000, qualityThreshold: 75}
+  
+  // Results & Analytics
+  sourceResults   String?  // JSON: {google: {found: 2500, processed: 2500}, linkedin: {found: 1200, processed: 1200}}
+  analysisResults String?  // JSON: {totalAnalyzed: 4500, avgQualityScore: 78, qualificationRate: 0.28}
+  qualityMetrics  String?  // JSON: {relevanceScore: 85, confidenceScore: 92, completenessScore: 88}
+  
+  // Error Handling
+  errorMessage    String?
+  errorDetails    String?  // JSON: detailed error information
+  
+  // Performance & Cost
+  totalCost       Float?
+  avgLeadCost     Float?
+  processingTime  Int?     // milliseconds
+  
+  // Relations
+  discoveryModelId String
+  discoveryModel   DiscoveryModel @relation(fields: [discoveryModelId], references: [id], onDelete: Cascade)
+  prospects        DiscoveredProspect[]
+  createdLeads     Lead[] @relation("DiscoveryExecutionLeads")
+  
+  // User Attribution
+  triggeredById String?
+  triggeredBy   User?  @relation("UserDiscoveryExecutions", fields: [triggeredById], references: [id])
+  
+  // Timestamps
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime @updatedAt
+  
+  @@map("discovery_executions")
+}
+
+model DiscoveredProspect {
+  id        String   @id @default(cuid())
+  
+  // Basic Company Information
+  companyName String?
+  domain      String?
+  url         String
+  
+  // Discovery Source
+  source      String   // "google_search", "linkedin", "directory", "referral"
+  sourceId    String?  // Original ID from source system
+  
+  // Raw Data & Analysis
+  rawData         String   // JSON: all discovered data from source
+  contentAnalysis String?  // JSON: AI analysis of website content
+  
+  // AI Scoring & Qualification
+  relevanceScore    Float?   // 0-100: How well prospect matches buyer profile
+  qualityScore      Float?   // 0-100: Overall data quality and completeness
+  confidenceScore   Float?   // 0-100: AI confidence in analysis
+  
+  // Qualification Status
+  isQualified            Boolean  @default(false)
+  qualifiedAt            DateTime?
+  disqualificationReason String?
+  
+  // Lead Conversion
+  leadCreated   Boolean  @default(false)
+  leadCreatedAt DateTime?
+  leadId        String?
+  
+  // Relations
+  discoveryExecutionId String
+  discoveryExecution   DiscoveryExecution @relation(fields: [discoveryExecutionId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  discoveredAt DateTime @default(now())
+  analyzedAt   DateTime?
+  updatedAt    DateTime @updatedAt
+  
+  @@map("discovered_prospects")
 }
 
 // Audit Log Models

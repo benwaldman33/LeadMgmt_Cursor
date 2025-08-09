@@ -1311,6 +1311,528 @@ Focus on ${industry}-specific relevance and business potential.`;
     };
   }
 
+  // ============================================
+  // AI MARKET DISCOVERY & ANALYSIS METHODS
+  // ============================================
+
+  /**
+   * Analyze industry landscape for market discovery
+   */
+  async analyzeIndustryLandscape(industry: string, criteria?: any): Promise<{
+    subIndustries: Array<{
+      name: string;
+      marketSize: number;
+      description: string;
+      keyCharacteristics: string[];
+    }>;
+    marketTrends: string[];
+    opportunities: string[];
+    challenges: string[];
+    recommendations: string[];
+  }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildIndustryAnalysisPrompt(industry, criteria);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseIndustryAnalysisResponse(response);
+    } catch (error) {
+      console.error('Error analyzing industry landscape:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Discover products for a specific sub-industry
+   */
+  async discoverIndustryProducts(industry: string, subIndustry: string): Promise<{
+    products: Array<{
+      name: string;
+      category: string;
+      description: string;
+      targetMarket: string;
+      priceRange: { min: number; max: number };
+      marketSize: number;
+      keyVendors: string[];
+      buyingPattern: string;
+    }>;
+    marketInsights: {
+      totalMarketSize: number;
+      growthRate: number;
+      competitionLevel: string;
+      keyTrends: string[];
+    };
+  }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildProductDiscoveryPrompt(industry, subIndustry);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseProductDiscoveryResponse(response);
+    } catch (error) {
+      console.error('Error discovering products:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate comprehensive buyer profile
+   */
+  async generateBuyerProfile(product: string, industry: string, subIndustry: string): Promise<{
+    demographics: any;
+    firmographics: any;
+    psychographics: any;
+    behavioral: any;
+    technographics: any;
+    decisionProcess: {
+      timeline: string;
+      stakeholders: string[];
+      criteria: string[];
+      painPoints: string[];
+    };
+  }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildBuyerProfilePrompt(product, industry, subIndustry);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseBuyerProfileResponse(response);
+    } catch (error) {
+      console.error('Error generating buyer profile:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate optimal search strategy for discovery
+   */
+  async generateSearchStrategy(buyerProfile: any, product: string, industry: string): Promise<{
+    keywords: {
+      primary: string[];
+      secondary: string[];
+      negative: string[];
+      longTail: string[];
+    };
+    targeting: {
+      geoTargeting: string[];
+      industryFilters: string[];
+      sizeFilters: any;
+      excludeTerms: string[];
+    };
+    sources: {
+      searchEngines: string[];
+      directories: string[];
+      socialPlatforms: string[];
+      tradeSources: string[];
+    };
+    contentFilters: {
+      qualityIndicators: string[];
+      businessSignals: string[];
+      contactRequirements: string[];
+    };
+  }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildSearchStrategyPrompt(buyerProfile, product, industry);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseSearchStrategyResponse(response);
+    } catch (error) {
+      console.error('Error generating search strategy:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Analyze discovered prospect content for qualification
+   */
+  async analyzeProspectContent(content: string, buyerProfile: any, product: string): Promise<{
+    relevanceScore: number;
+    qualityScore: number;
+    confidenceScore: number;
+    companyProfile: {
+      name?: string;
+      size?: string;
+      industry?: string;
+      services?: string[];
+      technologies?: string[];
+    };
+    buyingSignals: string[];
+    disqualifiers: string[];
+    nextSteps: string[];
+    reasoning: string;
+  }> {
+    const CLAUDE_API_KEY = await getDecryptedConfig('CLAUDE_API_KEY');
+    if (!CLAUDE_API_KEY) {
+      throw new Error('Claude API key not configured');
+    }
+
+    try {
+      const prompt = this.buildProspectAnalysisPrompt(content, buyerProfile, product);
+      const response = await this.callClaudeAPI(prompt);
+      
+      return this.parseProspectAnalysisResponse(response);
+    } catch (error) {
+      console.error('Error analyzing prospect content:', error);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // PROMPT BUILDING METHODS FOR MARKET DISCOVERY
+  // ============================================
+
+  private buildIndustryAnalysisPrompt(industry: string, criteria?: any): string {
+    return `As an expert market analyst, analyze the ${industry} industry and provide a comprehensive breakdown.
+
+Industry: ${industry}
+Analysis Criteria: ${criteria ? JSON.stringify(criteria) : 'General analysis'}
+
+Please provide a detailed analysis in the following JSON format:
+{
+  "subIndustries": [
+    {
+      "name": "Sub-industry name",
+      "marketSize": estimated_number_of_businesses,
+      "description": "Brief description",
+      "keyCharacteristics": ["characteristic1", "characteristic2"]
+    }
+  ],
+  "marketTrends": ["trend1", "trend2", "trend3"],
+  "opportunities": ["opportunity1", "opportunity2"],
+  "challenges": ["challenge1", "challenge2"],
+  "recommendations": ["recommendation1", "recommendation2"]
+}
+
+Focus on:
+1. Breaking down the industry into meaningful sub-segments
+2. Identifying market opportunities and trends
+3. Understanding competitive dynamics
+4. Providing actionable insights for business development
+
+Ensure all numbers are realistic and based on current market data.`;
+  }
+
+  private buildProductDiscoveryPrompt(industry: string, subIndustry: string): string {
+    return `As a B2B product specialist, identify high-opportunity products and services sold to the ${subIndustry} sector within the ${industry} industry.
+
+Industry: ${industry}
+Sub-Industry: ${subIndustry}
+
+Please provide a comprehensive analysis in the following JSON format:
+{
+  "products": [
+    {
+      "name": "Product name",
+      "category": "Product category",
+      "description": "Detailed description",
+      "targetMarket": "Who buys this",
+      "priceRange": {"min": price_min, "max": price_max},
+      "marketSize": estimated_market_size_usd,
+      "keyVendors": ["vendor1", "vendor2"],
+      "buyingPattern": "How often they buy"
+    }
+  ],
+  "marketInsights": {
+    "totalMarketSize": total_market_size_usd,
+    "growthRate": annual_growth_percentage,
+    "competitionLevel": "low/medium/high",
+    "keyTrends": ["trend1", "trend2"]
+  }
+}
+
+Focus on:
+1. Products/services with recurring revenue potential
+2. High-value B2B solutions (>$5,000 typical purchase)
+3. Products that require professional installation/service
+4. Solutions that solve critical business problems
+5. Current market trends and growth opportunities
+
+Prioritize products with strong market demand and reasonable competition levels.`;
+  }
+
+  private buildBuyerProfilePrompt(product: string, industry: string, subIndustry: string): string {
+    return `As a buyer persona expert, create a comprehensive profile of companies that would purchase ${product} in the ${subIndustry} sector of the ${industry} industry.
+
+Product: ${product}
+Industry: ${industry}
+Sub-Industry: ${subIndustry}
+
+Please provide a detailed buyer profile in the following JSON format:
+{
+  "demographics": {
+    "companySize": {"min": employee_count_min, "max": employee_count_max},
+    "annualRevenue": {"min": revenue_min, "max": revenue_max},
+    "geography": ["geographic regions"],
+    "businessAge": {"min": years_min, "max": years_max}
+  },
+  "firmographics": {
+    "businessModel": ["model1", "model2"],
+    "primaryServices": ["service1", "service2"],
+    "customerBase": ["customer_type1", "customer_type2"],
+    "operationalScale": "description"
+  },
+  "psychographics": {
+    "painPoints": ["pain1", "pain2"],
+    "motivations": ["motivation1", "motivation2"],
+    "values": ["value1", "value2"],
+    "riskTolerance": "low/medium/high"
+  },
+  "behavioral": {
+    "informationSources": ["source1", "source2"],
+    "decisionMakingStyle": "description",
+    "buyingFrequency": "how often",
+    "preferredChannels": ["channel1", "channel2"]
+  },
+  "technographics": {
+    "currentTech": ["tech1", "tech2"],
+    "digitalAdoption": "early/mainstream/laggard",
+    "integrationNeeds": ["need1", "need2"]
+  },
+  "decisionProcess": {
+    "timeline": "typical buying timeline",
+    "stakeholders": ["stakeholder1", "stakeholder2"],
+    "criteria": ["criteria1", "criteria2"],
+    "painPoints": ["process_pain1", "process_pain2"]
+  }
+}
+
+Focus on creating an actionable profile that can be used for:
+1. Targeted prospect discovery
+2. Sales messaging and positioning
+3. Marketing channel selection
+4. Content strategy development`;
+  }
+
+  private buildSearchStrategyPrompt(buyerProfile: any, product: string, industry: string): string {
+    return `As a digital marketing strategist, create an optimal search and discovery strategy to find companies that match this buyer profile and would be interested in ${product}.
+
+Buyer Profile: ${JSON.stringify(buyerProfile)}
+Product: ${product}
+Industry: ${industry}
+
+Please provide a comprehensive search strategy in the following JSON format:
+{
+  "keywords": {
+    "primary": ["keyword1", "keyword2"],
+    "secondary": ["secondary1", "secondary2"],
+    "negative": ["exclude1", "exclude2"],
+    "longTail": ["long tail phrase1", "long tail phrase2"]
+  },
+  "targeting": {
+    "geoTargeting": ["location1", "location2"],
+    "industryFilters": ["filter1", "filter2"],
+    "sizeFilters": {"employees": {"min": min_count, "max": max_count}},
+    "excludeTerms": ["exclude1", "exclude2"]
+  },
+  "sources": {
+    "searchEngines": ["google", "bing"],
+    "directories": ["directory1", "directory2"],
+    "socialPlatforms": ["linkedin", "twitter"],
+    "tradeSources": ["source1", "source2"]
+  },
+  "contentFilters": {
+    "qualityIndicators": ["indicator1", "indicator2"],
+    "businessSignals": ["signal1", "signal2"],
+    "contactRequirements": ["requirement1", "requirement2"]
+  }
+}
+
+Focus on:
+1. Keywords that identify the target companies (not just the product)
+2. Negative keywords to filter out irrelevant results
+3. Multiple discovery channels for comprehensive coverage
+4. Quality filters to ensure high-value prospects
+5. Geographic and demographic targeting based on buyer profile`;
+  }
+
+  private buildProspectAnalysisPrompt(content: string, buyerProfile: any, product: string): string {
+    return `As an AI prospect analyst, evaluate this company's website content to determine if they are a qualified prospect for ${product}.
+
+Website Content:
+${content}
+
+Target Buyer Profile:
+${JSON.stringify(buyerProfile)}
+
+Product: ${product}
+
+Please analyze and score this prospect in the following JSON format:
+{
+  "relevanceScore": score_0_to_100,
+  "qualityScore": score_0_to_100,
+  "confidenceScore": score_0_to_100,
+  "companyProfile": {
+    "name": "extracted_company_name",
+    "size": "small/medium/large",
+    "industry": "detected_industry",
+    "services": ["service1", "service2"],
+    "technologies": ["tech1", "tech2"]
+  },
+  "buyingSignals": ["signal1", "signal2"],
+  "disqualifiers": ["issue1", "issue2"],
+  "nextSteps": ["action1", "action2"],
+  "reasoning": "explanation of scoring"
+}
+
+Scoring Criteria:
+- Relevance Score (0-100): How well they match the buyer profile
+- Quality Score (0-100): Overall prospect quality based on content richness, professionalism, contact info
+- Confidence Score (0-100): How confident you are in your analysis based on available information
+
+Consider:
+1. Industry and service alignment
+2. Company size indicators
+3. Technology adoption signals
+4. Professional presentation
+5. Contact information availability
+6. Growth/expansion indicators
+7. Budget/investment capacity signals
+
+Be thorough but realistic in your assessment.`;
+  }
+
+  // ============================================
+  // RESPONSE PARSING METHODS FOR MARKET DISCOVERY
+  // ============================================
+
+  private parseIndustryAnalysisResponse(response: ClaudeResponse): any {
+    try {
+      const content = response.content[0].text;
+      
+      // Try to extract JSON from the response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      
+      // Fallback: create structured response from text
+      return {
+        subIndustries: [],
+        marketTrends: [],
+        opportunities: [],
+        challenges: [],
+        recommendations: [],
+        rawResponse: content
+      };
+    } catch (error) {
+      console.error('Error parsing industry analysis response:', error);
+      throw new Error('Failed to parse Claude industry analysis response');
+    }
+  }
+
+  private parseProductDiscoveryResponse(response: ClaudeResponse): any {
+    try {
+      const content = response.content[0].text;
+      
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      
+      return {
+        products: [],
+        marketInsights: {
+          totalMarketSize: 0,
+          growthRate: 0,
+          competitionLevel: 'unknown',
+          keyTrends: []
+        },
+        rawResponse: content
+      };
+    } catch (error) {
+      console.error('Error parsing product discovery response:', error);
+      throw new Error('Failed to parse Claude product discovery response');
+    }
+  }
+
+  private parseBuyerProfileResponse(response: ClaudeResponse): any {
+    try {
+      const content = response.content[0].text;
+      
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      
+      return {
+        demographics: {},
+        firmographics: {},
+        psychographics: {},
+        behavioral: {},
+        technographics: {},
+        decisionProcess: {},
+        rawResponse: content
+      };
+    } catch (error) {
+      console.error('Error parsing buyer profile response:', error);
+      throw new Error('Failed to parse Claude buyer profile response');
+    }
+  }
+
+  private parseSearchStrategyResponse(response: ClaudeResponse): any {
+    try {
+      const content = response.content[0].text;
+      
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      
+      return {
+        keywords: { primary: [], secondary: [], negative: [], longTail: [] },
+        targeting: { geoTargeting: [], industryFilters: [], sizeFilters: {}, excludeTerms: [] },
+        sources: { searchEngines: [], directories: [], socialPlatforms: [], tradeSources: [] },
+        contentFilters: { qualityIndicators: [], businessSignals: [], contactRequirements: [] },
+        rawResponse: content
+      };
+    } catch (error) {
+      console.error('Error parsing search strategy response:', error);
+      throw new Error('Failed to parse Claude search strategy response');
+    }
+  }
+
+  private parseProspectAnalysisResponse(response: ClaudeResponse): any {
+    try {
+      const content = response.content[0].text;
+      
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      
+      return {
+        relevanceScore: 0,
+        qualityScore: 0,
+        confidenceScore: 0,
+        companyProfile: {},
+        buyingSignals: [],
+        disqualifiers: [],
+        nextSteps: [],
+        reasoning: content
+      };
+    } catch (error) {
+      console.error('Error parsing prospect analysis response:', error);
+      throw new Error('Failed to parse Claude prospect analysis response');
+    }
+  }
+
   /**
    * Compare Claude vs ML model predictions
    */
