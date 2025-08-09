@@ -6,6 +6,43 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
 
 ## 2025-01-16
 
+### Space Key Input Field Fix
+- **Area:** Frontend React state management, keyboard input handling
+- **Problem:** Space key not working in Search Terms input field on Create/Edit Scoring Model pages
+- **Root Cause Analysis:**
+  - React state update cycle interference: Every keystroke triggered parsing and re-joining of search terms
+  - `onChange` → `handleCriterionChange` → `parseSearchTerms` → setState → re-render cycle was too rapid
+  - Input field value was `criterion.searchTerms.join(', ')` which caused constant value recalculation
+  - Rapid state updates prevented space character from being properly displayed as user typed
+- **Changes Made:**
+  - Added `searchTermsInput` field to `ScoringCriterion` interface for raw input string storage
+  - Separated display logic: input field uses `searchTermsInput`, parsing happens in background
+  - Updated `handleCriterionChange` to handle both raw input and parsed array simultaneously
+  - Applied fix to both `CreateScoringModelPage.tsx` and `EditScoringModelPage.tsx`
+  - Removed complex `onKeyDown` and `onPaste` handlers as no longer needed
+- **Technical Decisions:**
+  - Keep dual data structure: `searchTermsInput` (display) + `searchTerms` (backend)
+  - Parse on every change but don't let parsing interfere with input display
+  - Maintain backward compatibility with existing backend API expecting array format
+- **Architecture:**
+  - Input field directly controls its own display value without interference
+  - Background parsing maintains data integrity for backend consumption
+  - Clean separation of concerns: UI responsiveness vs data processing
+- **Testing:**
+  - Verified space key works in all text input scenarios
+  - Confirmed multi-word phrases like "cone beam computed tomography" work perfectly
+  - Backend receives properly parsed array format as expected
+- **Benefits:**
+  - Natural keyboard input behavior restored
+  - Enhanced user experience for complex search term entry
+  - Maintains full system functionality and compatibility
+- **Files Modified:**
+  - `frontend/src/pages/CreateScoringModelPage.tsx`
+  - `frontend/src/pages/EditScoringModelPage.tsx`
+  - `BBDS_User_Manual.md` (updated FAQ section)
+
+---
+
 ### Claude API Integration Fix
 - **Area:** Claude API configuration, decryption, authentication, TypeScript compilation
 - **Problem:** Claude API key was not working despite being newly enabled and properly configured in database

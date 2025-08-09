@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **Search Terms Input Field**: Fixed space key not working in Create/Edit Scoring Model pages
+  - Root cause: React state update cycle was interfering with keyboard input on search terms field
+  - Solution: Separated display string (`searchTermsInput`) from parsed data (`searchTerms`) to prevent input interference
+  - Input fields now work naturally without keystroke blocking for multi-word phrases
+  - Maintains full backend compatibility with parsed search terms array
+  - Enhanced user experience for entering complex search terms like "cone beam computed tomography"
+
 - **Claude API Integration**: Fixed critical Claude API configuration and authentication issues
   - Fixed `getDecryptedConfig()` function to properly decrypt API keys instead of returning `[ENCRYPTED]`
   - Updated Claude model from deprecated `claude-3-sonnet-20240229` to current `claude-3-5-sonnet-20241022`
