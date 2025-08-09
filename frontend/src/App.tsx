@@ -30,6 +30,7 @@ import BusinessRulesPage from './pages/BusinessRulesPage';
 import CreateBusinessRulePage from './pages/CreateBusinessRulePage';
 import BusinessRuleTestPage from './pages/BusinessRuleTestPage';
 import WebScrapingPage from './pages/WebScrapingPage';
+import ApifyPage from './pages/ApifyPage';
 import AdminPanelPage from './pages/AdminPanelPage';
 import CampaignDetailPage from './pages/CampaignDetailPage';
 import PipelinePage from './pages/PipelinePage';
@@ -327,6 +328,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <WebScrapingPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/apify"
+        element={
+          <ProtectedRoute>
+            <ApifyPage />
           </ProtectedRoute>
         }
       />
