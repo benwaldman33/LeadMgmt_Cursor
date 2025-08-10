@@ -23,6 +23,8 @@ import {
   PlayIcon,
   MagnifyingGlassIcon,
   CloudIcon,
+  GlobeAltIcon as GlobeIcon,
+  MapIcon,
 } from '@heroicons/react/24/outline';
 
 interface DashboardLayoutProps {
@@ -32,6 +34,7 @@ interface DashboardLayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'AI Discovery', href: '/ai-discovery', icon: MagnifyingGlassIcon },
+  { name: 'Market Discovery', href: '/market-discovery', icon: MapIcon },
   { name: 'Campaigns', href: '/campaigns', icon: ChartBarIcon },
   { name: 'Pipeline', href: '/pipeline', icon: PlayIcon },
   { name: 'Leads', href: '/leads', icon: DocumentTextIcon },

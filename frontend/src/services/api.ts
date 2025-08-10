@@ -13,7 +13,7 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('bbds_access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,8 +29,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.removeItem('bbds_access_token');
+      localStorage.removeItem('bbds_user');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -40,8 +40,76 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   login: async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
-    return response.data;
+    console.log('🔐 [AUTH DEBUG] Starting login process...');
+    console.log('📧 Email:', email);
+    console.log('🌐 API Base URL:', API_BASE_URL);
+    console.log('🔗 Full login URL:', `${API_BASE_URL}/auth/login`);
+    
+    try {
+      console.log('📤 [AUTH DEBUG] Sending login request...');
+      const response = await api.post('/auth/login', { email, password });
+      
+      console.log('✅ [AUTH DEBUG] Login response received');
+      console.log('📊 Response status:', response.status);
+      console.log('📋 Response headers:', response.headers);
+      console.log('📦 Full response data:', JSON.stringify(response.data, null, 2));
+      
+      // Extract token and user from nested response structure
+      const { data } = response.data;
+      
+      if (!data) {
+        console.error('❌ [AUTH ERROR] No data in response');
+        throw new Error('Invalid response format: missing data');
+      }
+      
+      if (!data.accessToken) {
+        console.error('❌ [AUTH ERROR] No accessToken in response');
+        console.log('🔍 Available keys in data:', Object.keys(data));
+        throw new Error('Invalid response format: missing accessToken');
+      }
+      
+      if (!data.user) {
+        console.error('❌ [AUTH ERROR] No user in response');
+        console.log('🔍 Available keys in data:', Object.keys(data));
+        throw new Error('Invalid response format: missing user');
+      }
+      
+      console.log('🎉 [AUTH SUCCESS] Login successful!');
+      console.log('🔑 Token (first 20 chars):', data.accessToken.substring(0, 20) + '...');
+      console.log('👤 User:', data.user);
+      
+      return {
+        token: data.accessToken,
+        user: data.user
+      };
+    } catch (error: any) {
+      console.error('💥 [AUTH ERROR] Login failed');
+      console.error('🚨 Error type:', error.constructor.name);
+      console.error('📝 Error message:', error.message);
+      
+      if (error.response) {
+        console.error('📊 HTTP Status:', error.response.status);
+        console.error('📋 Response headers:', error.response.headers);
+        console.error('💀 Response data:', JSON.stringify(error.response.data, null, 2));
+        
+        // Specific error handling
+        if (error.response.status === 404) {
+          throw new Error('Login endpoint not found. Backend may not be running.');
+        } else if (error.response.status === 401) {
+          throw new Error('Invalid credentials provided.');
+        } else if (error.response.status >= 500) {
+          throw new Error('Server error. Please check backend logs.');
+        }
+      } else if (error.request) {
+        console.error('🌐 No response received from server');
+        console.error('📡 Request details:', error.request);
+        throw new Error('Cannot connect to server. Please check if backend is running on port 3001.');
+      } else {
+        console.error('⚙️ Request setup error:', error.message);
+      }
+      
+      throw error;
+    }
   },
   
   register: async (userData: {

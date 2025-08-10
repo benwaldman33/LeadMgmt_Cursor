@@ -81,8 +81,20 @@ app.use(fileUpload({
   abortOnLimit: true,
 }));
 
-// Health check endpoint
+// Health check endpoints
 app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    websocket: {
+      connectedUsers: webSocketService.getConnectedUsersCount()
+    }
+  });
+});
+
+// API health check endpoint for frontend
+app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),

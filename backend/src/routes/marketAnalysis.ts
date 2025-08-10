@@ -3,6 +3,7 @@ import Joi from 'joi';
 import { authenticateToken } from '../middleware/auth';
 import { auditLog } from '../middleware/auditLog';
 import { marketAnalysisService, MarketCriteria } from '../services/marketAnalysisService';
+import { discoveryExecutionService } from '../services/discoveryExecutionService';
 
 const router = express.Router();
 
@@ -306,6 +307,168 @@ router.get('/stats',
       res.status(500).json({
         success: false,
         error: 'Failed to get market stats'
+      });
+    }
+  }
+);
+
+// Discovery Model Creation
+router.post('/create-discovery-model',
+  authenticateToken,
+  auditLog({ action: 'DISCOVERY_MODEL_CREATED', entityType: 'DISCOVERY_MODEL' }),
+  async (req, res) => {
+    try {
+      const { name, industry, subIndustry, product, buyerProfile, searchStrategy, marketSize } = req.body;
+      const userId = req.user!.id;
+
+      if (!name || !industry || !subIndustry || !product) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: name, industry, subIndustry, product'
+        });
+      }
+
+      const discoveryModel = await discoveryExecutionService.createDiscoveryModel({
+        name,
+        industry,
+        subIndustry,
+        product,
+        buyerProfile,
+        searchStrategy,
+        marketSize,
+        userId
+      });
+
+      res.json({
+        success: true,
+        data: { discoveryModel }
+      });
+
+    } catch (error) {
+      console.error('Error creating discovery model:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create discovery model'
+      });
+    }
+  }
+);
+
+// Start Discovery Execution
+router.post('/start-discovery-execution',
+  authenticateToken,
+  auditLog({ action: 'DISCOVERY_EXECUTION_STARTED', entityType: 'DISCOVERY_EXECUTION' }),
+  async (req, res) => {
+    try {
+      const { discoveryModelId, config } = req.body;
+      const userId = req.user!.id;
+
+      if (!discoveryModelId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required field: discoveryModelId'
+        });
+      }
+
+      const execution = await discoveryExecutionService.startDiscoveryExecution(
+        discoveryModelId,
+        userId,
+        config || {}
+      );
+
+      res.json({
+        success: true,
+        data: { execution }
+      });
+
+    } catch (error) {
+      console.error('Error starting discovery execution:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to start discovery execution'
+      });
+    }
+  }
+);
+
+// Get Discovery Execution Progress
+router.get('/execution/:executionId/progress',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { executionId } = req.params;
+      const progress = await discoveryExecutionService.getExecutionProgress(executionId);
+
+      if (!progress) {
+        return res.status(404).json({
+          success: false,
+          error: 'Discovery execution not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { progress }
+      });
+
+    } catch (error) {
+      console.error('Error getting execution progress:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get execution progress'
+      });
+    }
+  }
+);
+
+// Create Discovery Model and Start Execution (Combined endpoint)
+router.post('/start-discovery',
+  authenticateToken,
+  auditLog({ action: 'DISCOVERY_STARTED', entityType: 'DISCOVERY_EXECUTION' }),
+  async (req, res) => {
+    try {
+      const { name, industry, subIndustry, product, buyerProfile, searchStrategy, marketSize, config } = req.body;
+      const userId = req.user!.id;
+
+      if (!name || !industry || !subIndustry || !product) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: name, industry, subIndustry, product'
+        });
+      }
+
+      // Create discovery model
+      const discoveryModel = await discoveryExecutionService.createDiscoveryModel({
+        name,
+        industry,
+        subIndustry,
+        product,
+        buyerProfile,
+        searchStrategy,
+        marketSize,
+        userId
+      });
+
+      // Start execution
+      const execution = await discoveryExecutionService.startDiscoveryExecution(
+        discoveryModel.id,
+        userId,
+        config || {}
+      );
+
+      res.json({
+        success: true,
+        data: { 
+          discoveryModel,
+          execution
+        }
+      });
+
+    } catch (error) {
+      console.error('Error starting discovery:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to start discovery'
       });
     }
   }

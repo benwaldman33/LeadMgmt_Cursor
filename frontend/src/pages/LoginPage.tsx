@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { authService } from '../services/authService';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import ConnectionStatus from '../components/ConnectionStatus';
+import DebugPanel from '../components/DebugPanel';
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -20,22 +22,42 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const navigate = useNavigate();
   const { addNotification } = useNotifications();
-  const { login, setAuth } = useAuth();
+  const { login, setAuth, isAuthenticated, redirectPending, user, renderKey } = useAuth();
+
+  // Remove navigation logic - let AuthContext handle it entirely
+  // This prevents conflicts between LoginPage navigation and AuthContext navigation
 
   const loginMutation = useMutation({
     mutationFn: (credentials: { email: string; password: string }) => authService.login(credentials),
     onSuccess: (data) => {
+      console.log('🎉 [LOGIN PAGE] Login mutation SUCCESS:', data);
+      // Store success for debugging
+      localStorage.setItem('lastLoginSuccess', JSON.stringify({ timestamp: new Date().toISOString(), data }));
+      
+      // Ensure we call setAuth with the correct data structure
+      console.log('🔐 [LOGIN PAGE] Calling setAuth with user and token');
       setAuth(data.user, data.accessToken);
+      
+      // Let the auth context handle the timing and navigation
+      console.log('🧭 [LOGIN PAGE] Auth context will handle navigation');
+      
       addNotification({
         type: 'success',
         title: 'Welcome back!',
         message: `Successfully logged in as ${data.user.fullName}`
       });
-      navigate('/dashboard');
     },
     onError: (error: any) => {
+      console.error('💥 [LOGIN PAGE] Login mutation ERROR:', error);
+      // Store error for debugging
+      localStorage.setItem('lastLoginError', JSON.stringify({ 
+        timestamp: new Date().toISOString(), 
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      }));
+      
       addNotification({
         type: 'error',
         title: 'Login failed',
@@ -46,9 +68,13 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login form submitted', formData);
+    console.log('🚀 [LOGIN PAGE] Form submitted');
+    console.log('📧 Email:', formData.email);
+    console.log('🔒 Password length:', formData.password.length);
+    console.log('🕐 Timestamp:', new Date().toISOString());
     
     if (!formData.email || !formData.password) {
+      console.warn('⚠️ [LOGIN PAGE] Validation failed - missing fields');
       addNotification({
         type: 'error',
         title: 'Validation Error',
@@ -58,13 +84,24 @@ const LoginPage: React.FC = () => {
     }
 
     setIsLoading(true);
+    console.log('⏳ [LOGIN PAGE] Starting login process...');
+    
     try {
-      await loginMutation.mutateAsync({
+      console.log('📞 [LOGIN PAGE] Calling authService.login...');
+      const result = await loginMutation.mutateAsync({
         email: formData.email,
         password: formData.password
       });
+      console.log('✅ [LOGIN PAGE] Login mutation completed successfully');
+      console.log('🎉 Result:', result);
+    } catch (error: any) {
+      console.error('💥 [LOGIN PAGE] Login mutation failed');
+      console.error('🚨 Error details:', error);
+      console.error('📊 Error response:', error?.response?.data);
+      console.error('🔢 Error status:', error?.response?.status);
     } finally {
       setIsLoading(false);
+      console.log('🏁 [LOGIN PAGE] Login process completed');
     }
   };
 
@@ -92,6 +129,11 @@ const LoginPage: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600">
             Welcome back to BBDS Lead Scoring Platform
           </p>
+          
+          {/* Connection Status */}
+          <div className="mt-4 flex justify-center">
+            <ConnectionStatus />
+          </div>
         </div>
 
         {/* Login Form */}
@@ -233,6 +275,26 @@ const LoginPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Test Credentials */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">🧪 Test Credentials</h3>
+            <div className="space-y-2 text-xs text-gray-600">
+              <div 
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded"
+                onClick={() => setFormData({ email: 'frontend-test@example.com', password: 'Test123!' })}
+              >
+                <strong>Frontend Test:</strong> frontend-test@example.com / Test123!
+              </div>
+              <div 
+                className="cursor-pointer hover:bg-gray-100 p-2 rounded"
+                onClick={() => setFormData({ email: 'demo@test.com', password: 'DemoPassword123!' })}
+              >
+                <strong>Demo User:</strong> demo@test.com / DemoPassword123!
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Click to auto-fill credentials</p>
+          </div>
+
           {/* Register Link */}
           <div className="mt-6">
             <Link
@@ -258,6 +320,9 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
       </div>
+      
+      {/* Debug Panel */}
+      <DebugPanel />
     </div>
   );
 };

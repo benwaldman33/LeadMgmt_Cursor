@@ -69,8 +69,8 @@ export const PerformanceTable: React.FC<PerformanceTableProps> = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {data.map((item) => (
-                <tr key={item.name} className="hover:bg-gray-50">
+              {data.map((item, index) => (
+                <tr key={`${item.name}-${index}`} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {item.name}

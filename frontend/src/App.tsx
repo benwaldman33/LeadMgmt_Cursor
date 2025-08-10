@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import ToastContainer from './components/ToastContainer';
+import ErrorBoundary from './components/ErrorBoundary';
 import DashboardLayout from './components/DashboardLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -35,6 +36,10 @@ import AdminPanelPage from './pages/AdminPanelPage';
 import CampaignDetailPage from './pages/CampaignDetailPage';
 import PipelinePage from './pages/PipelinePage';
 import AIDiscoveryPage from './pages/AIDiscoveryPage';
+import MarketDiscoveryPage from './pages/MarketDiscoveryPage';
+import MarketDiscoveryWizardPage from './pages/MarketDiscoveryWizardPage';
+import DiscoveryProgressPage from './pages/DiscoveryProgressPage';
+import TeamsPage from './pages/TeamsPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -48,9 +53,27 @@ const queryClient = new QueryClient({
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user, token, redirectPending, renderKey } = useAuth();
 
-  if (loading) {
+  // Add more detailed logging to track state changes
+  console.log('🛡️ [PROTECTED ROUTE] Auth state:', { 
+    isAuthenticated, 
+    loading, 
+    hasUser: !!user, 
+    hasToken: !!token,
+    redirectPending,
+    renderKey,
+    user: user ? { id: user.id, email: user.email, role: user.role } : null,
+    timestamp: new Date().toISOString()
+  });
+
+  // Check for state inconsistency
+  if (isAuthenticated && !user) {
+    console.warn('⚠️ [PROTECTED ROUTE] State inconsistency detected: isAuthenticated=true but no user');
+  }
+
+  if (loading || redirectPending) {
+    console.log('⏳ [PROTECTED ROUTE] Still loading or redirect pending...', { loading, redirectPending });
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
@@ -59,28 +82,28 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   if (!isAuthenticated) {
+    console.log('❌ [PROTECTED ROUTE] Not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
+  console.log('✅ [PROTECTED ROUTE] Authenticated, rendering protected content');
   return <DashboardLayout>{children}</DashboardLayout>;
 };
 
-// Public Route component (redirects to dashboard if already authenticated)
+// Public Route component - NO navigation logic, just show content based on auth state
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
-      </div>
-    );
+    return <div>Loading...</div>;
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    // Don't redirect here! Just show loading while AuthContext handles navigation
+    return <div>Redirecting to dashboard...</div>;
   }
 
+  // Show public content (login page)
   return <>{children}</>;
 };
 
@@ -360,6 +383,42 @@ const AppRoutes: React.FC = () => {
       />
 
       <Route
+        path="/market-discovery"
+        element={
+          <ProtectedRoute>
+            <MarketDiscoveryPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/market-discovery/wizard"
+        element={
+          <ProtectedRoute>
+            <MarketDiscoveryWizardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/market-discovery/execution/:executionId"
+        element={
+          <ProtectedRoute>
+            <DiscoveryProgressPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/teams"
+        element={
+          <ProtectedRoute>
+            <TeamsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/admin"
         element={
           <ProtectedRoute>
@@ -379,16 +438,18 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <NotificationProvider>
-          <Router>
-            <AppRoutes />
-            <ToastContainer />
-          </Router>
-        </NotificationProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <AuthProvider>
+            <NotificationProvider>
+              <AppRoutes />
+              <ToastContainer />
+            </NotificationProvider>
+          </AuthProvider>
+        </Router>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

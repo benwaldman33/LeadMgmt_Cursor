@@ -48,14 +48,55 @@ export class AuthService {
    * Login user
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post('/auth/login', credentials);
-    const { user, accessToken } = response.data.data;
+    console.log('🔑 [AUTH SERVICE] Login method called');
+    console.log('📧 Email:', credentials.email);
+    console.log('🔒 Password provided:', !!credentials.password);
     
-    // Store token and user data
-    this.setToken(accessToken);
-    this.setUser(user);
-    
-    return { user, accessToken };
+    try {
+      console.log('📤 [AUTH SERVICE] Making API call to /auth/login');
+      const response = await api.post('/auth/login', credentials);
+      
+      console.log('✅ [AUTH SERVICE] API response received');
+      console.log('📊 Response status:', response.status);
+      console.log('📦 Full response:', JSON.stringify(response.data, null, 2));
+      
+      const { user, accessToken } = response.data.data;
+      
+      if (!user) {
+        console.error('❌ [AUTH SERVICE] No user in response');
+        throw new Error('Authentication failed: No user data received');
+      }
+      
+      if (!accessToken) {
+        console.error('❌ [AUTH SERVICE] No access token in response');
+        throw new Error('Authentication failed: No access token received');
+      }
+      
+      console.log('💾 [AUTH SERVICE] Storing authentication data');
+      console.log('👤 User data:', user);
+      console.log('🔑 Token (first 20 chars):', accessToken.substring(0, 20) + '...');
+      
+      // Store token and user data
+      this.setToken(accessToken);
+      this.setUser(user);
+      
+      console.log('🎉 [AUTH SERVICE] Login successful!');
+      return { user, accessToken };
+    } catch (error: any) {
+      console.error('💥 [AUTH SERVICE] Login failed');
+      console.error('🚨 Error type:', error.constructor.name);
+      console.error('📝 Error message:', error.message);
+      
+      if (error.response) {
+        console.error('📊 HTTP Status:', error.response.status);
+        console.error('💀 Response data:', JSON.stringify(error.response.data, null, 2));
+      } else if (error.request) {
+        console.error('🌐 No response received');
+        console.error('📡 Request:', error.request);
+      }
+      
+      throw error;
+    }
   }
 
   /**
