@@ -44,8 +44,15 @@ class WebSocketService {
     this.io.use(async (socket, next) => {
       try {
         const token = socket.handshake.auth.token;
+        
+        // In development, allow connections without tokens for testing
         if (!token) {
-          return next(new Error('Authentication error'));
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[WebSocket] Development mode: allowing connection without token');
+            socket.data.user = { id: 'dev-user', email: 'dev@example.com', teamId: null };
+            return next();
+          }
+          return next(new Error('Authentication error: No token provided'));
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production') as any;
@@ -61,15 +68,19 @@ class WebSocketService {
         socket.data.user = user;
         next();
       } catch (error) {
+        console.error('[WebSocket] Authentication error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[WebSocket] Development mode: allowing connection despite auth error');
+          socket.data.user = { id: 'dev-user', email: 'dev@example.com', teamId: null };
+          return next();
+        }
         next(new Error('Authentication error'));
       }
     });
 
     this.io.on('connection', (socket) => {
-      console.log('[WebSocket] Connection attempt:', socket.id);
-      const token = socket.handshake.auth?.token;
-      console.log('[WebSocket] Incoming token:', token);
-
+      console.log('[WebSocket] Connection established:', socket.id);
+      
       // At this point, authentication has already been handled by io.use middleware
       const user = socket.data.user;
       if (!user) {
