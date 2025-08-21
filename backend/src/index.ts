@@ -64,14 +64,8 @@ webSocketService.initialize(server);
 // Middleware
 app.use(helmet());
 app.use(cors({
-  // Allow all localhost ports for development; restrict in production!
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'), false);
-  },
+  // Allow all localhost origins for development; restrict in production!
+  origin: true, // Allow all origins in development
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
