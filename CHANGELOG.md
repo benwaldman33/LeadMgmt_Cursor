@@ -34,6 +34,14 @@ All notable changes to this project will be documented in this file.
   - Added batch file for starting both frontend and backend servers
 
 ### Fixed
+- **WebSocket Authentication**: Fixed WebSocket connection failures and authentication issues
+  - Updated WebSocket service to allow connections without tokens in development mode
+  - Added development-friendly authentication handling with mock user creation
+  - Improved error handling and logging for WebSocket connections
+  - Enhanced CORS configuration for WebSocket connections across different ports
+  - Resolved connection failures that were preventing real-time features from working
+  - Added fallback authentication mechanisms for development and testing
+
 - **Search Terms Input Field**: Fixed space key not working in Create/Edit Scoring Model pages
   - Root cause: React state update cycle was interfering with keyboard input on search terms field
   - Solution: Separated display string (`searchTermsInput`) from parsed data (`searchTerms`) to prevent input interference

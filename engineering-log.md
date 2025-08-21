@@ -73,6 +73,42 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
   - Improved system reliability and error handling
   - Scalable architecture for future enhancements
 
+### WebSocket Authentication Fix
+- **Area:** WebSocket service, real-time communication, authentication middleware
+- **Problem:** WebSocket connections were failing due to strict authentication requirements in development
+- **Root Cause Analysis:**
+  - WebSocket service required immediate JWT token validation on connection
+  - Frontend was attempting connections before proper authentication was established
+  - Development environment needed more permissive authentication handling
+  - CORS configuration was too restrictive for WebSocket connections
+- **Changes Made:**
+  - Modified WebSocket authentication middleware to allow connections without tokens in development
+  - Added development mode detection and fallback authentication mechanisms
+  - Implemented mock user creation for development connections
+  - Enhanced error handling and logging for authentication failures
+  - Updated CORS configuration to be more permissive for development
+- **Technical Decisions:**
+  - Use `process.env.NODE_ENV === 'development'` to detect development mode
+  - Create mock user objects for unauthenticated development connections
+  - Maintain strict authentication in production environments
+  - Add comprehensive logging for debugging WebSocket issues
+- **Architecture:**
+  - Development Mode → Allow connections without tokens → Create mock users
+  - Production Mode → Require valid JWT tokens → Full authentication
+  - Fallback handling → Graceful degradation for development testing
+- **Testing:**
+  - Verified WebSocket connections work in development without authentication
+  - Confirmed real-time features function properly with mock users
+  - Tested production authentication requirements remain intact
+  - Validated CORS configuration allows connections from frontend
+- **Benefits:**
+  - WebSocket connections now work reliably in development
+  - Real-time features (notifications, live updates) function properly
+  - Better development experience with immediate connection testing
+  - Maintained security for production environments
+- **Files Modified:**
+  - `backend/src/services/websocketService.ts` (authentication middleware and development mode handling)
+
 ### Space Key Input Field Fix
 - **Area:** Frontend React state management, keyboard input handling
 - **Problem:** Space key not working in Search Terms input field on Create/Edit Scoring Model pages
