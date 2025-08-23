@@ -155,6 +155,7 @@ Content deduplication and cleaning with industry context
 Error handling for inaccessible websites with industry-specific retry logic
 Compliance with robots.txt and industry-appropriate rate limiting
 Batch processing capabilities for large URL lists across multiple industries
+Service Configuration: Managed through Service Configuration & Management System (Section 4.10.2)
 
 4.5 Wayback Machine Integration
 Feature: Universal Historical Website Analysis
@@ -350,7 +351,61 @@ Bulk role assignment and modification capabilities
 Role-based dashboard customization and feature visibility
 Permission audit trail and change logging
 
-4.10.2 Team & Organization Management
+4.10.2 Service Configuration & Management System
+Functionality:
+Comprehensive administrative control panel for managing AI engines, scrapers, and service providers across all operations
+Centralized configuration management for AI discovery, market discovery, web scraping, and site analysis services
+Dynamic service selection and fallback mechanisms based on priority, availability, and usage limits
+Real-time monitoring and control of service performance, costs, and usage statistics
+
+Core Components:
+Service Provider Management:
+- AI Engine Services: Claude AI, OpenAI GPT-4, and other LLM providers with configurable API keys and rate limits
+- Web Scraping Services: Apify, custom scrapers, and site analyzers with depth and page limit controls
+- Content Analysis Services: Lead scoring AI, keyword extraction, and content analysis engines
+- Service Status Control: Enable/disable individual services, set priorities, and configure fallback chains
+
+Operation-Specific Service Mapping:
+- AI Discovery Operations: Assign preferred AI engines for customer insights and product vertical discovery
+- Market Discovery Operations: Configure services for industry analysis and market sizing
+- Web Scraping Operations: Select scraping services for lead discovery and website analysis
+- Site Analysis Operations: Configure comprehensive website crawling and content extraction
+- Lead Scoring Operations: Assign AI engines for automated lead qualification and scoring
+
+Configuration Management:
+- API Key Management: Secure storage and rotation of service provider API keys
+- Rate Limiting: Configure request limits, quotas, and concurrent operation controls
+- Priority Settings: Establish service selection order and automatic fallback mechanisms
+- Scraping Configuration: Set crawling depth, page limits, and content extraction parameters
+- Cost Management: Track usage costs, set budget limits, and monitor service performance
+
+Usage Monitoring & Analytics:
+- Real-time Usage Tracking: Monitor API calls, token consumption, and service performance
+- Cost Analytics: Track expenses across different services and operations
+- Performance Metrics: Response times, success rates, and error tracking
+- Service Health Monitoring: Availability, uptime, and automatic failure detection
+- Historical Data: Usage trends, cost analysis, and optimization recommendations
+
+Requirements:
+SUPER_ADMIN role required for all configuration operations
+JSON-based configuration storage for flexible service parameter management
+Priority-based service selection with automatic fallback to alternative providers
+Real-time usage monitoring and cost tracking across all services
+Comprehensive audit logging for all configuration changes and service usage
+Service health monitoring with automatic alerting for failures and performance issues
+Multi-service failover capabilities for critical operations
+Usage quota management with automatic service switching when limits are reached
+Integration with existing AI discovery, market discovery, and web scraping workflows
+Support for custom service provider integration and configuration
+
+Success Metrics:
+- Service Availability: 99.9% uptime for critical AI and scraping services
+- Configuration Efficiency: Complete service setup in under 5 minutes
+- Cost Optimization: 20% reduction in service costs through intelligent provider selection
+- Performance Improvement: 50% faster response times through priority-based routing
+- Operational Visibility: Real-time monitoring of all service operations and costs
+
+4.10.3 Team & Organization Management
 Functionality:
 Hierarchical team structure supporting BBDS's multi-industry operations
 Industry vertical team organization with cross-functional collaboration
@@ -881,6 +936,7 @@ Vision capabilities for analyzing website screenshots
 Rate Limits: 1,000 requests per minute (Pro tier)
 Cost Management: Token usage tracking with budget alerts
 Error Handling: Automatic fallback to alternative models
+Service Configuration: Managed through Service Configuration & Management System (Section 4.10.2)
 
 OpenAI GPT-4 API Integration:
 API Type: REST API with API key authentication
@@ -906,6 +962,7 @@ Fine-tuning capabilities for industry-specific models
 Rate Limits: 10,000 requests per minute (Tier 5)
 Cost Management: Usage monitoring with cost optimization
 Error Handling: Intelligent retry with model fallback
+Service Configuration: Managed through Service Configuration & Management System (Section 4.10.2)
 
 Google Gemini API Integration:
 API Type: REST API with API key authentication
@@ -931,6 +988,7 @@ Grounding with Google Search for current information
 Rate Limits: 60 requests per minute (free tier)
 Cost Management: Efficient prompt design for cost optimization
 Error Handling: Graceful degradation with alternative analysis
+Service Configuration: Managed through Service Configuration & Management System (Section 4.10.2)
 
 Perplexity API Integration:
 API Type: REST API with API key authentication

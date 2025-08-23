@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Service Configuration System**: Comprehensive administrative control panel for managing AI engines, scrapers, and service providers
+  - **Database Schema Extension**: Added ServiceProvider, OperationServiceMapping, and ServiceUsage models
+  - **Backend Service Layer**: Created ServiceConfigurationService with smart service selection and usage tracking
+  - **Admin API Endpoints**: Full REST API for service management with SUPER_ADMIN role-based access control
+  - **Frontend Admin Interface**: Tabbed interface for managing service providers, operation mappings, and usage statistics
+  - **Service Provider Management**: Enable/disable services, configure API keys, set rate limits, manage priorities
+  - **Operation-Specific Mapping**: Assign different services to specific operations (AI Discovery, Market Discovery, Web Scraping)
+  - **Comprehensive Site Analysis**: Full website crawling capabilities with AI-powered keyword extraction and content analysis
+  - **Usage Tracking**: Monitor service usage, costs, performance, and success rates
+  - **Pre-configured Services**: 5 default service providers (Claude AI, OpenAI, Apify, Custom Site Analyzer, Lead Scoring AI)
+  - **Priority-Based Selection**: Automatic service fallback based on priority and availability
+  - **JSON Configuration**: Flexible configuration storage for API keys, rate limits, and scraping parameters
+
 - **TypeScript Conversion**: Complete backend conversion from JavaScript to TypeScript
   - Converted all backend routes, services, and middleware to TypeScript
   - Added comprehensive type definitions and interfaces

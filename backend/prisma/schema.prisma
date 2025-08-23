@@ -47,6 +47,9 @@ model User {
   discoveryModels   DiscoveryModel[] @relation("UserDiscoveryModels")
   discoveryExecutions DiscoveryExecution[] @relation("UserDiscoveryExecutions")
   
+  // Service Usage Relations
+  serviceUsage      ServiceUsage[]
+  
   @@map("users")
 }
 
@@ -645,4 +648,68 @@ model ApifyScrapingJob {
   completedAt DateTime?
   
   @@map("apify_scraping_jobs")
+}
+
+// Service Configuration Models
+model ServiceProvider {
+  id          String   @id @default(cuid())
+  name        String   // "Claude", "OpenAI", "Apify", "Custom Scraper"
+  type        String   // "AI_ENGINE", "SCRAPER", "SITE_ANALYZER", "KEYWORD_EXTRACTOR", "CONTENT_ANALYZER"
+  isActive    Boolean  @default(true)
+  priority    Int      @default(1) // Lower = higher priority
+  
+  // Operation-specific capabilities
+  capabilities String  // JSON string: which operations this service can handle
+  config      String   // JSON string: API keys, endpoints, rate limits
+  limits      String   // JSON string: monthly quotas, concurrent requests
+  
+  // Specialized scraping configuration
+  scrapingConfig String? // JSON string: for site analyzers: depth, page limits, etc.
+  
+  // Relations
+  operationMappings OperationServiceMapping[]
+  usageRecords     ServiceUsage[]
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("service_providers")
+}
+
+model OperationServiceMapping {
+  id          String   @id @default(cuid())
+  operation   String   // "AI_DISCOVERY", "MARKET_DISCOVERY", "WEB_SCRAPING", etc.
+  serviceId   String
+  service     ServiceProvider @relation(fields: [serviceId], references: [id])
+  isEnabled   Boolean  @default(true)
+  priority    Int      @default(1)
+  config      String   // JSON string: operation-specific configuration
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([operation, serviceId])
+  @@map("operation_service_mappings")
+}
+
+model ServiceUsage {
+  id              String   @id @default(cuid())
+  serviceId       String
+  service         ServiceProvider @relation(fields: [serviceId], references: [id])
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  operation       String   // "AI_DISCOVERY", "MARKET_DISCOVERY", "WEB_SCRAPING", etc.
+  tokensUsed      Int?
+  cost            Float?
+  duration        Int?     // milliseconds
+  success         Boolean
+  errorMessage    String?
+  metadata        String?  // JSON string: additional usage data
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  @@map("service_usage")
 }

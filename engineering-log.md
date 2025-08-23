@@ -6,6 +6,66 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
 
 ## 2025-01-16
 
+### Service Configuration System Implementation
+- **Area:** Administrative control panel, service management, AI engine configuration, web scraping configuration
+- **Problem:** Need for administrators to control which AI engines, scrapers, and services are used across different operations (AI Discovery, Market Discovery, Web Scraping, Site Analysis)
+- **Root Cause Analysis:**
+  - No centralized control over service providers and their usage
+  - Hard-coded service selection in various operations
+  - No ability to manage API keys, rate limits, or service priorities
+  - Missing comprehensive site analysis capabilities for entire websites
+- **Changes Made:**
+  - **Database Schema Extension:**
+    - Added `ServiceProvider` model for AI engines, scrapers, and analyzers
+    - Added `OperationServiceMapping` model for operation-service relationships
+    - Added `ServiceUsage` model for tracking usage, costs, and performance
+    - Adapted schema to SQLite limitations (String fields for JSON/enum data)
+  - **Backend Service Layer:**
+    - Created `ServiceConfigurationService` with full CRUD operations
+    - Implemented smart service selection with priority-based fallbacks
+    - Added usage tracking and limit management
+    - Created comprehensive API endpoints for service management
+  - **Admin API Endpoints:**
+    - Full REST API for managing service providers and mappings
+    - Role-based access control (SUPER_ADMIN only)
+    - Validation middleware for JSON configuration fields
+  - **Frontend Admin Interface:**
+    - Created `ServiceConfigurationPage` with tabbed interface
+    - Service Providers tab for managing AI engines and scrapers
+    - Operation Mappings tab for configuring service usage
+    - Usage Statistics tab (placeholder for future analytics)
+    - Integrated into main navigation for super admin users
+  - **Database Seeding:**
+    - Pre-configured 5 service providers (Claude AI, OpenAI, Apify, Custom Site Analyzer, Lead Scoring AI)
+    - Default operation mappings for all major operations
+    - Comprehensive scraping configuration for site analysis
+- **Technical Decisions:**
+  - Use String fields for JSON data to maintain SQLite compatibility
+  - Implement priority-based service selection with automatic fallbacks
+  - Require SUPER_ADMIN role for all configuration operations
+  - Store configuration as JSON strings for flexibility
+  - Separate service providers from operation mappings for reusability
+- **Architecture:**
+  - Service Configuration Service → Database Models → Admin Interface
+  - Role-Based Access Control → API Endpoints → Frontend Components
+  - Modular design for easy extension of new service types and operations
+- **Benefits:**
+  - Centralized control over all AI and scraping services
+  - Flexible configuration without code changes
+  - Comprehensive site analysis capabilities
+  - Usage tracking and cost management
+  - Scalable architecture for future service integrations
+- **Files Modified:**
+  - `backend/prisma/schema.prisma` - Added service configuration models
+  - `backend/src/services/serviceConfigurationService.ts` - Core service logic
+  - `backend/src/routes/serviceConfiguration.ts` - API endpoints
+  - `backend/src/index.ts` - Route registration
+  - `backend/src/scripts/seedServiceConfiguration.ts` - Database seeding
+  - `backend/src/scripts/testServiceConfiguration.ts` - Service testing
+  - `frontend/src/pages/ServiceConfigurationPage.tsx` - Admin interface
+  - `frontend/src/App.tsx` - Route configuration
+  - `frontend/src/components/DashboardLayout.tsx` - Navigation integration
+
 ### Complete Backend TypeScript Conversion
 - **Area:** Backend architecture, code quality, type safety, build system
 - **Problem:** Backend was written in JavaScript, lacking type safety and modern development features

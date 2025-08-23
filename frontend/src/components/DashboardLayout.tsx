@@ -110,20 +110,34 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 </Link>
               );
             })}
-            {/* Superadmin link */}
+            {/* Superadmin links */}
             {user?.role === 'SUPER_ADMIN' && (
-              <Link
-                to="/admin"
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  location.pathname === '/admin'
-                    ? 'bg-primary-100 text-primary-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <CogIcon className="mr-3 h-5 w-5" />
-                Admin Panel
-              </Link>
+              <>
+                <Link
+                  to="/service-configuration"
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    location.pathname === '/service-configuration'
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Cog6ToothIcon className="mr-3 h-5 w-5" />
+                  Service Configuration
+                </Link>
+                <Link
+                  to="/admin"
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    location.pathname === '/admin'
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <CogIcon className="mr-3 h-5 w-5" />
+                  Admin Panel
+                </Link>
+              </>
             )}
           </nav>
         </div>
@@ -153,19 +167,32 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 </Link>
               );
             })}
-            {/* Superadmin link */}
+            {/* Superadmin links */}
             {user?.role === 'SUPER_ADMIN' && (
-              <Link
-                to="/admin"
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  location.pathname === '/admin'
-                    ? 'bg-primary-100 text-primary-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <CogIcon className="mr-3 h-5 w-5" />
-                Admin Panel
-              </Link>
+              <>
+                <Link
+                  to="/service-configuration"
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    location.pathname === '/service-configuration'
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <Cog6ToothIcon className="mr-3 h-5 w-5" />
+                  Service Configuration
+                </Link>
+                <Link
+                  to="/admin"
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    location.pathname === '/admin'
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <CogIcon className="mr-3 h-5 w-5" />
+                  Admin Panel
+                </Link>
+              </>
             )}
           </nav>
         </div>

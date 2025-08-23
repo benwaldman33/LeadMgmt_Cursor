@@ -53,6 +53,8 @@ import marketAnalysisRoutes from './routes/marketAnalysis';
 console.log('marketAnalysisRoutes:', typeof marketAnalysisRoutes);
 import adminRouter from './routes/admin';
 console.log('adminRouter:', typeof adminRouter);
+import serviceConfigurationRoutes from './routes/serviceConfiguration';
+console.log('serviceConfigurationRoutes:', typeof serviceConfigurationRoutes);
 
 const app = express();
 const server = createServer(app);
@@ -119,6 +121,7 @@ app.use('/api/ai-discovery', aiDiscoveryRoutes);
 app.use('/api/apify', apifyRoutes);
 app.use('/api/market-analysis', marketAnalysisRoutes);
 app.use('/api/admin', authMiddleware, adminRouter);
+app.use('/api/service-configuration', serviceConfigurationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

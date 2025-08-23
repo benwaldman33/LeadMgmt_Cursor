@@ -40,6 +40,7 @@ import MarketDiscoveryPage from './pages/MarketDiscoveryPage';
 import MarketDiscoveryWizardPage from './pages/MarketDiscoveryWizardPage';
 import DiscoveryProgressPage from './pages/DiscoveryProgressPage';
 import TeamsPage from './pages/TeamsPage';
+import ServiceConfigurationPage from './pages/ServiceConfigurationPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -414,6 +415,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <TeamsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/service-configuration"
+        element={
+          <ProtectedRoute>
+            <ServiceConfigurationPage />
           </ProtectedRoute>
         }
       />
