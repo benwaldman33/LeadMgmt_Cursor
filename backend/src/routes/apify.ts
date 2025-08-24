@@ -12,19 +12,16 @@ router.use(authMiddleware);
  * GET /api/apify/actors
  * Get all configured Apify Actors
  */
-router.get('/actors', async (req, res) => {
+router.get('/actors', authMiddleware, async (req, res) => {
   try {
     const actors = await apifyService.getActorConfigs();
-    
-    res.json({
-      success: true,
-      data: actors
-    });
+    res.json({ success: true, data: actors });
   } catch (error) {
     console.error('Error fetching Apify actors:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch Apify actors'
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch Apify actors',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
@@ -234,6 +231,21 @@ router.get('/runs/:runId', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch Apify run status'
+    });
+  }
+});
+
+// Get all Apify services from ServiceProvider system
+router.get('/services', authMiddleware, async (req, res) => {
+  try {
+    const services = await apifyService.getApifyServices();
+    res.json({ success: true, data: services });
+  } catch (error) {
+    console.error('Error fetching Apify services:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch Apify services',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

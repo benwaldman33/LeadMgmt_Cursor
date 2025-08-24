@@ -1,9 +1,8 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../index';
 import { AuditLogService } from './auditLogService';
-
-const prisma = new PrismaClient();
+import { ServiceConfigurationService } from './serviceConfigurationService';
 
 export interface ScrapingResult {
   url: string;

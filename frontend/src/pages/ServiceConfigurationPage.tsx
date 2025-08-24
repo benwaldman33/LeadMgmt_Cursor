@@ -29,37 +29,44 @@ const getTypeTemplates = (type: string) => {
   switch (type) {
     case 'AI_ENGINE':
       return {
-        capabilities: '["AI_DISCOVERY", "MARKET_DISCOVERY", "KEYWORD_EXTRACTION", "CONTENT_ANALYSIS", "LEAD_SCORING"]',
-        config: '{"apiKey": "your-api-key", "model": "gpt-4", "maxTokens": 4096, "temperature": 0.7}',
-        limits: '{"monthlyQuota": 1000, "concurrentRequests": 5, "costPerRequest": 0.03}',
+        capabilities: '["AI_DISCOVERY", "AI_SCORING", "CONTENT_ANALYSIS"]',
+        config: '{"apiKey": "your_openai_api_key_here", "model": "gpt-4", "endpoint": "https://api.openai.com/v1", "maxTokens": 4000, "temperature": 0.7}',
+        limits: '{"monthlyQuota": 1000, "concurrentRequests": 5, "costPerRequest": 0.03, "rateLimit": "requests_per_minute"}',
         scrapingConfig: 'null'
       };
     case 'SCRAPER':
       return {
-        capabilities: '["WEB_SCRAPING", "SITE_ANALYSIS"]',
-        config: '{"apiToken": "your-api-token", "defaultActor": "apify/web-scraper", "maxConcurrency": 10}',
-        limits: '{"monthlyQuota": 10000, "concurrentRequests": 10, "costPerRequest": 0.001}',
-        scrapingConfig: '{"maxDepth": 3, "maxPages": 100, "respectRobotsTxt": true, "requestDelay": 1000}'
+        capabilities: '["WEB_SCRAPING", "DATA_EXTRACTION"]',
+        config: '{"apiToken": "your_apify_api_token_here", "baseUrl": "https://api.apify.com/v2", "defaultActorId": "your_actor_id_here", "userAgent": "Mozilla/5.0 (compatible; BBDS-Scraper/1.0)", "timeout": 30000}',
+        limits: '{"monthlyQuota": 500, "concurrentRequests": 3, "costPerRequest": 0.01, "rateLimit": "requests_per_minute"}',
+        scrapingConfig: '{"maxDepth": 3, "maxPages": 100, "requestDelay": 1000, "followRedirects": true, "respectRobotsTxt": true}'
       };
     case 'SITE_ANALYZER':
       return {
-        capabilities: '["SITE_ANALYSIS", "KEYWORD_EXTRACTION"]',
-        config: '{"maxConcurrency": 5, "timeout": 30000, "userAgent": "Custom-Analyzer/1.0"}',
-        limits: '{"monthlyQuota": 5000, "concurrentRequests": 5, "costPerRequest": 0.0001}',
-        scrapingConfig: '{"maxDepth": 5, "maxPages": 500, "includeImages": false, "includePdfs": true}'
+        capabilities: '["SITE_ANALYSIS", "TECHNOLOGY_DETECTION"]',
+        config: '{"apiKey": "your_site_analyzer_api_key_here", "endpoint": "https://api.siteanalyzer.com/v1", "maxConcurrency": 5, "timeout": 60000}',
+        limits: '{"monthlyQuota": 200, "concurrentRequests": 2, "costPerRequest": 0.05, "rateLimit": "requests_per_minute"}',
+        scrapingConfig: '{"maxDepth": 2, "maxPages": 50, "requestDelay": 2000, "analyzeTechnologies": true, "analyzePerformance": true}'
       };
     case 'CONTENT_ANALYZER':
       return {
-        capabilities: '["CONTENT_ANALYSIS", "LEAD_SCORING"]',
-        config: '{"scoringModel": "default", "confidenceThreshold": 0.7, "maxAnalysisTime": 30000}',
-        limits: '{"monthlyQuota": 2000, "concurrentRequests": 8, "costPerRequest": 0.01}',
+        capabilities: '["CONTENT_ANALYSIS", "SENTIMENT_ANALYSIS"]',
+        config: '{"apiKey": "your_content_analyzer_api_key_here", "endpoint": "https://api.contentanalyzer.com/v1", "scoringModel": "standard", "confidenceThreshold": 0.8}',
+        limits: '{"monthlyQuota": 1000, "concurrentRequests": 10, "costPerRequest": 0.02, "rateLimit": "requests_per_minute"}',
+        scrapingConfig: 'null'
+      };
+    case 'KEYWORD_EXTRACTOR':
+      return {
+        capabilities: '["KEYWORD_EXTRACTION", "TOPIC_MODELING"]',
+        config: '{"apiKey": "your_keyword_extractor_api_key_here", "endpoint": "https://api.keywordextractor.com/v1", "maxKeywords": 20, "language": "en"}',
+        limits: '{"monthlyQuota": 500, "concurrentRequests": 5, "costPerRequest": 0.01, "rateLimit": "requests_per_minute"}',
         scrapingConfig: 'null'
       };
     default:
       return {
-        capabilities: '[]',
+        capabilities: '["BASIC_OPERATIONS"]',
         config: '{}',
-        limits: '{}',
+        limits: '{"monthlyQuota": 100, "concurrentRequests": 1, "costPerRequest": 0.01}',
         scrapingConfig: 'null'
       };
   }
@@ -259,7 +266,15 @@ const ServiceConfigurationPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error testing provider:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Unknown error occurred';
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        errorMessage = axiosError.response?.data?.error || axiosError.message || 'Unknown error occurred';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       alert(`❌ ${provider.name} test failed!\n\nError: ${errorMessage}`);
     }
   };

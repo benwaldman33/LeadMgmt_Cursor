@@ -13,7 +13,7 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('bbds_access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -94,6 +94,34 @@ export interface ApifyScrapingJob {
   apifyRunId?: string;
 }
 
+// New interface for ServiceProvider-based configuration
+export interface ApifyServiceConfig {
+  id: string;
+  name: string;
+  type: string;
+  isActive: boolean;
+  priority: number;
+  capabilities: string[];
+  config: {
+    apiToken: string;
+    baseUrl?: string;
+    defaultActorId?: string;
+    [key: string]: any;
+  };
+  limits: {
+    monthlyQuota?: number;
+    concurrentRequests?: number;
+    costPerRequest?: number;
+    [key: string]: any;
+  };
+  scrapingConfig?: {
+    maxDepth?: number;
+    maxPages?: number;
+    requestDelay?: number;
+    [key: string]: any;
+  };
+}
+
 export class ApifyService {
   /**
    * Get all configured Apify Actors
@@ -155,6 +183,14 @@ export class ApifyService {
    */
   async getRunStatus(runId: string, actorId: string): Promise<ApifyRunResult> {
     const response = await api.get(`/apify/runs/${runId}?actorId=${actorId}`);
+    return response.data.data;
+  }
+
+  /**
+   * Get all configured Apify Service Providers
+   */
+  async getApifyServices(): Promise<ApifyServiceConfig[]> {
+    const response = await api.get('/apify/services');
     return response.data.data;
   }
 }

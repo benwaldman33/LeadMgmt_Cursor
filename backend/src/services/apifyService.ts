@@ -1,9 +1,10 @@
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../index';
 import { AuditLogService } from './auditLogService';
+import { ServiceConfigurationService } from './serviceConfigurationService';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
+const serviceConfigService = new ServiceConfigurationService();
 
 export interface ApifyActorConfig {
   id: string;
@@ -15,6 +16,34 @@ export interface ApifyActorConfig {
   defaultInput?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// New interface for ServiceProvider-based configuration
+export interface ApifyServiceConfig {
+  id: string;
+  name: string;
+  type: string;
+  isActive: boolean;
+  priority: number;
+  capabilities: string[];
+  config: {
+    apiToken: string;
+    baseUrl?: string;
+    defaultActorId?: string;
+    [key: string]: any;
+  };
+  limits: {
+    monthlyQuota?: number;
+    concurrentRequests?: number;
+    costPerRequest?: number;
+    [key: string]: any;
+  };
+  scrapingConfig?: {
+    maxDepth?: number;
+    maxPages?: number;
+    requestDelay?: number;
+    [key: string]: any;
+  };
 }
 
 export interface ApifyRunResult {
@@ -134,40 +163,188 @@ class ApifyService {
   }
 
   /**
-   * Get all configured Apify Actors
+   * Get all configured Apify Actors (legacy method for backward compatibility)
    */
   async getActorConfigs(): Promise<ApifyActorConfig[]> {
-    const actors = await prisma.apifyActor.findMany({
-      where: { isActive: true },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const allActors: ApifyActorConfig[] = [];
+    
+    console.log('🔍 getActorConfigs: Starting to fetch Apify actors...');
+    
+    // First get ServiceProvider-based Apify services
+    try {
+      const apifyServices = await this.getApifyServices();
+      console.log(`🔍 getActorConfigs: Found ${apifyServices.length} ServiceProvider-based Apify services`);
+      
+      if (apifyServices.length > 0) {
+        // Convert ServiceProvider configs to legacy ApifyActorConfig format
+        const serviceProviderActors = apifyServices.map(service => ({
+          id: service.id,
+          name: service.name,
+          description: `Service Provider: ${service.name}`,
+          actorId: service.config.defaultActorId || 'default',
+          apiToken: service.config.apiToken,
+          isActive: service.isActive,
+          defaultInput: service.scrapingConfig || {},
+          createdAt: new Date(), // ServiceProvider doesn't have these fields
+          updatedAt: new Date()
+        }));
+        allActors.push(...serviceProviderActors);
+        console.log(`🔍 getActorConfigs: Added ${serviceProviderActors.length} ServiceProvider actors`);
+      }
+    } catch (error) {
+      console.warn('Failed to get Apify services from ServiceProvider:', error);
+    }
 
-    return actors.map((actor) => ({
-      id: actor.id,
-      name: actor.name,
-      description: actor.description || undefined,
-      actorId: actor.actorId,
-      apiToken: this.decrypt(actor.apiToken),
-      isActive: actor.isActive,
-      defaultInput: actor.defaultInput ? JSON.parse(actor.defaultInput) : undefined,
-      createdAt: actor.createdAt,
-      updatedAt: actor.updatedAt
-    }));
+    // Then get legacy ApifyActor configurations
+    try {
+      console.log('🔍 getActorConfigs: Fetching legacy ApifyActor configurations...');
+      
+      // First, let's see what's in the database without any filters
+      const allActorsInDb = await prisma.apifyActor.findMany();
+      console.log(`🔍 getActorConfigs: Total ApifyActor entries in database (unfiltered): ${allActorsInDb.length}`);
+      
+      if (allActorsInDb.length > 0) {
+        console.log('🔍 getActorConfigs: Sample actor data:', allActorsInDb[0]);
+      }
+      
+      const legacyActors = await prisma.apifyActor.findMany({
+        where: { isActive: true },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      console.log(`🔍 getActorConfigs: Found ${legacyActors.length} legacy ApifyActor entries in database (filtered by isActive: true)`);
+      
+      const legacyActorConfigs = legacyActors.map((actor) => ({
+        id: actor.id,
+        name: actor.name,
+        description: actor.description || undefined,
+        actorId: actor.actorId,
+        apiToken: this.decrypt(actor.apiToken),
+        isActive: actor.isActive,
+        defaultInput: actor.defaultInput ? JSON.parse(actor.defaultInput) : undefined,
+        createdAt: actor.createdAt,
+        updatedAt: actor.updatedAt
+      }));
+      
+      allActors.push(...legacyActorConfigs);
+      console.log(`🔍 getActorConfigs: Added ${legacyActorConfigs.length} legacy actors`);
+    } catch (error) {
+      console.warn('Failed to get legacy ApifyActor configurations:', error);
+    }
+
+    console.log(`🔍 getActorConfigs: Total actors found: ${allActors.length}`);
+    
+    // Return combined list, sorted by creation date (newest first)
+    return allActors.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   /**
-   * Get actor configuration by ID
+   * Get all Apify services from ServiceProvider system
+   */
+  async getApifyServices(): Promise<ApifyServiceConfig[]> {
+    console.log('🔍 getApifyServices: Starting to fetch ServiceProvider services...');
+    
+    const services = await serviceConfigService.getAllServiceProviders();
+    console.log(`🔍 getApifyServices: Found ${services.length} total ServiceProvider entries`);
+    
+    if (services.length > 0) {
+      console.log('🔍 getApifyServices: Sample service:', {
+        id: services[0].id,
+        name: services[0].name,
+        type: services[0].type,
+        capabilities: services[0].capabilities
+      });
+    }
+    
+    const apifyServices = services
+      .filter(service => service.type === 'SCRAPER' && 
+                        JSON.parse(service.capabilities).includes('WEB_SCRAPING'));
+    
+    console.log(`🔍 getApifyServices: Found ${apifyServices.length} SCRAPER services with WEB_SCRAPING capability`);
+    
+    return apifyServices
+      .map(service => ({
+        id: service.id,
+        name: service.name,
+        type: service.type,
+        isActive: service.isActive,
+        priority: service.priority,
+        capabilities: JSON.parse(service.capabilities),
+        config: JSON.parse(service.config),
+        limits: JSON.parse(service.limits),
+        scrapingConfig: service.scrapingConfig ? JSON.parse(service.scrapingConfig) : undefined
+      }))
+      .sort((a, b) => a.priority - b.priority);
+  }
+
+  /**
+   * Get the best available Apify service for web scraping
+   */
+  async getBestApifyService(): Promise<ApifyServiceConfig | null> {
+    try {
+      const availableServices = await serviceConfigService.getAvailableServices('WEB_SCRAPING');
+      const apifyServices = availableServices.filter(service => 
+        service.type === 'SCRAPER' && 
+        JSON.parse(service.capabilities).includes('WEB_SCRAPING')
+      );
+      
+      if (apifyServices.length === 0) return null;
+      
+      // Return the highest priority service
+      const bestService = apifyServices.sort((a, b) => a.priority - b.priority)[0];
+      
+      return {
+        id: bestService.id,
+        name: bestService.name,
+        type: bestService.type,
+        isActive: bestService.isActive,
+        priority: bestService.priority,
+        capabilities: JSON.parse(bestService.capabilities),
+        config: JSON.parse(bestService.config),
+        limits: JSON.parse(bestService.limits),
+        scrapingConfig: bestService.scrapingConfig ? JSON.parse(bestService.scrapingConfig) : undefined
+      };
+    } catch (error) {
+      console.error('Error getting best Apify service:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get actor configuration by ID (updated to work with both systems)
    */
   private async getActorConfig(actorId: string): Promise<ApifyActorConfig | null> {
+    // First try to get from ServiceProvider system
+    try {
+      const apifyServices = await this.getApifyServices();
+      const service = apifyServices.find(s => s.id === actorId);
+      if (service) {
+        return {
+          id: service.id,
+          name: service.name,
+          description: `Service Provider: ${service.name}`,
+          actorId: service.config.defaultActorId || 'default',
+          apiToken: service.config.apiToken,
+          isActive: service.isActive,
+          defaultInput: service.scrapingConfig || {},
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to get Apify service from ServiceProvider, falling back to legacy system:', error);
+    }
+
+    // Fallback to legacy ApifyActor system
     const actor = await prisma.apifyActor.findUnique({
       where: { id: actorId },
       include: {
@@ -539,16 +716,49 @@ class ApifyService {
   }
 
   /**
-   * Test Apify Actor configuration
+   * Test if an Apify Actor configuration is valid
    */
-  async testActorConfig(actorId: string, apiToken: string): Promise<boolean> {
+  async testActorConfig(actorId: string, apiToken?: string): Promise<boolean> {
+    try {
+      // First try to get from ServiceProvider system
+      try {
+        const apifyServices = await this.getApifyServices();
+        const service = apifyServices.find(s => s.id === actorId);
+        if (service) {
+          // Use the API token from the service configuration
+          const tokenToTest = apiToken || service.config.apiToken;
+          return await this.testApifyConnection(service.config.defaultActorId || 'default', tokenToTest);
+        }
+      } catch (error) {
+        console.warn('Failed to test Apify service from ServiceProvider, falling back to legacy system:', error);
+      }
+
+      // Fallback to legacy ApifyActor system
+      const actor = await prisma.apifyActor.findUnique({
+        where: { id: actorId }
+      });
+
+      if (!actor) return false;
+
+      const tokenToTest = apiToken || this.decrypt(actor.apiToken);
+      return await this.testApifyConnection(actor.actorId, tokenToTest);
+    } catch (error) {
+      console.error('Error testing actor configuration:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Test Apify connection using a specific actor ID and API token
+   */
+  private async testApifyConnection(actorId: string, apiToken: string): Promise<boolean> {
     try {
       const response = await axios.get(
         `${this.baseUrl}/acts/${actorId}?token=${apiToken}`
       );
-      
       return response.status === 200;
     } catch (error) {
+      console.error('Apify connection test failed:', error);
       return false;
     }
   }

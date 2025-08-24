@@ -1,12 +1,12 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import { prisma } from '../index';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { AuditLogService } from '../services/auditLogService';
 import { authenticateToken } from '../middleware/auth';
 import { auditLog } from '../middleware/auditLog';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';

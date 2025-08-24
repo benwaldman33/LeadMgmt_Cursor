@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apifyService } from '../services/apifyService';
-import type { ApifyActorConfig, ApifyScrapingJob, ApifyScrapingResult } from '../services/apifyService';
+import type { ApifyActorConfig, ApifyScrapingJob, ApifyScrapingResult, ApifyServiceConfig } from '../services/apifyService';
 import { useNotifications } from '../contexts/NotificationContext';
 import {
   GlobeAltIcon,
@@ -15,6 +15,8 @@ import {
   EyeIcon,
   TrashIcon,
   ArrowPathIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const ApifyPage: React.FC = () => {
@@ -27,6 +29,7 @@ const ApifyPage: React.FC = () => {
   const [urls, setUrls] = useState<string>('');
   const [industry, setIndustry] = useState<string>('general');
   const [selectedJob, setSelectedJob] = useState<ApifyScrapingJob | null>(null);
+  const [showMigrationInfo, setShowMigrationInfo] = useState(false);
 
   // Form state for creating new actor
   const [newActor, setNewActor] = useState({
@@ -42,6 +45,13 @@ const ApifyPage: React.FC = () => {
   const { data: actors, isLoading: actorsLoading } = useQuery({
     queryKey: ['apify-actors'],
     queryFn: apifyService.getActorConfigs
+  });
+
+  // New query for ServiceProvider-based services
+  const { data: apifyServices, isLoading: servicesLoading } = useQuery({
+    queryKey: ['apify-services'],
+    queryFn: apifyService.getApifyServices,
+    enabled: true // Now enabled since we have the backend endpoint
   });
 
   // Mutations
@@ -180,12 +190,74 @@ const ApifyPage: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Apify Integration</h1>
         <p className="text-gray-600">Manage your Apify Actors and run web scraping jobs</p>
+        
+        {/* Migration Information */}
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start">
+            <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">System Integration Update</h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Apify services can now be configured through the Service Configuration panel for centralized management. 
+                Legacy Apify Actor configurations are still supported for backward compatibility.
+              </p>
+              <button
+                onClick={() => setShowMigrationInfo(!showMigrationInfo)}
+                className="text-sm text-blue-600 hover:text-blue-800 underline mt-2"
+              >
+                {showMigrationInfo ? 'Hide details' : 'Learn more'}
+              </button>
+            </div>
+          </div>
+          
+          {showMigrationInfo && (
+            <div className="mt-3 pt-3 border-t border-blue-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <h4 className="font-medium text-blue-800 mb-2">Service Configuration (Recommended)</h4>
+                  <ul className="text-blue-700 space-y-1">
+                    <li>• Centralized service management</li>
+                    <li>• Rate limiting and quotas</li>
+                    <li>• Service priorities and fallbacks</li>
+                    <li>• Unified monitoring</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-medium text-blue-800 mb-2">Legacy Apify Actors</h4>
+                  <ul className="text-blue-700 space-y-1">
+                    <li>• Individual actor configurations</li>
+                    <li>• Separate API token management</li>
+                    <li>• Limited service orchestration</li>
+                    <li>• Will be deprecated in future versions</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-3 p-3 bg-blue-100 rounded border border-blue-300">
+                <p className="text-sm text-blue-800">
+                  <strong>Recommendation:</strong> Configure new Apify services through Service Configuration → 
+                  <a href="/service-configuration" className="text-blue-600 hover:text-blue-800 underline ml-1">
+                    Go to Service Configuration
+                  </a>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Create Actor Form */}
       {showCreateForm && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Create New Apify Actor</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Create New Apify Actor</h2>
+            <div className="flex items-center text-amber-600 text-sm">
+              <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
+              Legacy System
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            This creates a legacy Apify Actor configuration. Consider using Service Configuration instead for better integration.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -247,18 +319,116 @@ const ApifyPage: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Apify Actors */}
+        {/* ServiceProvider-based Apify Services */}
         <div className="bg-white rounded-lg shadow-md">
           <div className="p-6 border-b border-gray-200">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Apify Actors</h2>
+              <h2 className="text-xl font-semibold">Service Configuration Apify Services</h2>
+              <a
+                href="/service-configuration"
+                className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+              >
+                Configure Services
+              </a>
+            </div>
+          </div>
+          <div className="p-6">
+            {servicesLoading ? (
+              <div className="text-center py-4">Loading services...</div>
+            ) : apifyServices && apifyServices.length > 0 ? (
+              <div className="space-y-4">
+                {apifyServices.map((service) => (
+                  <div
+                    key={service.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      selectedActor?.id === service.id
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedActor({
+                      id: service.id,
+                      name: service.name,
+                      description: `Service Provider: ${service.name}`,
+                      actorId: service.config.defaultActorId || 'default',
+                      apiToken: service.config.apiToken,
+                      isActive: service.isActive,
+                      defaultInput: service.scrapingConfig || {},
+                      createdAt: new Date(),
+                      updatedAt: new Date()
+                    })}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                            Service Provider
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600">Priority: {service.priority}</p>
+                        <p className="text-xs text-gray-500">Capabilities: {service.capabilities.join(', ')}</p>
+                        {service.limits.monthlyQuota && (
+                          <p className="text-xs text-gray-500">Monthly Quota: {service.limits.monthlyQuota}</p>
+                        )}
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTestActor({
+                              id: service.id,
+                              name: service.name,
+                              description: `Service Provider: ${service.name}`,
+                              actorId: service.config.defaultActorId || 'default',
+                              apiToken: service.config.apiToken,
+                              isActive: service.isActive,
+                              defaultInput: service.scrapingConfig || {},
+                              createdAt: new Date(),
+                              updatedAt: new Date()
+                            });
+                          }}
+                          className="p-1 text-gray-400 hover:text-green-600"
+                          title="Test Service"
+                        >
+                          <CogIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <CogIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No Apify services configured</p>
+                <p className="text-sm">Configure services in Service Configuration panel</p>
+                <a
+                  href="/service-configuration"
+                  className="inline-block mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                >
+                  Go to Service Configuration
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Legacy Apify Actors */}
+        <div className="bg-white rounded-lg shadow-md">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Legacy Apify Actors</h2>
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 text-sm"
               >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add Actor
+                <PlusIcon className="h-4 w-4 mr-2 inline" />
+                Add Legacy Actor
               </button>
+            </div>
+            <div className="mt-2 text-sm text-amber-600">
+              <ExclamationTriangleIcon className="h-4 w-4 inline mr-1" />
+              Legacy system - consider migrating to Service Configuration
             </div>
           </div>
           <div className="p-6">
@@ -271,14 +441,19 @@ const ApifyPage: React.FC = () => {
                     key={actor.id}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
                       selectedActor?.id === actor.id
-                        ? 'border-blue-500 bg-blue-50'
+                        ? 'border-amber-500 bg-amber-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setSelectedActor(actor)}
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-semibold text-gray-900">{actor.name}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{actor.name}</h3>
+                          <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded-full">
+                            Legacy
+                          </span>
+                        </div>
                         <p className="text-sm text-gray-600">{actor.description}</p>
                         <p className="text-xs text-gray-500">ID: {actor.actorId}</p>
                       </div>
@@ -288,7 +463,7 @@ const ApifyPage: React.FC = () => {
                             e.stopPropagation();
                             handleTestActor(actor);
                           }}
-                          className="p-1 text-gray-400 hover:text-blue-600"
+                          className="p-1 text-gray-400 hover:text-amber-600"
                           title="Test Actor"
                         >
                           <CogIcon className="h-4 w-4" />
@@ -301,81 +476,81 @@ const ApifyPage: React.FC = () => {
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <GlobeAltIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No Apify Actors configured</p>
-                <p className="text-sm">Click "Add Actor" to get started</p>
+                <p>No legacy Apify Actors configured</p>
+                <p className="text-sm">Click "Add Legacy Actor" to get started</p>
               </div>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Scraping Interface */}
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold">Web Scraping</h2>
-          </div>
-          <div className="p-6">
-            {selectedActor ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Selected Actor: {selectedActor.name}
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    URLs (one per line)
-                  </label>
-                  <textarea
-                    value={urls}
-                    onChange={(e) => setUrls(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com&#10;https://example2.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Industry
-                  </label>
-                  <select
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="general">General</option>
-                    <option value="dental">Dental</option>
-                    <option value="construction">Construction</option>
-                    <option value="manufacturing">Manufacturing</option>
-                    <option value="healthcare">Healthcare</option>
-                    <option value="food-beverage">Food & Beverage</option>
-                    <option value="distribution">Distribution</option>
-                  </select>
-                </div>
-                <button
-                  onClick={handleScrape}
-                  disabled={scrapeMutation.isPending || !urls.trim()}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+      {/* Scraping Interface */}
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold">Web Scraping</h2>
+        </div>
+        <div className="p-6">
+          {selectedActor ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Selected Actor: {selectedActor.name}
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  URLs (one per line)
+                </label>
+                <textarea
+                  value={urls}
+                  onChange={(e) => setUrls(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com&#10;https://example2.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Industry
+                </label>
+                <select
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {scrapeMutation.isPending ? (
-                    <div className="flex items-center justify-center">
-                      <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                      Starting Scrape...
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <PlayIcon className="h-4 w-4 mr-2" />
-                      Start Scraping
-                    </div>
-                  )}
-                </button>
+                  <option value="general">General</option>
+                  <option value="dental">Dental</option>
+                  <option value="construction">Construction</option>
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="food-beverage">Food & Beverage</option>
+                  <option value="distribution">Distribution</option>
+                </select>
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <CogIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>Select an Apify Actor to start scraping</p>
-              </div>
-            )}
-          </div>
+              <button
+                onClick={handleScrape}
+                disabled={scrapeMutation.isPending || !urls.trim()}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              >
+                {scrapeMutation.isPending ? (
+                  <div className="flex items-center justify-center">
+                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                    Starting Scrape...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <PlayIcon className="h-4 w-4 mr-2" />
+                    Start Scraping
+                  </div>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <CogIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>Select an Apify Actor to start scraping</p>
+            </div>
+          )}
         </div>
       </div>
 

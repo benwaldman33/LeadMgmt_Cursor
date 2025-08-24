@@ -1,4 +1,39 @@
 Universal Lead Scoring Platform - Product RequirementsDocument
+
+## Recent System Updates - 2025-08-24
+
+### Authentication & API Access Fixes
+**Status: COMPLETED** ✅
+
+The system has undergone critical fixes to resolve authentication and API access issues that were preventing users from accessing key functionality, particularly the Apify Integration page.
+
+#### Issues Resolved
+- **401 Unauthorized Errors**: Fixed critical authentication problems preventing access to authenticated endpoints
+- **PrismaClient Consolidation**: Resolved multiple database connection instances causing performance issues
+- **Environment Variable Configuration**: Fixed VITE_API_URL misconfiguration bypassing authentication
+- **Token Key Consistency**: Standardized authentication token handling across all services
+- **Database Schema Compatibility**: Fixed PostgreSQL-specific query syntax and column references
+
+#### Technical Improvements
+- **Consolidated Database Layer**: All services now use shared PrismaClient instance
+- **Proper Authentication Flow**: Frontend now correctly authenticates with backend API
+- **Vite Proxy Configuration**: API calls properly route through proxy with authentication
+- **Service Layer Consistency**: Standardized authentication across all service interfaces
+
+#### Impact on User Experience
+- **Apify Integration**: Existing APIFY - BING SCRAPER now visible and accessible
+- **API Endpoints**: All authenticated endpoints now working correctly
+- **System Performance**: Improved database connection efficiency
+- **Authentication Reliability**: Consistent and secure user authentication
+
+#### Files Modified
+- Backend services (analytics, apify, webScraping)
+- Frontend service layers (apify, webScraping)
+- Environment configuration (docker-compose.yml)
+- Database connection management (index.ts)
+
+---
+
 1. Executive Summary
 Product Vision
 A universal, AI-powered market discovery and lead qualification platform that enables systematic market analysis, industry exploration, and automated lead generation across any industry vertical. The platform features a complete AI-driven pipeline from market sizing analysis (finding industries with 300K+ business locations) through sub-industry exploration, product discovery, automated scraper configuration, and intelligent lead qualification. While initially focused on dental equipment verticals, the platform is architected for rapid deployment across diverse industries through AI-guided market analysis, discovery automation, and intelligent optimization.

@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../index';
 
 export interface DashboardMetrics {
   totalLeads: number;
@@ -118,24 +116,24 @@ export class AnalyticsService {
       orderBy: { createdAt: 'asc' }
     });
 
-    // Weekly trends
+    // Weekly trends - use PostgreSQL date functions
     const weeklyData = await prisma.$queryRaw`
       SELECT 
-        strftime('%Y-%W', createdAt) as week,
+        TO_CHAR("createdAt", 'IYYY-IW') as week,
         COUNT(*) as count
       FROM leads
-      WHERE createdAt >= ${startDate}
+      WHERE "createdAt" >= ${startDate}
       GROUP BY week
       ORDER BY week ASC
     `;
 
-    // Monthly trends
+    // Monthly trends - use PostgreSQL date functions
     const monthlyData = await prisma.$queryRaw`
       SELECT 
-        strftime('%Y-%m', createdAt) as month,
+        TO_CHAR("createdAt", 'YYYY-MM') as month,
         COUNT(*) as count
       FROM leads
-      WHERE createdAt >= ${startDate}
+      WHERE "createdAt" >= ${startDate}
       GROUP BY month
       ORDER BY month ASC
     `;
@@ -146,11 +144,11 @@ export class AnalyticsService {
         count: item._count.id
       })),
       weekly: (weeklyData as any[]).map(item => ({
-        week: item.week && typeof item.week.toISOString === 'function' ? item.week.toISOString().split('T')[0] : (item.week || ''),
+        week: item.week || '',
         count: Number(item.count)
       })),
       monthly: (monthlyData as any[]).map(item => ({
-        month: item.month && typeof item.month.toISOString === 'function' ? item.month.toISOString().split('T')[0] : (item.month || ''),
+        month: item.month || '',
         count: Number(item.count)
       }))
     };

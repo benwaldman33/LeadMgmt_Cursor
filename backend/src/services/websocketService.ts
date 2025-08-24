@@ -1,9 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../index';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
 
 export interface NotificationData {
   type: 'lead_created' | 'lead_updated' | 'lead_assigned' | 'lead_scored' | 'campaign_created' | 'user_activity' | 'pipeline_started' | 'pipeline_progress' | 'pipeline_completed' | 'pipeline_failed';

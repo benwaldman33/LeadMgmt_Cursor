@@ -132,7 +132,44 @@ router.delete('/providers/:id', auth, requireSuperAdmin, async (req, res) => {
     res.json({ message: 'Service provider deleted successfully' });
   } catch (error) {
     console.error('Error deleting service provider:', error);
-    res.status(500).json({ error: `Failed to delete service provider: ${error.message}` });
+    res.status(500).json({ error: `Failed to delete service provider: ${error instanceof Error ? error.message : 'Unknown error'}` });
+  }
+});
+
+// Test service provider connectivity and functionality
+router.post('/providers/:id/test', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if provider exists
+    const provider = await serviceConfigService.getServiceProviderById(id);
+    if (!provider) {
+      return res.status(404).json({ error: 'Service provider not found' });
+    }
+    
+    // Test the service provider
+    const testResult = await serviceConfigService.testServiceProvider(id);
+    
+    if (testResult.success) {
+      res.json({
+        success: true,
+        message: testResult.message,
+        details: testResult.details
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: testResult.message,
+        details: testResult.details
+      });
+    }
+  } catch (error) {
+    console.error('Error testing service provider:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to test service provider',
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    });
   }
 });
 

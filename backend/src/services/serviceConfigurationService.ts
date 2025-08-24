@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../index';
 
 // Use Prisma types instead of custom interfaces
 import type { ServiceProvider, OperationServiceMapping, ServiceUsage } from '@prisma/client';
@@ -318,6 +316,271 @@ export class ServiceConfigurationService {
       'KEYWORD_EXTRACTOR',
       'CONTENT_ANALYZER'
     ];
+  }
+
+  /**
+   * Test service provider connectivity and basic functionality
+   */
+  async testServiceProvider(serviceId: string): Promise<{
+    success: boolean;
+    message: string;
+    details?: any;
+  }> {
+    try {
+      const provider = await prisma.serviceProvider.findUnique({
+        where: { id: serviceId }
+      });
+
+      if (!provider) {
+        return {
+          success: false,
+          message: 'Service provider not found'
+        };
+      }
+
+      if (!provider.isActive) {
+        return {
+          success: false,
+          message: 'Service provider is inactive'
+        };
+      }
+
+      const config = JSON.parse(provider.config);
+      const capabilities = JSON.parse(provider.capabilities);
+
+      // Test based on service type
+      switch (provider.type) {
+        case 'AI_ENGINE':
+          return await this.testAIEngine(provider, config, capabilities);
+        
+        case 'SCRAPER':
+          return await this.testScraper(provider, config, capabilities);
+        
+        case 'SITE_ANALYZER':
+          return await this.testSiteAnalyzer(provider, config, capabilities);
+        
+        case 'CONTENT_ANALYZER':
+          return await this.testContentAnalyzer(provider, config, capabilities);
+        
+        default:
+          return {
+            success: false,
+            message: `Unknown service type: ${provider.type}`
+          };
+      }
+          } catch (error) {
+        return {
+          success: false,
+          message: 'Error testing service provider',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+  }
+
+  /**
+   * Test AI Engine service
+   */
+  private async testAIEngine(provider: ServiceProvider, config: any, capabilities: string[]): Promise<{
+    success: boolean;
+    message: string;
+    details?: any;
+  }> {
+    try {
+      // Check if API key is configured
+      if (!config.apiKey || config.apiKey === 'your-api-key') {
+        return {
+          success: false,
+          message: 'API key not configured'
+        };
+      }
+
+      // Test with a simple prompt based on capabilities
+      let testPrompt = 'Hello, this is a connectivity test.';
+      
+      if (capabilities.includes('AI_DISCOVERY')) {
+        testPrompt = 'Please respond with "AI Discovery test successful" if you can see this message.';
+      } else if (capabilities.includes('LEAD_SCORING')) {
+        testPrompt = 'Please respond with "Lead Scoring test successful" if you can see this message.';
+      }
+
+      // For now, we'll just validate the configuration
+      // In a full implementation, you'd make an actual API call
+      const hasValidConfig = config.apiKey && 
+                           (config.model || config.endpoint) && 
+                           config.apiKey.length > 10;
+
+      if (hasValidConfig) {
+        return {
+          success: true,
+          message: `${provider.name} configuration appears valid`,
+          details: {
+            type: 'AI_ENGINE',
+            capabilities: capabilities,
+            hasApiKey: !!config.apiKey,
+            hasModel: !!config.model,
+            hasEndpoint: !!config.endpoint
+          }
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Invalid configuration - missing required fields',
+          details: {
+            hasApiKey: !!config.apiKey,
+            hasModel: !!config.model,
+            hasEndpoint: !!config.endpoint
+          }
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error testing AI engine',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Test Scraper service
+   */
+  private async testScraper(provider: ServiceProvider, config: any, capabilities: string[]): Promise<{
+    success: boolean;
+    message: string;
+    details?: any;
+  }> {
+    try {
+      // Check if API token is configured
+      if (!config.apiToken || config.apiToken === 'your-api-token') {
+        return {
+          success: false,
+          message: 'API token not configured'
+        };
+      }
+
+      // Validate scraper configuration
+      const hasValidConfig = config.apiToken && 
+                           (config.defaultActor || config.endpoint) && 
+                           config.apiToken.length > 10;
+
+      if (hasValidConfig) {
+        return {
+          success: true,
+          message: `${provider.name} configuration appears valid`,
+          details: {
+            type: 'SCRAPER',
+            capabilities: capabilities,
+            hasApiToken: !!config.apiToken,
+            hasDefaultActor: !!config.defaultActor,
+            hasEndpoint: !!config.endpoint
+          }
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Invalid configuration - missing required fields',
+          details: {
+            hasApiToken: !!config.apiToken,
+            hasDefaultActor: !!config.defaultActor,
+            hasEndpoint: !!config.endpoint
+          }
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error testing scraper',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Test Site Analyzer service
+   */
+  private async testSiteAnalyzer(provider: ServiceProvider, config: any, capabilities: string[]): Promise<{
+    success: boolean;
+    message: string;
+    details?: any;
+  }> {
+    try {
+      // Site analyzers typically need less configuration
+      const hasValidConfig = config.maxConcurrency || config.timeout || config.userAgent;
+
+      if (hasValidConfig) {
+        return {
+          success: true,
+          message: `${provider.name} configuration appears valid`,
+          details: {
+            type: 'SITE_ANALYZER',
+            capabilities: capabilities,
+            hasMaxConcurrency: !!config.maxConcurrency,
+            hasTimeout: !!config.timeout,
+            hasUserAgent: !!config.userAgent
+          }
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Invalid configuration - missing required fields',
+          details: {
+            hasMaxConcurrency: !!config.maxConcurrency,
+            hasTimeout: !!config.timeout,
+            hasUserAgent: !!config.userAgent
+          }
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error testing site analyzer',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Test Content Analyzer service
+   */
+  private async testContentAnalyzer(provider: ServiceProvider, config: any, capabilities: string[]): Promise<{
+    success: boolean;
+    message: string;
+    details?: any;
+  }> {
+    try {
+      // Content analyzers typically need scoring model configuration
+      const hasValidConfig = config.scoringModel || config.confidenceThreshold;
+
+      if (hasValidConfig) {
+        return {
+          success: true,
+          message: `${provider.name} configuration appears valid`,
+          details: {
+            type: 'CONTENT_ANALYZER',
+            capabilities: capabilities,
+            hasScoringModel: !!config.scoringModel,
+            hasConfidenceThreshold: !!config.confidenceThreshold,
+            hasMaxAnalysisTime: !!config.maxAnalysisTime
+          }
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Invalid configuration - missing required fields',
+          details: {
+            hasScoringModel: !!config.scoringModel,
+            hasConfidenceThreshold: !!config.confidenceThreshold,
+            hasMaxAnalysisTime: !!config.maxAnalysisTime
+          }
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error testing content analyzer',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 }
 

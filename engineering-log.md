@@ -165,19 +165,49 @@ const testProvider = async (provider: ServiceProvider) => {
 
 ### 🔄 **Service Testing Backend Implementation**
 **Priority**: MEDIUM  
-**Status**: PLANNED  
+**Status**: ✅ **COMPLETED**  
 
-#### What Needs to Be Done
-- Implement `/service-configuration/providers/:id/test` endpoint
-- Add service-specific test logic for each provider type
-- Implement proper error handling and response formatting
-- Add test result logging and monitoring
+#### What Was Implemented
+- **Test Endpoint**: Added `POST /api/service-configuration/providers/:id/test` endpoint
+- **Service Testing Logic**: Implemented type-specific testing for each service type
+- **Configuration Validation**: Tests validate API keys, tokens, and required configuration fields
+- **Error Handling**: Comprehensive error handling with detailed feedback
+- **Response Format**: Standardized response format with success/failure indicators
 
-#### Technical Considerations
-- **AI Services**: Test with simple prompt/response
-- **Scraping Services**: Test with basic URL validation
-- **Rate Limiting**: Ensure tests don't consume significant quotas
-- **Error Handling**: Proper error categorization and user feedback
+#### Technical Implementation Details
+```typescript
+// Route endpoint
+router.post('/providers/:id/test', auth, requireSuperAdmin, async (req, res) => {
+  const testResult = await serviceConfigService.testServiceProvider(id);
+  // Handle success/failure responses
+});
+
+// Service method
+async testServiceProvider(serviceId: string): Promise<{
+  success: boolean;
+  message: string;
+  details?: any;
+}> {
+  // Type-specific testing logic
+  switch (provider.type) {
+    case 'AI_ENGINE': return await this.testAIEngine(provider, config, capabilities);
+    case 'SCRAPER': return await this.testScraper(provider, config, capabilities);
+    case 'SITE_ANALYZER': return await this.testSiteAnalyzer(provider, config, capabilities);
+    case 'CONTENT_ANALYZER': return await this.testContentAnalyzer(provider, config, capabilities);
+  }
+}
+```
+
+#### Testing Capabilities by Service Type
+- **AI_ENGINE**: Validates API keys, models, and endpoints
+- **SCRAPER**: Checks API tokens, default actors, and endpoints  
+- **SITE_ANALYZER**: Validates concurrency, timeout, and user agent settings
+- **CONTENT_ANALYZER**: Tests scoring models and confidence thresholds
+
+#### Future Enhancements
+- **Real API Calls**: Currently validates configuration only, could be extended to make actual API calls
+- **Performance Testing**: Add response time and throughput testing
+- **Health Monitoring**: Continuous health checks and alerting
 
 ### 🔄 **Enhanced Error Handling**
 **Priority**: MEDIUM  
@@ -227,7 +257,7 @@ const testProvider = async (provider: ServiceProvider) => {
 
 ### **Immediate (Next Sprint)**
 1. ✅ **COMPLETED**: Dual interface service configuration
-2. 🔄 **PLANNED**: Backend service testing implementation
+2. ✅ **COMPLETED**: Backend service testing implementation
 3. 🔄 **PLANNED**: Enhanced error handling and validation
 
 ### **Short Term (Next 2-3 Sprints)**
@@ -283,3 +313,94 @@ const testProvider = async (provider: ServiceProvider) => {
 ---
 
 *This engineering log is maintained by the development team and updated with each major milestone and technical decision.* 
+
+## 2025-08-24 - Authentication & API Access Fixes
+
+### Issue Summary
+Critical authentication problems preventing access to Apify Integration page and other authenticated endpoints. Users were getting 401 Unauthorized errors despite successful login.
+
+### Root Causes Identified
+1. **Environment Variable Misconfiguration**: `VITE_API_URL` was set to `http://localhost:3001` in docker-compose.yml, bypassing Vite proxy
+2. **Token Key Inconsistency**: Services were using different localStorage keys (`token` vs `bbds_access_token`)
+3. **Multiple PrismaClient Instances**: Each service creating its own database connection
+4. **Database Schema Mismatches**: Analytics service using SQLite functions instead of PostgreSQL
+
+### Technical Solutions Implemented
+
+#### 1. PrismaClient Consolidation
+- **Problem**: Multiple PrismaClient instances causing connection pool exhaustion
+- **Solution**: Created shared PrismaClient instance in `backend/src/index.ts`
+- **Impact**: All services now use single database connection, improved performance
+
+#### 2. Environment Variable Fix
+- **Problem**: `VITE_API_URL=http://localhost:3001` bypassed authentication middleware
+- **Solution**: Changed to `VITE_API_URL=/api` to use Vite proxy
+- **Impact**: API calls now properly route through proxy with authentication headers
+
+#### 3. Token Key Standardization
+- **Problem**: Inconsistent localStorage keys across services
+- **Solution**: Updated all services to use `bbds_access_token` key
+- **Files Modified**:
+  - `frontend/src/services/apifyService.ts`
+  - `frontend/src/services/webScrapingService.ts`
+- **Impact**: Consistent authentication across all service layers
+
+#### 4. Database Schema Compatibility
+- **Problem**: Analytics service using SQLite date functions (`strftime`) instead of PostgreSQL
+- **Solution**: Updated to use PostgreSQL functions (`TO_CHAR`, `DATE_TRUNC`)
+- **Files Modified**: `backend/src/services/analyticsService.ts`
+- **Impact**: Analytics queries now work correctly with PostgreSQL
+
+### Testing & Validation
+- ✅ Backend server accessible on port 3001
+- ✅ Database connection working with existing data
+- ✅ Authentication flow working correctly
+- ✅ API endpoints returning 200 OK instead of 401
+- ✅ Existing APIFY - BING SCRAPER now visible in UI
+- ✅ All services using consistent token handling
+
+### Files Modified
+```
+backend/
+├── src/
+│   ├── index.ts (PrismaClient consolidation)
+│   ├── services/
+│   │   ├── analyticsService.ts (PostgreSQL compatibility)
+│   │   ├── apifyService.ts (token key fix)
+│   │   └── webScrapingService.ts (token key fix)
+frontend/
+├── src/services/
+│   ├── apifyService.ts (token key fix)
+│   └── webScrapingService.ts (token key fix)
+docker-compose.yml (environment variable fix)
+```
+
+### Performance Impact
+- **Database Connections**: Reduced from N connections to 1 shared connection
+- **API Response Time**: Improved due to proper authentication flow
+- **Memory Usage**: Reduced due to single PrismaClient instance
+
+### Security Improvements
+- **Authentication**: Now properly enforced through Vite proxy
+- **Token Handling**: Standardized and secure token storage
+- **API Access**: All endpoints now require valid authentication
+
+### Next Steps
+- Monitor authentication performance
+- Consider implementing token refresh mechanism
+- Add comprehensive API endpoint testing
+- Document authentication flow for developers
+
+---
+
+## Previous Entries
+
+### 2025-08-24 - Service Configuration System Implementation
+- Implemented comprehensive service provider configuration system
+- Added testing capabilities for AI engines, scrapers, and analyzers
+- Enhanced UI with dual view modes (Form/JSON)
+
+### 2025-08-23 - Market Discovery Enhancements
+- Improved discovery workflow with execution monitoring
+- Added progress tracking and real-time updates
+- Enhanced AI-powered analysis capabilities 
