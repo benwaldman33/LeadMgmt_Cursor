@@ -98,6 +98,12 @@ All notable changes to this project will be documented in this file.
   - Built comprehensive search functionality with mock data for dental/CBCT, dental/lasers, and construction
   - Created AI conversation interface for guided discovery sessions
   - Added pipeline integration to send discovered customers to enrichment workflow
+
+- **Duplicate Sidebar Fix**: Resolved critical UI issue on Service Configuration page
+  - **Root Cause**: Double-wrapped DashboardLayout components causing duplicate left navigation sidebars
+  - **Solution**: Removed redundant DashboardLayout wrapper from ServiceConfigurationPage component
+  - **Result**: Single sidebar now displays correctly, eliminating visual duplication and layout confusion
+  - **Impact**: Improved user experience and professional appearance of admin interface
   - Enhanced search constraints with geography and result limits
   - Implemented real-time WebSocket notifications for discovery activities
   - Fixed search functionality to properly use customer types from selected product verticals

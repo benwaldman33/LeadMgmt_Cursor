@@ -66,6 +66,35 @@ This document tracks technical notes, decisions, and areas to revisit for the BB
   - `frontend/src/App.tsx` - Route configuration
   - `frontend/src/components/DashboardLayout.tsx` - Navigation integration
 
+---
+
+### Duplicate Sidebar Issue Resolution
+- **Area:** Frontend UI, component architecture, layout management
+- **Problem:** Service Configuration page displayed duplicate left navigation sidebars, creating visual confusion and poor user experience
+- **Root Cause Analysis:**
+  - **Double-wrapped DashboardLayout**: ServiceConfigurationPage was wrapping content in DashboardLayout while ProtectedRoute already provided it
+  - **Component Hierarchy**: ProtectedRoute → DashboardLayout → ServiceConfigurationPage → DashboardLayout → content
+  - **Result**: Two DashboardLayout components rendered simultaneously, each with its own sidebar
+- **Solution Implemented:**
+  - Removed redundant DashboardLayout wrapper from ServiceConfigurationPage
+  - Component now returns content directly since ProtectedRoute provides the layout
+  - Cleaned up unused DashboardLayout import
+- **Technical Details:**
+  - **Before**: Component had extra DashboardLayout wrapper causing duplication
+  - **After**: Single DashboardLayout from ProtectedRoute provides all layout needs
+  - **Architecture**: Proper separation of concerns - layout wrapper vs. content provider
+- **Result:**
+  - Single sidebar now displays correctly
+  - Eliminated visual duplication and layout confusion
+  - Improved user experience and professional appearance
+  - Maintained all functionality while fixing layout issue
+- **Files Modified:**
+  - `frontend/src/pages/ServiceConfigurationPage.tsx` - Removed duplicate DashboardLayout wrapper
+- **Lessons Learned:**
+  - Always check component hierarchy for duplicate layout wrappers
+  - ProtectedRoute pattern provides consistent layout across all protected pages
+  - Component composition should avoid redundant wrapper components
+
 ### Complete Backend TypeScript Conversion
 - **Area:** Backend architecture, code quality, type safety, build system
 - **Problem:** Backend was written in JavaScript, lacking type safety and modern development features

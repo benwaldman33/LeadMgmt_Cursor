@@ -174,12 +174,37 @@ export class ServiceConfigurationService {
   }
 
   /**
+   * Get service provider by ID
+   */
+  async getServiceProviderById(id: string): Promise<ServiceProvider | null> {
+    return await prisma.serviceProvider.findUnique({
+      where: { id }
+    });
+  }
+
+  /**
    * Delete a service provider
    */
   async deleteServiceProvider(id: string): Promise<void> {
+    console.log('Service: Deleting provider with ID:', id);
+    
+    // First, delete related operation mappings
+    await prisma.operationServiceMapping.deleteMany({
+      where: { serviceId: id }
+    });
+    console.log('Related operation mappings deleted');
+    
+    // Then, delete related usage records
+    await prisma.serviceUsage.deleteMany({
+      where: { serviceId: id }
+    });
+    console.log('Related usage records deleted');
+    
+    // Finally, delete the service provider
     await prisma.serviceProvider.delete({
       where: { id }
     });
+    console.log('Service provider deleted');
   }
 
   /**

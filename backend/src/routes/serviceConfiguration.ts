@@ -115,11 +115,24 @@ router.put('/providers/:id', auth, requireSuperAdmin, async (req, res) => {
 router.delete('/providers/:id', auth, requireSuperAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('Attempting to delete service provider:', id);
+    
+    // Check if provider exists and has any related records
+    const provider = await serviceConfigService.getServiceProviderById(id);
+    if (!provider) {
+      return res.status(404).json({ error: 'Service provider not found' });
+    }
+    
+    console.log('Provider found:', provider.name);
+    console.log('Deleting provider with ID:', id);
+    
     await serviceConfigService.deleteServiceProvider(id);
+    console.log('Provider deleted successfully');
+    
     res.json({ message: 'Service provider deleted successfully' });
   } catch (error) {
     console.error('Error deleting service provider:', error);
-    res.status(500).json({ error: 'Failed to delete service provider' });
+    res.status(500).json({ error: `Failed to delete service provider: ${error.message}` });
   }
 });
 

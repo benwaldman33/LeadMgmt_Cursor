@@ -667,8 +667,8 @@ model ServiceProvider {
   scrapingConfig String? // JSON string: for site analyzers: depth, page limits, etc.
   
   // Relations
-  operationMappings OperationServiceMapping[]
-  usageRecords     ServiceUsage[]
+  operationMappings OperationServiceMapping[] @relation("ServiceProviderMappings")
+  usageRecords     ServiceUsage[] @relation("ServiceProviderUsage")
   
   // Timestamps
   createdAt   DateTime @default(now())
@@ -681,7 +681,7 @@ model OperationServiceMapping {
   id          String   @id @default(cuid())
   operation   String   // "AI_DISCOVERY", "MARKET_DISCOVERY", "WEB_SCRAPING", etc.
   serviceId   String
-  service     ServiceProvider @relation(fields: [serviceId], references: [id])
+  service     ServiceProvider @relation("ServiceProviderMappings", fields: [serviceId], references: [id], onDelete: Cascade)
   isEnabled   Boolean  @default(true)
   priority    Int      @default(1)
   config      String   // JSON string: operation-specific configuration
@@ -697,7 +697,7 @@ model OperationServiceMapping {
 model ServiceUsage {
   id              String   @id @default(cuid())
   serviceId       String
-  service         ServiceProvider @relation(fields: [serviceId], references: [id])
+  service         ServiceProvider @relation("ServiceProviderUsage", fields: [serviceId], references: [id], onDelete: Cascade)
   userId          String?
   user            User?    @relation(fields: [userId], references: [id])
   operation       String   // "AI_DISCOVERY", "MARKET_DISCOVERY", "WEB_SCRAPING", etc.
