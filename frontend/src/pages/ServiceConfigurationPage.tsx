@@ -24,6 +24,47 @@ interface OperationMapping {
   config: string;
 }
 
+// Type-specific templates and placeholders
+const getTypeTemplates = (type: string) => {
+  switch (type) {
+    case 'AI_ENGINE':
+      return {
+        capabilities: '["AI_DISCOVERY", "MARKET_DISCOVERY", "KEYWORD_EXTRACTION", "CONTENT_ANALYSIS", "LEAD_SCORING"]',
+        config: '{"apiKey": "your-api-key", "model": "gpt-4", "maxTokens": 4096, "temperature": 0.7}',
+        limits: '{"monthlyQuota": 1000, "concurrentRequests": 5, "costPerRequest": 0.03}',
+        scrapingConfig: 'null'
+      };
+    case 'SCRAPER':
+      return {
+        capabilities: '["WEB_SCRAPING", "SITE_ANALYSIS"]',
+        config: '{"apiToken": "your-api-token", "defaultActor": "apify/web-scraper", "maxConcurrency": 10}',
+        limits: '{"monthlyQuota": 10000, "concurrentRequests": 10, "costPerRequest": 0.001}',
+        scrapingConfig: '{"maxDepth": 3, "maxPages": 100, "respectRobotsTxt": true, "requestDelay": 1000}'
+      };
+    case 'SITE_ANALYZER':
+      return {
+        capabilities: '["SITE_ANALYSIS", "KEYWORD_EXTRACTION"]',
+        config: '{"maxConcurrency": 5, "timeout": 30000, "userAgent": "Custom-Analyzer/1.0"}',
+        limits: '{"monthlyQuota": 5000, "concurrentRequests": 5, "costPerRequest": 0.0001}',
+        scrapingConfig: '{"maxDepth": 5, "maxPages": 500, "includeImages": false, "includePdfs": true}'
+      };
+    case 'CONTENT_ANALYZER':
+      return {
+        capabilities: '["CONTENT_ANALYSIS", "LEAD_SCORING"]',
+        config: '{"scoringModel": "default", "confidenceThreshold": 0.7, "maxAnalysisTime": 30000}',
+        limits: '{"monthlyQuota": 2000, "concurrentRequests": 8, "costPerRequest": 0.01}',
+        scrapingConfig: 'null'
+      };
+    default:
+      return {
+        capabilities: '[]',
+        config: '{}',
+        limits: '{}',
+        scrapingConfig: 'null'
+      };
+  }
+};
+
 const ServiceConfigurationPage: React.FC = () => {
   const { user } = useAuth();
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
@@ -36,6 +77,7 @@ const ServiceConfigurationPage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [editingMapping, setEditingMapping] = useState<OperationMapping | null>(null);
   const [isCreatingMapping, setIsCreatingMapping] = useState(false);
+  const [inputMode, setInputMode] = useState<'form' | 'json'>('form');
   const [editForm, setEditForm] = useState({
     name: '',
     type: '',
@@ -100,6 +142,7 @@ const ServiceConfigurationPage: React.FC = () => {
   const startEditProvider = (provider: ServiceProvider) => {
     setEditingProvider(provider);
     setIsCreating(false);
+    setInputMode('json'); // Default to JSON view for editing
     setEditForm({
       name: provider.name,
       type: provider.type,
@@ -114,27 +157,41 @@ const ServiceConfigurationPage: React.FC = () => {
   const startCreateProvider = () => {
     setEditingProvider(null);
     setIsCreating(true);
+    setInputMode('form'); // Default to form view for creating
     setEditForm({
       name: '',
       type: '',
       priority: 1,
-      capabilities: '',
-      config: '',
-      limits: '',
+      capabilities: '[]',
+      config: '{}',
+      limits: '{}',
       scrapingConfig: ''
+    });
+  };
+
+  const handleTypeChange = (newType: string) => {
+    const templates = getTypeTemplates(newType);
+    setEditForm({
+      ...editForm,
+      type: newType,
+      capabilities: templates.capabilities,
+      config: templates.config,
+      limits: templates.limits,
+      scrapingConfig: templates.scrapingConfig
     });
   };
 
   const cancelEdit = () => {
     setEditingProvider(null);
     setIsCreating(false);
+    setInputMode('form');
     setEditForm({
       name: '',
       type: '',
       priority: 1,
-      capabilities: '',
-      config: '',
-      limits: '',
+      capabilities: '[]',
+      config: '{}',
+      limits: '{}',
       scrapingConfig: ''
     });
   };
@@ -186,6 +243,24 @@ const ServiceConfigurationPage: React.FC = () => {
     } catch (error) {
       console.error('Error deleting provider:', error);
       alert(`Failed to delete provider: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  const testProvider = async (provider: ServiceProvider) => {
+    try {
+      console.log('Testing provider:', provider.name);
+      const response = await api.post(`/service-configuration/providers/${provider.id}/test`);
+      console.log('Test response:', response);
+      
+      if (response.data.success) {
+        alert(`✅ ${provider.name} test successful!\n\nResponse: ${response.data.message || 'Service is working correctly'}`);
+      } else {
+        alert(`❌ ${provider.name} test failed!\n\nError: ${response.data.message || 'Unknown error occurred'}`);
+      }
+    } catch (error) {
+      console.error('Error testing provider:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error occurred';
+      alert(`❌ ${provider.name} test failed!\n\nError: ${errorMessage}`);
     }
   };
 
@@ -283,7 +358,472 @@ const ServiceConfigurationPage: React.FC = () => {
     }
   };
 
+  // Structured form component for different service types
+  const renderStructuredForm = () => {
+    const templates = getTypeTemplates(editForm.type);
+    
+    // Available capabilities for selection
+    const allCapabilities = [
+      'AI_DISCOVERY',
+      'MARKET_DISCOVERY', 
+      'WEB_SCRAPING',
+      'SITE_ANALYSIS',
+      'KEYWORD_EXTRACTION',
+      'CONTENT_ANALYSIS',
+      'LEAD_SCORING'
+    ];
+    
+    const currentCapabilities = parseJson(editForm.capabilities);
+    
+    const handleCapabilityToggle = (capability: string) => {
+      let newCapabilities;
+      if (currentCapabilities.includes(capability)) {
+        newCapabilities = currentCapabilities.filter((cap: string) => cap !== capability);
+      } else {
+        newCapabilities = [...currentCapabilities, capability];
+      }
+      setEditForm({...editForm, capabilities: JSON.stringify(newCapabilities)});
+    };
+    
+    return (
+      <div className="space-y-4">
+        {/* Capabilities Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Capabilities *
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {allCapabilities.map((capability) => (
+              <label key={capability} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={currentCapabilities.includes(capability)}
+                  onChange={() => handleCapabilityToggle(capability)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">{capability}</span>
+              </label>
+            ))}
+          </div>
+        </div>
 
+        {/* Type-specific configuration fields */}
+        {editForm.type === 'AI_ENGINE' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">API Key *</label>
+              <input
+                type="password"
+                placeholder="Enter your API key"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.apiKey = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Model *</label>
+              <input
+                placeholder="e.g., gpt-4, claude-3-sonnet"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.model = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
+              <input
+                type="number"
+                placeholder="4096"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.maxTokens = parseInt(e.target.value);
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="2"
+                placeholder="0.7"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.temperature = parseFloat(e.target.value);
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+          </div>
+        )}
+        
+        {editForm.type === 'SCRAPER' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">API Token *</label>
+              <input
+                type="password"
+                placeholder="Enter your Apify API token"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.apiToken = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Default Actor *</label>
+              <input
+                placeholder="e.g., apify/web-scraper"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.defaultActor = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Max Concurrency</label>
+              <input
+                type="number"
+                placeholder="10"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.maxConcurrency = parseInt(e.target.value);
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+          </div>
+        )}
+        
+        {editForm.type === 'SITE_ANALYZER' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Max Concurrency</label>
+              <input
+                type="number"
+                placeholder="5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.maxConcurrency = parseInt(e.target.value);
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Timeout (ms)</label>
+              <input
+                type="number"
+                placeholder="30000"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.timeout = parseInt(e.target.value);
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">User Agent</label>
+              <input
+                placeholder="Custom-Analyzer/1.0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.userAgent = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+          </div>
+        )}
+        
+        {editForm.type === 'CONTENT_ANALYZER' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Scoring Model</label>
+              <input
+                placeholder="default"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.scoringModel = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confidence Threshold</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="1"
+                placeholder="0.7"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.confidenceThreshold = parseFloat(e.target.value);
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Max Analysis Time (ms)</label>
+              <input
+                type="number"
+                placeholder="30000"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.maxAnalysisTime = parseInt(e.target.value);
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Common Limits Section */}
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Service Limits</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Quota</label>
+              <input
+                type="number"
+                placeholder="1000"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const limits = parseJson(editForm.limits);
+                  limits.monthlyQuota = parseInt(e.target.value);
+                  setEditForm({...editForm, limits: JSON.stringify(limits, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Concurrent Requests</label>
+              <input
+                type="number"
+                placeholder="5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const limits = parseJson(editForm.limits);
+                  limits.concurrentRequests = parseInt(e.target.value);
+                  setEditForm({...editForm, limits: JSON.stringify(limits, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cost Per Request</label>
+              <input
+                type="number"
+                step="0.001"
+                placeholder="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const limits = parseJson(editForm.limits);
+                  limits.costPerRequest = parseFloat(e.target.value);
+                  setEditForm({...editForm, limits: JSON.stringify(limits, null, 2)});
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Scraping Configuration Section for applicable types */}
+        {(editForm.type === 'SCRAPER' || editForm.type === 'SITE_ANALYZER') && (
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Scraping Configuration</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max Depth</label>
+                <input
+                  type="number"
+                  placeholder="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const scrapingConfig = parseJson(editForm.scrapingConfig);
+                    scrapingConfig.maxDepth = parseInt(e.target.value);
+                    setEditForm({...editForm, scrapingConfig: JSON.stringify(scrapingConfig, null, 2)});
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max Pages</label>
+                <input
+                  type="number"
+                  placeholder="100"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const scrapingConfig = parseJson(editForm.scrapingConfig);
+                    scrapingConfig.maxPages = parseInt(e.target.value);
+                    setEditForm({...editForm, scrapingConfig: JSON.stringify(scrapingConfig, null, 2)});
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Request Delay (ms)</label>
+                <input
+                  type="number"
+                  placeholder="1000"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const scrapingConfig = parseJson(editForm.scrapingConfig);
+                    scrapingConfig.requestDelay = parseInt(e.target.value);
+                    setEditForm({...editForm, scrapingConfig: JSON.stringify(scrapingConfig, null, 2)});
+                  }}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const scrapingConfig = parseJson(editForm.scrapingConfig);
+                    scrapingConfig.respectRobotsTxt = e.target.checked;
+                    setEditForm({...editForm, scrapingConfig: JSON.stringify(scrapingConfig, null, 2)});
+                  }}
+                />
+                <span className="text-sm text-gray-700">Respect robots.txt</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // JSON input component with templates
+  const renderJsonInput = () => {
+    const templates = getTypeTemplates(editForm.type);
+    
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Capabilities (JSON) *
+          </label>
+          <div className="flex space-x-2">
+            <textarea
+              value={editForm.capabilities}
+              onChange={(e) => setEditForm({...editForm, capabilities: e.target.value})}
+              className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                validateJson(editForm.capabilities) ? 'border-gray-300' : 'border-red-500'
+              }`}
+              rows={3}
+              placeholder={templates.capabilities}
+              required
+            />
+            <button
+              onClick={() => setEditForm({...editForm, capabilities: templates.capabilities})}
+              className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm whitespace-nowrap"
+            >
+              Use Template
+            </button>
+          </div>
+          {!validateJson(editForm.capabilities) && (
+            <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Configuration (JSON) *
+          </label>
+          <div className="flex space-x-2">
+            <textarea
+              value={editForm.config}
+              onChange={(e) => setEditForm({...editForm, config: e.target.value})}
+              className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                validateJson(editForm.config) ? 'border-gray-300' : 'border-red-500'
+              }`}
+              rows={4}
+              placeholder={templates.config}
+              required
+            />
+            <button
+              onClick={() => setEditForm({...editForm, config: templates.config})}
+              className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm whitespace-nowrap"
+            >
+              Use Template
+            </button>
+          </div>
+          {!validateJson(editForm.config) && (
+            <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Limits (JSON) *
+          </label>
+          <div className="flex space-x-2">
+            <textarea
+              value={editForm.limits}
+              onChange={(e) => setEditForm({...editForm, limits: e.target.value})}
+              className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                validateJson(editForm.limits) ? 'border-gray-300' : 'border-red-500'
+              }`}
+              rows={3}
+              placeholder={templates.limits}
+              required
+            />
+            <button
+              onClick={() => setEditForm({...editForm, limits: templates.limits})}
+              className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm whitespace-nowrap"
+            >
+              Use Template
+            </button>
+          </div>
+          {!validateJson(editForm.limits) && (
+            <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Scraping Config (JSON) - Optional
+          </label>
+          <div className="flex space-x-2">
+            <textarea
+              value={editForm.scrapingConfig}
+              onChange={(e) => setEditForm({...editForm, scrapingConfig: e.target.value})}
+              className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                editForm.scrapingConfig === '' || validateJson(editForm.scrapingConfig) ? 'border-gray-300' : 'border-red-500'
+              }`}
+              rows={3}
+              placeholder={templates.scrapingConfig}
+            />
+            <button
+              onClick={() => setEditForm({...editForm, scrapingConfig: templates.scrapingConfig})}
+              className="px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm whitespace-nowrap"
+            >
+              Use Template
+            </button>
+          </div>
+          {editForm.scrapingConfig !== '' && !validateJson(editForm.scrapingConfig) && (
+            <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Render content based on state
   const renderContent = () => {
@@ -409,6 +949,12 @@ const ServiceConfigurationPage: React.FC = () => {
                         className="px-3 py-1 rounded text-sm bg-red-100 text-red-700 hover:bg-red-200"
                       >
                         Delete
+                      </button>
+                      <button
+                        onClick={() => testProvider(provider)}
+                        className="px-3 py-1 rounded text-sm bg-purple-100 text-purple-700 hover:bg-purple-200"
+                      >
+                        Test
                       </button>
                     </div>
                   </div>
@@ -572,7 +1118,7 @@ const ServiceConfigurationPage: React.FC = () => {
                     </label>
                     <select
                       value={editForm.type}
-                      onChange={(e) => setEditForm({...editForm, type: e.target.value})}
+                      onChange={(e) => handleTypeChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     >
@@ -599,80 +1145,39 @@ const ServiceConfigurationPage: React.FC = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Capabilities (JSON) *
-                    </label>
-                    <textarea
-                      value={editForm.capabilities}
-                      onChange={(e) => setEditForm({...editForm, capabilities: e.target.value})}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        validateJson(editForm.capabilities) ? 'border-gray-300' : 'border-red-500'
-                      }`}
-                      rows={3}
-                      placeholder='["AI_DISCOVERY", "MARKET_DISCOVERY"]'
-                      required
-                    />
-                    {!validateJson(editForm.capabilities) && (
-                      <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
-                    )}
-                  </div>
+                  {/* Input Mode Toggle */}
+                  {editForm.type && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Input Mode</label>
+                      <div className="flex space-x-4">
+                        <button
+                          onClick={() => setInputMode('form')}
+                          className={`px-4 py-2 rounded-md text-sm font-medium ${
+                            inputMode === 'form' 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          Form View
+                        </button>
+                        <button
+                          onClick={() => setInputMode('json')}
+                          className={`px-4 py-2 rounded-md text-sm font-medium ${
+                            inputMode === 'json' 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          JSON View
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Configuration (JSON) *
-                    </label>
-                    <textarea
-                      value={editForm.config}
-                      onChange={(e) => setEditForm({...editForm, config: e.target.value})}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        validateJson(editForm.config) ? 'border-gray-300' : 'border-red-500'
-                      }`}
-                      rows={4}
-                      placeholder='{"apiKey": "your-api-key", "endpoint": "https://api.example.com"}'
-                      required
-                    />
-                    {!validateJson(editForm.config) && (
-                      <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Limits (JSON) *
-                    </label>
-                    <textarea
-                      value={editForm.limits}
-                      onChange={(e) => setEditForm({...editForm, limits: e.target.value})}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        validateJson(editForm.limits) ? 'border-gray-300' : 'border-red-500'
-                      }`}
-                      rows={3}
-                      placeholder='{"monthlyQuota": 1000, "concurrentRequests": 5}'
-                      required
-                    />
-                    {!validateJson(editForm.limits) && (
-                      <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Scraping Config (JSON) - Optional
-                    </label>
-                    <textarea
-                      value={editForm.scrapingConfig}
-                      onChange={(e) => setEditForm({...editForm, scrapingConfig: e.target.value})}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        editForm.scrapingConfig === '' || validateJson(editForm.scrapingConfig) ? 'border-gray-300' : 'border-red-500'
-                      }`}
-                      rows={3}
-                      placeholder='{"maxDepth": 3, "maxPages": 100, "delay": 1000}'
-                    />
-                    {editForm.scrapingConfig !== '' && !validateJson(editForm.scrapingConfig) && (
-                      <p className="text-red-500 text-sm mt-1">Invalid JSON format</p>
-                    )}
-                  </div>
+                  {/* Dynamic Form Content */}
+                  {editForm.type && (
+                    inputMode === 'form' ? renderStructuredForm() : renderJsonInput()
+                  )}
                 </div>
 
                 <div className="flex justify-end space-x-3 mt-6">

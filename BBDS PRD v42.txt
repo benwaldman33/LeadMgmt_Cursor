@@ -357,6 +357,7 @@ Comprehensive administrative control panel for managing AI engines, scrapers, an
 Centralized configuration management for AI discovery, market discovery, web scraping, and site analysis services
 Dynamic service selection and fallback mechanisms based on priority, availability, and usage limits
 Real-time monitoring and control of service performance, costs, and usage statistics
+Dual interface system providing both structured form view and JSON input view for maximum user flexibility
 
 Core Components:
 Service Provider Management:
@@ -364,6 +365,7 @@ Service Provider Management:
 - Web Scraping Services: Apify, custom scrapers, and site analyzers with depth and page limit controls
 - Content Analysis Services: Lead scoring AI, keyword extraction, and content analysis engines
 - Service Status Control: Enable/disable individual services, set priorities, and configure fallback chains
+- Service Testing: Built-in test functionality to verify connectivity and basic functionality for each provider
 
 Operation-Specific Service Mapping:
 - AI Discovery Operations: Assign preferred AI engines for customer insights and product vertical discovery
@@ -378,6 +380,7 @@ Configuration Management:
 - Priority Settings: Establish service selection order and automatic fallback mechanisms
 - Scraping Configuration: Set crawling depth, page limits, and content extraction parameters
 - Cost Management: Track usage costs, set budget limits, and monitor service performance
+- Type-Specific Templates: Dynamic configuration templates for each service type (AI_ENGINE, SCRAPER, SITE_ANALYZER, CONTENT_ANALYZER)
 
 Usage Monitoring & Analytics:
 - Real-time Usage Tracking: Monitor API calls, token consumption, and service performance
@@ -397,6 +400,9 @@ Multi-service failover capabilities for critical operations
 Usage quota management with automatic service switching when limits are reached
 Integration with existing AI discovery, market discovery, and web scraping workflows
 Support for custom service provider integration and configuration
+Dual interface system supporting both novice and advanced users
+Type-specific configuration templates and dynamic placeholders
+Built-in service testing and connectivity verification
 
 Success Metrics:
 - Service Availability: 99.9% uptime for critical AI and scraping services
@@ -404,14 +410,22 @@ Success Metrics:
 - Cost Optimization: 20% reduction in service costs through intelligent provider selection
 - Performance Improvement: 50% faster response times through priority-based routing
 - Operational Visibility: Real-time monitoring of all service operations and costs
+- User Experience: 90% user satisfaction with dual interface system
+- Configuration Accuracy: 95% reduction in configuration errors through templates and validation
 
 UI/UX Features:
 - Tabbed interface for Service Providers, Operation Mappings, and Usage Statistics
+- Dual interface system: Form View for structured input, JSON View for advanced users
+- Type-specific configuration forms with dynamic field generation
 - Modal forms for creating and editing service configurations with real-time validation
 - Full CRUD operations for providers and mappings with intuitive controls
 - Responsive design with proper layout management and single navigation sidebar
-- JSON validation and formatting for configuration fields
+- JSON validation and formatting for configuration fields with visual feedback
 - Professional admin interface with consistent design patterns
+- Template buttons for quick configuration population
+- Checkbox-based capability selection for easy configuration
+- Service testing functionality with user feedback
+- Smart form validation with error highlighting and guidance
 
 4.10.3 Team & Organization Management
 Functionality:
