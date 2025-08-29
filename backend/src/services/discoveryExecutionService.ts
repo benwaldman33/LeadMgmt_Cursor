@@ -75,12 +75,8 @@ export class DiscoveryExecutionService {
         }
       });
 
-      await AuditLogService.log(data.userId, {
-        action: 'DISCOVERY_MODEL_CREATED',
-        entityType: 'DISCOVERY_MODEL',
-        entityId: discoveryModel.id,
-        description: `Created discovery model: ${data.name}`
-      });
+      // TODO: Implement audit logging
+      console.log(`Audit: DISCOVERY_MODEL_CREATED - ${discoveryModel.id} by ${data.userId}`);
 
       return discoveryModel;
     } catch (error) {
@@ -143,12 +139,8 @@ export class DiscoveryExecutionService {
       // Start the execution process asynchronously
       this.executeDiscoveryPhases(execution.id, userId);
 
-      await AuditLogService.log(userId, {
-        action: 'DISCOVERY_EXECUTION_STARTED',
-        entityType: 'DISCOVERY_EXECUTION',
-        entityId: execution.id,
-        description: `Started discovery execution: ${execution.name}`
-      });
+      // TODO: Implement audit logging
+      console.log(`Audit: DISCOVERY_EXECUTION_STARTED - ${execution.id} by ${userId}`);
 
       return execution;
     } catch (error) {
@@ -554,15 +546,13 @@ export class DiscoveryExecutionService {
       const lead = await prisma.lead.create({
         data: {
           companyName: prospect.companyName || 'Unknown Company',
-          contactName: 'Unknown', // Would be extracted in real implementation
-          email: rawData.content?.contact?.email || `info@${prospect.domain}`,
-          phone: rawData.content?.contact?.phone,
-          website: prospect.url,
+          url: prospect.url,
+          domain: prospect.domain || new URL(prospect.url).hostname,
           industry: analysis.analysis?.businessType || 'Plumbing Services',
           score: Math.round((prospect.relevanceScore || 0.8) * 100),
-          status: 'New',
-          source: 'AI Discovery',
-          notes: `Generated from AI Market Discovery execution. Relevance Score: ${prospect.relevanceScore}, Quality Score: ${prospect.qualityScore}`,
+          status: 'RAW',
+          externalSource: 'AI Discovery',
+          campaignId: 'default-campaign', // TODO: Get from execution context
           discoveryExecutionId: executionId,
           createdAt: new Date(),
           updatedAt: new Date()

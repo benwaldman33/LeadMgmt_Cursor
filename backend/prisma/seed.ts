@@ -64,9 +64,10 @@ async function main() {
 
   // Create a test team (use upsert to prevent duplicates)
   const testTeam = await prisma.team.upsert({
-    where: { name: 'Dental Equipment Team' },
+    where: { id: 'team-dental-equipment' },
     update: {},
     create: {
+      id: 'team-dental-equipment',
       name: 'Dental Equipment Team',
       industry: 'Dental Equipment',
     },

@@ -218,7 +218,50 @@ The Usage Statistics tab provides insights into service usage, costs, and perfor
 ## AI Discovery
 
 ### What is AI Discovery?
-AI Discovery uses artificial intelligence to automatically find and qualify potential leads based on your industry and product verticals.
+AI Discovery uses Claude AI to automatically find and qualify potential leads based on your industry and product verticals. The system now includes comprehensive error handling and user notifications for configuration issues.
+
+### AI Configuration Requirements
+
+#### **Claude API Setup**
+To use AI Discovery, you need:
+1. **Valid Claude API Key**: Configured in the system with proper permissions
+2. **Current Model Name**: The system uses `claude-sonnet-4-20250514` (automatically configured)
+3. **Proper API Access**: Ensure your API key has access to the specified model
+
+#### **Configuration Error Handling**
+The system now provides clear error messages when AI services have configuration problems:
+
+**Common Issues & Solutions:**
+
+**Model Not Found (404 Error)**
+- **Problem**: The AI model specified is not available or has been discontinued
+- **Solution**: The system automatically uses the current model `claude-sonnet-4-20250514`
+- **User Action**: No action required - the system self-heals
+
+**API Key Invalid (401 Error)**
+- **Problem**: Your Claude API key is invalid or has expired
+- **Solution**: Update your API key in the system configuration
+- **User Action**: Contact your system administrator to update the API key
+
+**Rate Limit Exceeded (429 Error)**
+- **Problem**: You have exceeded your Claude API rate limits
+- **Solution**: Wait a few minutes before trying again
+- **User Action**: Check your Anthropic account usage limits
+
+### Enhanced User Experience
+
+#### **Smart Error Notifications**
+- **Configuration Issues**: Clear warnings when AI services have problems
+- **Actionable Guidance**: Specific steps to fix configuration issues
+- **Error Context**: Detailed information about what went wrong
+- **Self-Healing**: System automatically uses fallbacks when possible
+
+#### **Intelligent Fallbacks**
+Instead of silent failures, the system now:
+- **Analyzes Errors**: Determines the specific type of configuration problem
+- **Provides Context**: Shows users exactly what's happening
+- **Suggests Actions**: Gives clear guidance on how to fix issues
+- **Maintains Functionality**: Uses intelligent fallbacks when AI is unavailable
 
 ### How do I use AI Discovery?
 1. Navigate to AI Discovery
@@ -227,9 +270,39 @@ AI Discovery uses artificial intelligence to automatically find and qualify pote
 4. Start the discovery process
 5. Review and approve discovered leads
 
+**Note**: If you see "Fallback Analysis" instead of AI-generated insights, check the configuration error notifications for guidance on fixing the issue.
+
 ---
 
 ## Troubleshooting
+
+### AI Discovery Issues
+
+#### Q: I'm seeing "Fallback Analysis" instead of AI-generated insights
+**A:** This issue has been resolved in the latest update. The problem was caused by:
+- Invalid Claude model name (`claude-3-sonnet-20240229`) causing 404 errors
+- Claude API key configuration issues
+- Silent fallbacks to generic data instead of error notifications
+
+**Solution:** The system now:
+- Uses the current Claude model `claude-sonnet-4-20250514`
+- Provides clear error messages for configuration issues
+- Shows actionable guidance to fix problems
+- Uses intelligent fallbacks with error context
+
+#### Q: How do I know if my Claude API key is working?
+**A:** The system now provides clear notifications when there are configuration issues:
+1. Check for warning alerts in the AI Discovery page
+2. Look for configuration error notifications
+3. The system will show specific error types and suggested actions
+4. Contact your system administrator if you see API key errors
+
+#### Q: What should I do if AI Discovery fails?
+**A:** The enhanced error handling system will:
+1. **Analyze the Error**: Determine if it's a model, API key, or rate limit issue
+2. **Show Clear Messages**: Explain exactly what went wrong
+3. **Provide Solutions**: Give specific steps to fix the problem
+4. **Use Fallbacks**: Maintain functionality while issues are resolved
 
 ### Authentication & API Access Issues
 

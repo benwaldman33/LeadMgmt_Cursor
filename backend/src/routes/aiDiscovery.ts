@@ -29,11 +29,43 @@ router.post('/sessions', authenticateToken, requireAnalyst, async (req: Request,
   }
 });
 
-// Get product verticals for an industry
-router.get('/industries/:industry/verticals', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+// AI-Driven Industry Discovery
+router.post('/discover-industries', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
   try {
-    const { industry } = req.params;
-    const verticals = await AIDiscoveryService.getProductVerticals(industry);
+    const { userInput, constraints } = req.body;
+
+    if (!userInput) {
+      return res.status(400).json({ error: 'User input is required for industry discovery' });
+    }
+
+    // Extract and validate criteria
+    const discoveryConstraints = {
+      maxIndustries: constraints?.maxIndustries || 8,
+      focusAreas: constraints?.focusAreas || [],
+      excludeIndustries: constraints?.excludeIndustries || [],
+      marketSize: constraints?.marketSize || '',
+      growthRate: constraints?.growthRate || '',
+      industryType: constraints?.industryType || '',
+      geography: constraints?.geography || ''
+    };
+
+    const discoveryResult = await AIDiscoveryService.discoverIndustries(userInput, discoveryConstraints);
+
+    res.json({
+      success: true,
+      ...discoveryResult
+    });
+  } catch (error) {
+    console.error('Error discovering industries:', error);
+    res.status(500).json({ error: 'Failed to discover industries' });
+  }
+});
+
+// Get product verticals for an industry from database
+router.get('/industries/:industryId/verticals', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { industryId } = req.params;
+    const verticals = await AIDiscoveryService.getProductVerticals(industryId);
 
     res.json({
       success: true,
@@ -131,53 +163,10 @@ router.post('/search-customers', authenticateToken, requireAnalyst, async (req: 
   }
 });
 
-// Get available industries
+// Get available industries from database
 router.get('/industries', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
   try {
-    const industries = [
-      {
-        id: 'dental',
-        name: 'Dental',
-        description: 'Dental equipment and services',
-        marketSize: '$15B',
-        growthRate: '6.2% annually'
-      },
-      {
-        id: 'construction',
-        name: 'Construction',
-        description: 'Construction equipment and materials',
-        marketSize: '$1.2T',
-        growthRate: '4.8% annually'
-      },
-      {
-        id: 'manufacturing',
-        name: 'Manufacturing',
-        description: 'Industrial manufacturing equipment',
-        marketSize: '$2.1T',
-        growthRate: '5.1% annually'
-      },
-      {
-        id: 'healthcare',
-        name: 'Healthcare',
-        description: 'Medical equipment and healthcare technology',
-        marketSize: '$500B',
-        growthRate: '7.3% annually'
-      },
-      {
-        id: 'food_beverage',
-        name: 'Food & Beverage',
-        description: 'Food processing and beverage manufacturing',
-        marketSize: '$800B',
-        growthRate: '5.9% annually'
-      },
-      {
-        id: 'distribution',
-        name: 'Distribution & Warehouse',
-        description: 'Logistics and warehouse automation',
-        marketSize: '$300B',
-        growthRate: '8.1% annually'
-      }
-    ];
+    const industries = await AIDiscoveryService.getIndustries();
 
     res.json({
       success: true,

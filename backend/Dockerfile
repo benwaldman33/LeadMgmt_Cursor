@@ -2,6 +2,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Install system dependencies including OpenSSL
+RUN apk add --no-cache \
+    openssl \
+    libc6-compat \
+    && rm -rf /var/cache/apk/*
+
 # Copy package files
 COPY package*.json ./
 

@@ -17,46 +17,116 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   const { addNotification } = useNotifications();
   
   // State management
-  const [industries, setIndustries] = useState<Industry[]>([]);
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('');
+  const [selectedIndustry, setSelectedIndustry] = useState('');
+  const [selectedProductVertical, setSelectedProductVertical] = useState('');
   const [productVerticals, setProductVerticals] = useState<ProductVertical[]>([]);
-  const [selectedProductVertical, setSelectedProductVertical] = useState<string>('');
+  const [industries, setIndustries] = useState<Industry[]>([]);
+  const [loadingVerticals, setLoadingVerticals] = useState(false);
+  const [discoveryInput, setDiscoveryInput] = useState('');
+  const [discoveringIndustries, setDiscoveringIndustries] = useState(false);
+  const [discoveredIndustries, setDiscoveredIndustries] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    marketSize: string;
+    growthRate: string;
+    relevanceScore: number;
+    reasoning: string;
+    suggestedVerticals: string[];
+    configurationError?: {
+      type: string;
+      severity: string;
+      userMessage: string;
+      technicalDetails: string;
+      suggestedActions: string[];
+      currentModel?: string;
+      recommendedModels?: string[];
+    };
+    fallbackReason?: string;
+  }>>([]);
+  const [aiEngineUsed, setAiEngineUsed] = useState<string>('');
   const [discoverySession, setDiscoverySession] = useState<DiscoverySession | null>(null);
   const [userMessage, setUserMessage] = useState<string>('');
   const [searchResults, setSearchResults] = useState<WebSearchResult[]>([]);
   const [searchConstraints, setSearchConstraints] = useState({
     geography: [] as string[],
     maxResults: 50,
-    companySize: [] as string[]
+    companySize: [] as string[],
+    marketSize: '',
+    growthRate: '',
+    industryType: '',
+    geographyFocus: ''
   });
   
   // Loading states
   const [loadingIndustries, setLoadingIndustries] = useState(true);
-  const [loadingVerticals, setLoadingVerticals] = useState(false);
   const [loadingSession, setLoadingSession] = useState(false);
   const [loadingSearch, setLoadingSearch] = useState(false);
 
-  // Load industries on component mount
-  useEffect(() => {
-    loadIndustries();
-  }, []);
-
+  // Load industries using AI discovery
   const loadIndustries = async () => {
+    if (!discoveryInput.trim()) {
+      setIndustries([]);
+      setDiscoveredIndustries([]);
+      return;
+    }
+
+    setLoadingIndustries(true);
+    setDiscoveringIndustries(true);
+    
     try {
-      setLoadingIndustries(true);
-      console.log('Loading industries...');
-      const industriesData = await aiDiscoveryService.getIndustries();
-      console.log('Industries loaded:', industriesData);
-      setIndustries(industriesData);
-    } catch (error: any) {
-      console.error('Error loading industries:', error);
-      addNotification({
-        type: 'error',
-        title: 'Failed to Load Industries',
-        message: error.response?.data?.error || 'Failed to load industries'
+      console.log('[AI Discovery] Starting AI industry discovery...');
+      const result = await aiDiscoveryService.discoverIndustries(discoveryInput, {
+        maxIndustries: 8
       });
+      
+      setDiscoveredIndustries(result.industries);
+      setAiEngineUsed(result.aiEngineUsed);
+      
+      // Check for configuration errors and notify user
+      if (result.industries[0]?.configurationError) {
+        const error = result.industries[0].configurationError;
+        addNotification({
+          type: 'warning',
+          title: 'AI Configuration Issue',
+          message: error.userMessage,
+          duration: 10000 // Show for 10 seconds
+        });
+      }
+      
+      // Convert discovered industries to the format expected by existing code
+      const convertedIndustries = result.industries.map(industry => ({
+        id: industry.id,
+        name: industry.name,
+        description: industry.description,
+        marketSize: industry.marketSize,
+        growthRate: industry.growthRate,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }));
+      
+      setIndustries(convertedIndustries);
+      console.log('[AI Discovery] Industries loaded:', convertedIndustries.length);
+    } catch (error) {
+      console.error('[AI Discovery] Error loading industries:', error);
+      setIndustries([]);
+      setDiscoveredIndustries([]);
     } finally {
       setLoadingIndustries(false);
+      setDiscoveringIndustries(false);
+    }
+  };
+
+  // Handle AI discovery input
+  const handleDiscoveryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDiscoveryInput(e.target.value);
+  };
+
+  // Handle discovery submission
+  const handleDiscoverIndustries = async () => {
+    if (discoveryInput.trim()) {
+      await loadIndustries();
     }
   };
 
@@ -163,7 +233,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
           id: `msg_insights_${Date.now()}`,
           role: 'assistant',
           content: insights.content,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           metadata: insights.metadata
         };
         
@@ -295,19 +365,223 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Industry & Product Selection */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Industry Selection */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">1. Select Industry</h2>
+          {/* AI Industry Discovery - Now Full Width */}
+          <div className="lg:col-span-3">
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">AI Industry Discovery</h2>
               
-              {loadingIndustries ? (
-                <div className="animate-pulse space-y-3">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="h-16 bg-gray-200 rounded"></div>
-                  ))}
+              {/* AI Discovery Input */}
+              <div className="mb-6">
+                <label htmlFor="discoveryInput" className="block text-sm font-medium text-gray-700 mb-2">
+                  Describe what you're looking for:
+                </label>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    id="discoveryInput"
+                    value={discoveryInput}
+                    onChange={handleDiscoveryInputChange}
+                    placeholder="e.g., I want to sell software to healthcare companies, or I'm looking for manufacturing opportunities..."
+                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    disabled={discoveringIndustries}
+                  />
+                  <button
+                    onClick={handleDiscoverIndustries}
+                    disabled={!discoveryInput.trim() || discoveringIndustries}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {discoveringIndustries ? 'Discovering...' : 'Discover Industries'}
+                  </button>
                 </div>
-              ) : (
+                {aiEngineUsed && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    Powered by: {aiEngineUsed}
+                  </p>
+                )}
+              </div>
+
+              {/* Interactive Discovery Criteria */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Refine Your Search Criteria</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Market Size (US TAM)
+                    </label>
+                    <select 
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      onChange={(e) => setSearchConstraints(prev => ({ ...prev, marketSize: e.target.value }))}
+                    >
+                      <option value="">Any size</option>
+                      <option value="1B">$1B+</option>
+                      <option value="5B">$5B+</option>
+                      <option value="10B">$10B+</option>
+                      <option value="50B">$50B+</option>
+                      <option value="100B">$100B+</option>
+                      <option value="500B">$500B+</option>
+                      <option value="1T">$1T+</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Growth Rate
+                    </label>
+                    <select 
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      onChange={(e) => setSearchConstraints(prev => ({ ...prev, growthRate: e.target.value }))}
+                    >
+                      <option value="">Any growth</option>
+                      <option value="5">5%+ annually</option>
+                      <option value="10">10%+ annually</option>
+                      <option value="15">15%+ annually</option>
+                      <option value="20">20%+ annually</option>
+                      <option value="25">25%+ annually</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Industry Type
+                    </label>
+                    <select 
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      onChange={(e) => setSearchConstraints(prev => ({ ...prev, industryType: e.target.value }))}
+                    >
+                      <option value="">Any type</option>
+                      <option value="B2B">B2B Only</option>
+                      <option value="B2C">B2C Only</option>
+                      <option value="software">Software/Tech</option>
+                      <option value="manufacturing">Manufacturing</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="financial">Financial Services</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Geography
+                    </label>
+                    <select 
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      onChange={(e) => setSearchConstraints(prev => ({ ...prev, geographyFocus: e.target.value }))}
+                    >
+                      <option value="">Global</option>
+                      <option value="US">US Only</option>
+                      <option value="NorthAmerica">North America</option>
+                      <option value="Europe">Europe</option>
+                      <option value="Asia">Asia Pacific</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={handleDiscoverIndustries}
+                    disabled={!discoveryInput.trim() || discoveringIndustries}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {discoveringIndustries ? 'Discovering...' : 'Discover with Criteria'}
+                  </button>
+                  <button
+                    onClick={() => setSearchConstraints({
+                      geography: [],
+                      maxResults: 50,
+                      companySize: [],
+                      marketSize: '',
+                      growthRate: '',
+                      industryType: '',
+                      geographyFocus: ''
+                    })}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                  >
+                    Clear Criteria
+                  </button>
+                </div>
+              </div>
+
+              {/* AI Discovered Industries */}
+              {discoveredIndustries.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                    AI Discovered Industries ({discoveredIndustries.length})
+                  </h3>
+                  
+                  {/* Configuration Error Alert */}
+                  {discoveredIndustries[0]?.configurationError && (
+                    <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-yellow-800">
+                            Configuration Issue Detected
+                          </h4>
+                          <div className="mt-2 text-sm text-yellow-700">
+                            <p className="mb-2">{discoveredIndustries[0].fallbackReason}</p>
+                            {discoveredIndustries[0].configurationError?.suggestedActions && (
+                              <div className="mt-3">
+                                <p className="font-medium mb-2">To fix this:</p>
+                                <ul className="list-disc list-inside space-y-1">
+                                  {discoveredIndustries[0].configurationError.suggestedActions.map((action: string, index: number) => (
+                                    <li key={index}>{action}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {discoveredIndustries[0].configurationError?.type === 'MODEL_NOT_FOUND' && (
+                              <div className="mt-3 p-3 bg-yellow-100 rounded border border-yellow-300">
+                                <p className="text-sm font-medium text-yellow-800 mb-2">Recommended Models:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {discoveredIndustries[0].configurationError.recommendedModels?.map((model: string) => (
+                                    <code key={model} className="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-xs font-mono">
+                                      {model}
+                                    </code>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {discoveredIndustries.map((industry) => (
+                      <div
+                        key={industry.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 transition-colors cursor-pointer"
+                        onClick={() => handleIndustrySelect(industry.id)}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium text-gray-900">{industry.name}</h4>
+                          <span className="text-xs bg-primary-100 text-primary-800 px-2 py-1 rounded-full">
+                            {Math.round(industry.relevanceScore * 100)}% match
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">{industry.description}</p>
+                        <div className="flex justify-between text-xs text-gray-500 mb-2">
+                          <span>Market: {industry.marketSize}</span>
+                          <span>Growth: {industry.growthRate}</span>
+                        </div>
+                        <p className="text-xs text-gray-500 italic">{industry.reasoning}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Industry Selection - Now Side Panel */}
+          {industries.length > 0 && (
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Select Industry</h3>
                 <div className="space-y-3">
                   {industries.map((industry) => (
                     <button
@@ -327,11 +601,13 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                     </button>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
+          )}
 
-            {/* Product Vertical Selection */}
-            {selectedIndustry && (
+          {/* Product Vertical Selection */}
+          {selectedIndustry && (
+            <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">2. Select Product Vertical</h2>
                 
@@ -374,10 +650,12 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                   </div>
                 )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Search Constraints */}
-            {selectedProductVertical && (
+          {/* Search Constraints */}
+          {selectedProductVertical && (
+            <div className="lg:col-span-1">
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">3. Search Constraints</h2>
                 
@@ -424,8 +702,8 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                   </button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* AI Conversation & Results */}
           <div className="lg:col-span-2 space-y-6">

@@ -52,6 +52,7 @@ const navigation = [
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [wsStatus, setWsStatus] = useState({ connected: false, connecting: false, error: undefined });
   const { user, logout, token } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -59,21 +60,39 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   // Connect to WebSocket when user is authenticated
   useEffect(() => {
     if (token) {
-      console.log('[WebSocket Debug] Connecting with token:', token);
-      webSocketService.connect(token);
+      console.log('[WebSocket Debug] Token available, scheduling connection...');
+      // Add a small delay to ensure backend is ready and auth context is fully established
+      const connectionTimer = setTimeout(() => {
+        console.log('[WebSocket Debug] Connecting with token:', token);
+        webSocketService.connect(token);
+      }, 500); // 500ms delay to ensure backend is ready
+
+      return () => {
+        clearTimeout(connectionTimer);
+        webSocketService.disconnect();
+      };
     } else {
       webSocketService.disconnect();
     }
-
-    return () => {
-      webSocketService.disconnect();
-    };
   }, [token]);
+
+  // Listen to WebSocket connection status changes
+  useEffect(() => {
+    const unsubscribe = webSocketService.onConnectionChange((status) => {
+      setWsStatus(status);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleLogout = () => {
     webSocketService.disconnect();
     logout();
     navigate('/login');
+  };
+
+  const handleRetryConnection = () => {
+    webSocketService.retryConnection();
   };
 
   return (
@@ -237,6 +256,27 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               />
             </div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
+              {/* WebSocket Connection Status */}
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  wsStatus.connected ? 'bg-green-500' : 
+                  wsStatus.connecting ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
+                <span className="text-xs text-gray-500">
+                  {wsStatus.connected ? 'Connected' : 
+                   wsStatus.connecting ? 'Connecting...' : 'Disconnected'}
+                </span>
+                {wsStatus.error && !wsStatus.connecting && (
+                  <button
+                    onClick={handleRetryConnection}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    title={wsStatus.error}
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+
               {/* Real-time Notifications */}
               <RealTimeNotifications />
               

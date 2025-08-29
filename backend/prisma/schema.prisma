@@ -5,7 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -49,6 +50,9 @@ model User {
   
   // Service Usage Relations
   serviceUsage      ServiceUsage[]
+  
+  // AI Discovery Sessions
+  discoverySessions DiscoverySession[] @relation("UserDiscoverySessions")
   
   @@map("users")
 }
@@ -712,4 +716,100 @@ model ServiceUsage {
   createdAt DateTime @default(now())
   
   @@map("service_usage")
+}
+
+// AI Discovery Models
+model Industry {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  marketSize  String
+  growthRate  String
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  productVerticals ProductVertical[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("industries")
+}
+
+model ProductVertical {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  marketSize  String
+  growthRate  String
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  industryId String
+  industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  customerTypes CustomerType[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("product_verticals")
+}
+
+model CustomerType {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  characteristics String[] // Array of characteristics
+  buyingBehavior String
+  marketSegment String
+  estimatedValue String
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  productVerticalId String
+  productVertical   ProductVertical @relation(fields: [productVerticalId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("customer_types")
+}
+
+model DiscoverySession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserDiscoverySessions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Session Context
+  industry        String
+  productVertical String?
+  status          String   @default("exploring") // "exploring", "product_selection", "customer_selection", "completed"
+  
+  // Relations
+  conversationHistory ConversationMessage[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("discovery_sessions")
+}
+
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  // Message Content
+  role      String   // "user" or "assistant"
+  content   String
+  metadata  String?  // JSON string for additional data
+  
+  // Timestamps
+  timestamp DateTime @default(now())
+  
+  @@map("conversation_messages")
 }
