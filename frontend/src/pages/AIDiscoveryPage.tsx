@@ -111,38 +111,9 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
       const session = await aiDiscoveryService.startDiscoverySession(selectedIndustry);
       setDiscoverySession(session);
       
-      // Generate customer insights for the selected product vertical
-      const selectedVertical = productVerticals.find(v => v.id === verticalId);
-      if (selectedVertical) {
-        try {
-          const insights = await aiDiscoveryService.generateCustomerInsights(selectedIndustry, verticalId);
-          
-          // Add customer insights as an AI message to the conversation
-          const insightsMessage: ConversationMessage = {
-            id: `msg_insights_${Date.now()}`,
-            role: 'assistant',
-            content: insights.content,
-            timestamp: new Date(),
-            metadata: insights.metadata
-          };
-          
-          // Update session with insights
-          const updatedSession = {
-            ...session,
-            conversationHistory: [...session.conversationHistory, insightsMessage]
-          };
-          setDiscoverySession(updatedSession);
-          
-          addNotification({
-            type: 'success',
-            title: 'Customer Insights Generated',
-            message: `AI has analyzed customers for ${selectedVertical.name}`
-          });
-        } catch (error: any) {
-          console.error('Error generating customer insights:', error);
-          // Don't show error notification as this is optional
-        }
-      }
+      // Don't automatically generate customer insights - let the user control the flow
+      // The initial session will have the industry introduction, and users can ask for insights when ready
+      
     } catch (error: any) {
       addNotification({
         type: 'error',
@@ -174,6 +145,50 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
         title: 'Failed to Send Message',
         message: error.response?.data?.error || 'Failed to send message'
       });
+    }
+  };
+
+  const handleGenerateInsights = async () => {
+    if (!selectedIndustry || !selectedProductVertical || !discoverySession) return;
+
+    try {
+      setLoadingSession(true);
+      
+      const selectedVertical = productVerticals.find(v => v.id === selectedProductVertical);
+      if (selectedVertical) {
+        const insights = await aiDiscoveryService.generateCustomerInsights(selectedIndustry, selectedProductVertical);
+        
+        // Add customer insights as an AI message to the conversation
+        const insightsMessage: ConversationMessage = {
+          id: `msg_insights_${Date.now()}`,
+          role: 'assistant',
+          content: insights.content,
+          timestamp: new Date(),
+          metadata: insights.metadata
+        };
+        
+        // Update session with insights
+        const updatedSession = {
+          ...discoverySession,
+          conversationHistory: [...discoverySession.conversationHistory, insightsMessage]
+        };
+        setDiscoverySession(updatedSession);
+        
+        addNotification({
+          type: 'success',
+          title: 'Customer Insights Generated',
+          message: `AI has analyzed customers for ${selectedVertical.name}`
+        });
+      }
+    } catch (error: any) {
+      console.error('Error generating customer insights:', error);
+      addNotification({
+        type: 'error',
+        title: 'Failed to Generate Insights',
+        message: error.response?.data?.error || 'Failed to generate customer insights'
+      });
+    } finally {
+      setLoadingSession(false);
     }
   };
 
@@ -466,6 +481,28 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                       Send
                     </button>
                   </div>
+                  
+                  {/* Quick Actions */}
+                  {selectedProductVertical && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleGenerateInsights}
+                          disabled={loadingSession}
+                          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                          {loadingSession ? 'Generating...' : 'Generate Customer Insights'}
+                        </button>
+                        <button
+                          onClick={handleSearchCustomers}
+                          disabled={loadingSearch}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                          {loadingSearch ? 'Searching...' : 'Search for Customers'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
