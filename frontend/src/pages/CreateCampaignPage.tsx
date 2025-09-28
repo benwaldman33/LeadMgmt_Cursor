@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { campaignsAPI, teamsAPI } from '../services/api';
+import { campaignsAPI, teamsAPI, scoringAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Team {
+  id: string;
+  name: string;
+  industry: string;
+}
+
+interface ScoringModel {
   id: string;
   name: string;
   industry: string;
@@ -14,6 +20,7 @@ const CreateCampaignPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
+  const [scoringModels, setScoringModels] = useState<ScoringModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,6 +29,7 @@ const CreateCampaignPage: React.FC = () => {
     industry: '',
     status: 'PLANNING',
     assignedTeamId: '',
+    scoringModelId: '',
     targetLeadCount: '',
     startDate: '',
     targetEndDate: '',
@@ -29,6 +37,7 @@ const CreateCampaignPage: React.FC = () => {
 
   useEffect(() => {
     fetchTeams();
+    fetchScoringModels();
   }, []);
 
   const fetchTeams = async () => {
@@ -37,6 +46,15 @@ const CreateCampaignPage: React.FC = () => {
       setTeams(response.teams || []);
     } catch (err: any) {
       console.error('Failed to fetch teams:', err);
+    }
+  };
+
+  const fetchScoringModels = async () => {
+    try {
+      const response = await scoringAPI.getAll();
+      setScoringModels(response.scoringModels || []);
+    } catch (err: any) {
+      console.error('Failed to fetch scoring models:', err);
     }
   };
 
@@ -59,6 +77,7 @@ const CreateCampaignPage: React.FC = () => {
         industry: formData.industry,
         status: formData.status,
         assignedTeamId: formData.assignedTeamId || undefined,
+        scoringModelId: formData.scoringModelId || undefined,
         targetLeadCount: formData.targetLeadCount ? parseInt(formData.targetLeadCount) : undefined,
         startDate: formData.startDate || undefined,
         targetEndDate: formData.targetEndDate || undefined,
@@ -172,6 +191,30 @@ const CreateCampaignPage: React.FC = () => {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Scoring Model */}
+          <div>
+            <label htmlFor="scoringModelId" className="block text-sm font-medium text-gray-700 mb-2">
+              Scoring Model
+            </label>
+            <select
+              id="scoringModelId"
+              name="scoringModelId"
+              value={formData.scoringModelId}
+              onChange={handleInputChange}
+              className="input-field"
+            >
+              <option value="">Select a scoring model (optional)</option>
+              {scoringModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name} ({model.industry})
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-gray-500 mt-1">
+              Choose a scoring model to automatically score leads in this campaign
+            </p>
           </div>
 
           {/* Target Lead Count */}

@@ -85,6 +85,11 @@ const ServiceConfigurationPage: React.FC = () => {
   const [editingMapping, setEditingMapping] = useState<OperationMapping | null>(null);
   const [isCreatingMapping, setIsCreatingMapping] = useState(false);
   const [inputMode, setInputMode] = useState<'form' | 'json'>('form');
+  
+  // Priority sync state
+  const [syncStatus, setSyncStatus] = useState<any>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string>('');
   const [editForm, setEditForm] = useState({
     name: '',
     type: '',
@@ -103,6 +108,7 @@ const ServiceConfigurationPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    loadSyncStatus();
   }, []);
 
 
@@ -121,6 +127,41 @@ const ServiceConfigurationPage: React.FC = () => {
       console.error('Error loading service configuration:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSyncStatus = async () => {
+    try {
+      const response = await api.get('/service-configuration/priority-sync-status');
+      setSyncStatus(response.data);
+    } catch (error) {
+      console.error('Error loading sync status:', error);
+    }
+  };
+
+  const syncAllPriorities = async () => {
+    if (!confirm('This will synchronize all OperationServiceMapping priorities to match their ServiceProvider priorities. Continue?')) {
+      return;
+    }
+
+    try {
+      setIsSyncing(true);
+      setSyncMessage('Synchronizing priorities...');
+      
+      const response = await api.post('/service-configuration/sync-all-priorities');
+      
+      if (response.data.success) {
+        setSyncMessage(response.data.message);
+        await loadData(); // Reload data to show updated priorities
+        await loadSyncStatus(); // Reload sync status
+      } else {
+        setSyncMessage(`Error: ${response.data.message}`);
+      }
+    } catch (error) {
+      console.error('Error syncing priorities:', error);
+      setSyncMessage('Error occurred during synchronization');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -451,6 +492,18 @@ const ServiceConfigurationPage: React.FC = () => {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Endpoint *</label>
+              <input
+                placeholder="e.g., https://api.openai.com/v1, https://api.anthropic.com/v1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.endpoint = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
               <input
                 type="number"
@@ -528,6 +581,31 @@ const ServiceConfigurationPage: React.FC = () => {
         {editForm.type === 'SITE_ANALYZER' && (
           <div className="space-y-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">API Key *</label>
+              <input
+                type="password"
+                placeholder="Enter your API key"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.apiKey = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Endpoint *</label>
+              <input
+                placeholder="e.g., https://api.siteanalyzer.com/v1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.endpoint = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Max Concurrency</label>
               <input
                 type="number"
@@ -570,6 +648,31 @@ const ServiceConfigurationPage: React.FC = () => {
         
         {editForm.type === 'CONTENT_ANALYZER' && (
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">API Key *</label>
+              <input
+                type="password"
+                placeholder="Enter your API key"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.apiKey = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Endpoint *</label>
+              <input
+                placeholder="e.g., https://api.contentanalyzer.com/v1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const config = parseJson(editForm.config);
+                  config.endpoint = e.target.value;
+                  setEditForm({...editForm, config: JSON.stringify(config, null, 2)});
+                }}
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Scoring Model</label>
               <input
@@ -913,6 +1016,92 @@ const ServiceConfigurationPage: React.FC = () => {
             </button>
           </nav>
         </div>
+
+        {/* Priority Sync Status */}
+        {syncStatus && (
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Priority Synchronization Status</h3>
+              <button
+                onClick={syncAllPriorities}
+                disabled={isSyncing}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  isSyncing
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {isSyncing ? 'Syncing...' : 'Sync All Priorities'}
+              </button>
+            </div>
+            
+            {syncMessage && (
+              <div className={`p-3 rounded-lg mb-3 ${
+                syncMessage.includes('Error') 
+                  ? 'bg-red-100 text-red-700 border border-red-200' 
+                  : 'bg-green-100 text-green-700 border border-green-200'
+              }`}>
+                {syncMessage}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="text-sm text-gray-500">Overall Sync</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {syncStatus.overallStatus?.overallSyncPercentage?.toFixed(1) || 0}%
+                </div>
+                <div className="text-xs text-gray-500">
+                  {syncStatus.overallStatus?.syncedMappings || 0} / {syncStatus.overallStatus?.totalMappings || 0} mappings
+                </div>
+              </div>
+              
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="text-sm text-gray-500">Providers</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {syncStatus.overallStatus?.totalProviders || 0}
+                </div>
+                <div className="text-xs text-gray-500">Total service providers</div>
+              </div>
+              
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="text-sm text-gray-500">Unsynced</div>
+                <div className="text-2xl font-bold text-red-600">
+                  {syncStatus.overallStatus?.unsyncedMappings || 0}
+                </div>
+                <div className="text-xs text-gray-500">Mappings need sync</div>
+              </div>
+            </div>
+
+            {syncStatus.providers && syncStatus.providers.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Provider Details:</h4>
+                <div className="space-y-2">
+                  {syncStatus.providers.map((provider: any) => (
+                    <div key={provider.id} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{provider.name}</span>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-gray-500">Priority: {provider.priority}</span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          provider.syncPercentage === 100 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {provider.syncPercentage.toFixed(1)}% synced
+                        </span>
+                        {provider.unsyncedMappingsCount > 0 && (
+                          <span className="text-red-600 text-xs">
+                            {provider.unsyncedMappingsCount} unsynced
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Service Providers Tab */}
         {activeTab === 'providers' && (

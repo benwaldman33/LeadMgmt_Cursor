@@ -10,6 +10,8 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CampaignsPage from './pages/CampaignsPage';
 import CreateCampaignPage from './pages/CreateCampaignPage';
+import EditCampaignPage from './pages/EditCampaignPage';
+import CampaignDetailPage from './pages/CampaignDetailPage';
 import LeadsPage from './pages/LeadsPage';
 import CreateLeadPage from './pages/CreateLeadPage';
 import EditLeadPage from './pages/EditLeadPage';
@@ -33,8 +35,8 @@ import BusinessRuleTestPage from './pages/BusinessRuleTestPage';
 import WebScrapingPage from './pages/WebScrapingPage';
 import ApifyPage from './pages/ApifyPage';
 import AdminPanelPage from './pages/AdminPanelPage';
-import CampaignDetailPage from './pages/CampaignDetailPage';
 import PipelinePage from './pages/PipelinePage';
+import PipelineResultsPage from './pages/PipelineResultsPage';
 import AIDiscoveryPage from './pages/AIDiscoveryPage';
 import MarketDiscoveryPage from './pages/MarketDiscoveryPage';
 import MarketDiscoveryWizardPage from './pages/MarketDiscoveryWizardPage';
@@ -145,6 +147,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <CreateCampaignPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/campaigns/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditCampaignPage />
           </ProtectedRoute>
         }
       />
@@ -370,6 +381,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <PipelinePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/campaigns/:campaignId/pipeline-results"
+        element={
+          <ProtectedRoute>
+            <PipelineResultsPage />
           </ProtectedRoute>
         }
       />

@@ -10,6 +10,7 @@ import {
   EyeIcon,
   CheckIcon,
   XMarkIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 interface Campaign {
@@ -27,6 +28,10 @@ interface Campaign {
     fullName: string;
   };
   assignedTeam?: {
+    id: string;
+    name: string;
+  };
+  scoringModel?: {
     id: string;
     name: string;
   };
@@ -165,6 +170,12 @@ const CampaignsPage: React.FC = () => {
                   <span className="text-gray-600">Created by:</span>
                   <span>{campaign.createdBy.fullName}</span>
                 </div>
+                {campaign.scoringModel && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Scoring Model:</span>
+                    <span className="font-medium text-primary-600">{campaign.scoringModel.name}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">
@@ -182,6 +193,15 @@ const CampaignsPage: React.FC = () => {
                   <PencilIcon className="h-4 w-4" />
                   Edit
                 </Link>
+                {campaign.currentLeadCount > 0 && (
+                  <Link
+                    to={`/campaigns/${campaign.id}/pipeline-results`}
+                    className="flex-1 btn-primary flex items-center justify-center gap-1"
+                  >
+                    <ChartBarIcon className="h-4 w-4" />
+                    Results
+                  </Link>
+                )}
               </div>
             </div>
           ))}

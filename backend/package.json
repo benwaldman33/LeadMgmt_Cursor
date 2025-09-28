@@ -13,6 +13,7 @@
     "db:studio": "prisma studio",
     "db:seed": "ts-node prisma/seed.ts",
     "setup:claude": "ts-node src/scripts/setupClaude.ts",
+    "migrate:api-keys": "ts-node src/scripts/migrateApiKeys.ts",
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"

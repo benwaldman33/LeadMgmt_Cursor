@@ -19,9 +19,10 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({ className
     const unsubscribeNotifications = webSocketService.onNotification((notification) => {
       setNotifications(prev => [notification, ...prev.slice(0, 9)]); // Keep last 10 notifications
       
-      // Show toast notification
+      // Show toast notification with better type mapping
+      const toastType = getToastType(notification.type);
       addNotification({
-        type: 'info',
+        type: toastType,
         title: notification.title,
         message: notification.message
       });
@@ -37,6 +38,29 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({ className
       unsubscribeConnection();
     };
   }, [addNotification]);
+
+  const getToastType = (notificationType: NotificationData['type']) => {
+    switch (notificationType) {
+      case 'lead_created':
+      case 'campaign_created':
+        return 'success';
+      case 'lead_updated':
+      case 'lead_assigned':
+      case 'lead_scored':
+        return 'info';
+      case 'user_activity':
+        return 'info';
+      case 'pipeline_started':
+      case 'pipeline_progress':
+        return 'info';
+      case 'pipeline_completed':
+        return 'success';
+      case 'pipeline_failed':
+        return 'error';
+      default:
+        return 'info';
+    }
+  };
 
   const removeNotification = (index: number) => {
     setNotifications(prev => prev.filter((_, i) => i !== index));
@@ -56,6 +80,14 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({ className
         return '📢';
       case 'user_activity':
         return '👥';
+      case 'pipeline_started':
+        return '🚀';
+      case 'pipeline_progress':
+        return '⏳';
+      case 'pipeline_completed':
+        return '✅';
+      case 'pipeline_failed':
+        return '❌';
       default:
         return '🔔';
     }
@@ -111,9 +143,9 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({ className
             ) : (
               <div className="divide-y divide-gray-200">
                 {notifications.map((notification, index) => (
-                  <div key={index} className="p-4 hover:bg-gray-50">
+                  <div key={index} className="p-4 hover:bg-gray-50 relative">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3">
+                      <div className="flex items-start space-x-3 pr-8">
                         <span className="text-lg">{getNotificationIcon(notification.type)}</span>
                         <div className="flex-1">
                           <h4 className="text-sm font-medium text-gray-900">
@@ -127,13 +159,17 @@ const RealTimeNotifications: React.FC<RealTimeNotificationsProps> = ({ className
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => removeNotification(index)}
-                        className="text-gray-400 hover:text-gray-600 ml-2"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
                     </div>
+                    
+                    {/* Enhanced close button for each notification */}
+                    <button
+                      onClick={() => removeNotification(index)}
+                      className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1 transition-all duration-200"
+                      aria-label="Remove notification"
+                      title="Remove notification"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
                   </div>
                 ))}
               </div>

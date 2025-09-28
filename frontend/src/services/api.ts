@@ -180,6 +180,7 @@ export const campaignsAPI = {
   create: async (campaignData: {
     name: string;
     industry: string;
+    status?: string;
     scoringModelId?: string;
     assignedTeamId?: string;
     targetLeadCount?: number;
@@ -187,6 +188,20 @@ export const campaignsAPI = {
     targetEndDate?: string;
   }) => {
     const response = await api.post('/campaigns', campaignData);
+    return response.data;
+  },
+
+  update: async (id: string, campaignData: {
+    name: string;
+    industry: string;
+    status?: string;
+    scoringModelId?: string;
+    assignedTeamId?: string;
+    targetLeadCount?: number;
+    startDate?: string;
+    targetEndDate?: string;
+  }) => {
+    const response = await api.put(`/campaigns/${id}`, campaignData);
     return response.data;
   },
 };
@@ -243,6 +258,11 @@ export const leadsAPI = {
 
   getCampaignPipelineJobs: async (campaignId: string) => {
     const response = await api.get(`/leads/campaign/${campaignId}/pipeline`);
+    return response.data;
+  },
+
+  getDetailedPipelineResults: async (campaignId: string) => {
+    const response = await api.get(`/leads/pipeline-results/${campaignId}`);
     return response.data;
   },
 

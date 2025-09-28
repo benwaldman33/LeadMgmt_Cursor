@@ -29,8 +29,8 @@ export class ServiceConfigurationService {
         service: true
       },
       orderBy: [
-        { priority: 'asc' },
-        { service: { priority: 'asc' } }
+        { service: { priority: 'asc' } }, // ServiceProvider priority FIRST
+        { priority: 'asc' }               // OperationServiceMapping priority SECOND
       ]
     });
 
@@ -147,9 +147,49 @@ export class ServiceConfigurationService {
     limits: string;
     scrapingConfig?: string | null;
   }): Promise<ServiceProvider> {
-    return await prisma.serviceProvider.create({
+    // Create the service provider
+    const provider = await prisma.serviceProvider.create({
       data
     });
+
+    // Auto-create operation mappings based on capabilities
+    await this.createDefaultOperationMappings(provider.id, data.capabilities, data.priority);
+
+    return provider;
+  }
+
+  /**
+   * Create default operation mappings for a new service provider
+   */
+  private async createDefaultOperationMappings(serviceId: string, capabilities: string, priority: number): Promise<void> {
+    try {
+      const capabilitiesArray = JSON.parse(capabilities);
+      const availableOperations = this.getAvailableOperations();
+      
+      // Create mappings for operations that match the service capabilities
+      const mappingPromises = availableOperations
+        .filter(operation => capabilitiesArray.includes(operation))
+        .map(operation => 
+          prisma.operationServiceMapping.create({
+            data: {
+              operation,
+              serviceId,
+              isEnabled: true,
+              priority,
+              config: '{}'
+            }
+          })
+        );
+
+      if (mappingPromises.length > 0) {
+        await Promise.all(mappingPromises);
+        console.log(`[ServiceConfig] Created ${mappingPromises.length} default operation mappings for new service provider`);
+      }
+
+    } catch (error) {
+      console.error('[ServiceConfig] Error creating default operation mappings:', error);
+      // Don't throw error here as the service provider was already created
+    }
   }
 
   /**
@@ -165,10 +205,248 @@ export class ServiceConfigurationService {
     limits: string;
     scrapingConfig?: string | null;
   }>): Promise<ServiceProvider> {
-    return await prisma.serviceProvider.update({
+    // Get the current provider to check if priority is changing
+    const currentProvider = await prisma.serviceProvider.findUnique({
+      where: { id }
+    });
+
+    if (!currentProvider) {
+      throw new Error('Service provider not found');
+    }
+
+    // Update the service provider
+    const updatedProvider = await prisma.serviceProvider.update({
       where: { id },
       data
     });
+
+    // If priority changed, sync OperationServiceMapping priorities
+    if (data.priority !== undefined && data.priority !== currentProvider.priority) {
+      console.log(`[ServiceConfig] Priority changed for ${updatedProvider.name} from ${currentProvider.priority} to ${data.priority}`);
+      console.log(`[ServiceConfig] Syncing OperationServiceMapping priorities...`);
+      
+      await this.syncOperationMappingPriorities(id, data.priority);
+    }
+
+    return updatedProvider;
+  }
+
+  /**
+   * Sync OperationServiceMapping priorities to match ServiceProvider priority
+   */
+  private async syncOperationMappingPriorities(serviceId: string, newPriority: number): Promise<void> {
+    try {
+      // Get all operation mappings for this service
+      const mappings = await prisma.operationServiceMapping.findMany({
+        where: { serviceId }
+      });
+
+      if (mappings.length === 0) {
+        console.log(`[ServiceConfig] No operation mappings found for service ${serviceId}`);
+        return;
+      }
+
+      // Update all operation mappings to use the new priority
+      const updatePromises = mappings.map(mapping => 
+        prisma.operationServiceMapping.update({
+          where: { id: mapping.id },
+          data: { priority: newPriority }
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      console.log(`[ServiceConfig] Updated ${mappings.length} operation mappings to priority ${newPriority}`);
+      
+      // Log the updated mappings for debugging
+      const updatedMappings = await prisma.operationServiceMapping.findMany({
+        where: { serviceId },
+        include: { service: true }
+      });
+
+      updatedMappings.forEach(mapping => {
+        console.log(`[ServiceConfig] - ${mapping.service.name} -> ${mapping.operation}: Priority ${mapping.priority}`);
+      });
+
+    } catch (error) {
+      console.error('[ServiceConfig] Error syncing operation mapping priorities:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bulk sync all OperationServiceMapping priorities to match their ServiceProvider priorities
+   */
+  async syncAllOperationMappingPriorities(): Promise<{
+    success: boolean;
+    message: string;
+    details: {
+      totalProviders: number;
+      totalMappings: number;
+      updatedMappings: number;
+      syncResults: Array<{
+        providerName: string;
+        providerPriority: number;
+        mappingsCount: number;
+        updatedCount: number;
+      }>;
+    };
+  }> {
+    try {
+      console.log('[ServiceConfig] Starting bulk priority synchronization...');
+      
+      // Get all service providers with their operation mappings
+      const providers = await prisma.serviceProvider.findMany({
+        include: {
+          operationMappings: true
+        },
+        orderBy: { priority: 'asc' }
+      });
+
+      let totalMappings = 0;
+      let totalUpdated = 0;
+      const syncResults = [];
+
+      for (const provider of providers) {
+        const mappingsCount = provider.operationMappings.length;
+        totalMappings += mappingsCount;
+        
+        if (mappingsCount === 0) {
+          syncResults.push({
+            providerName: provider.name,
+            providerPriority: provider.priority,
+            mappingsCount: 0,
+            updatedCount: 0
+          });
+          continue;
+        }
+
+        // Check which mappings need updating
+        const mappingsToUpdate = provider.operationMappings.filter(
+          mapping => mapping.priority !== provider.priority
+        );
+
+        if (mappingsToUpdate.length > 0) {
+          // Update the mappings that don't match the provider priority
+          const updatePromises = mappingsToUpdate.map(mapping =>
+            prisma.operationServiceMapping.update({
+              where: { id: mapping.id },
+              data: { priority: provider.priority }
+            })
+          );
+
+          await Promise.all(updatePromises);
+          totalUpdated += mappingsToUpdate.length;
+
+          console.log(`[ServiceConfig] Updated ${mappingsToUpdate.length} mappings for ${provider.name} to priority ${provider.priority}`);
+        }
+
+        syncResults.push({
+          providerName: provider.name,
+          providerPriority: provider.priority,
+          mappingsCount,
+          updatedCount: mappingsToUpdate.length
+        });
+      }
+
+      const message = `Bulk synchronization completed. Updated ${totalUpdated} out of ${totalMappings} operation mappings across ${providers.length} service providers.`;
+
+      console.log(`[ServiceConfig] ${message}`);
+
+      return {
+        success: true,
+        message,
+        details: {
+          totalProviders: providers.length,
+          totalMappings,
+          updatedMappings: totalUpdated,
+          syncResults
+        }
+      };
+
+    } catch (error) {
+      console.error('[ServiceConfig] Error during bulk priority synchronization:', error);
+      return {
+        success: false,
+        message: 'Error during bulk synchronization',
+        details: {
+          totalProviders: 0,
+          totalMappings: 0,
+          updatedMappings: 0,
+          syncResults: []
+        }
+      };
+    }
+  }
+
+  /**
+   * Get priority synchronization status for all providers
+   */
+  async getPrioritySyncStatus(): Promise<{
+    providers: Array<{
+      id: string;
+      name: string;
+      priority: number;
+      mappingsCount: number;
+      syncedMappingsCount: number;
+      unsyncedMappingsCount: number;
+      syncPercentage: number;
+    }>;
+    overallStatus: {
+      totalProviders: number;
+      totalMappings: number;
+      syncedMappings: number;
+      unsyncedMappings: number;
+      overallSyncPercentage: number;
+    };
+  }> {
+    try {
+      const providers = await prisma.serviceProvider.findMany({
+        include: {
+          operationMappings: true
+        },
+        orderBy: { priority: 'asc' }
+      });
+
+      const providerStatuses = providers.map(provider => {
+        const mappingsCount = provider.operationMappings.length;
+        const syncedMappingsCount = provider.operationMappings.filter(
+          mapping => mapping.priority === provider.priority
+        ).length;
+        const unsyncedMappingsCount = mappingsCount - syncedMappingsCount;
+        const syncPercentage = mappingsCount > 0 ? (syncedMappingsCount / mappingsCount) * 100 : 100;
+
+        return {
+          id: provider.id,
+          name: provider.name,
+          priority: provider.priority,
+          mappingsCount,
+          syncedMappingsCount,
+          unsyncedMappingsCount,
+          syncPercentage
+        };
+      });
+
+      const totalMappings = providerStatuses.reduce((sum, p) => sum + p.mappingsCount, 0);
+      const totalSynced = providerStatuses.reduce((sum, p) => sum + p.syncedMappingsCount, 0);
+      const totalUnsynced = totalMappings - totalSynced;
+      const overallSyncPercentage = totalMappings > 0 ? (totalSynced / totalMappings) * 100 : 100;
+
+      return {
+        providers: providerStatuses,
+        overallStatus: {
+          totalProviders: providers.length,
+          totalMappings,
+          syncedMappings: totalSynced,
+          unsyncedMappings: totalUnsynced,
+          overallSyncPercentage
+        }
+      };
+
+    } catch (error) {
+      console.error('[ServiceConfig] Error getting priority sync status:', error);
+      throw error;
+    }
   }
 
   /**

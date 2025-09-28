@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { scoringAPI } from '../services/api';
+import { scoringAPI, campaignsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { aiDiscoveryService } from '../services/aiDiscoveryService';
 
 interface ScoringCriterion {
   name: string;
@@ -16,13 +18,21 @@ interface ScoringCriterion {
 const CreateScoringModelPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
     industry: '',
+    campaignId: '',
   });
+
+  // New state for enhanced industry selection
+  const [availableIndustries, setAvailableIndustries] = useState<Array<{ value: string; label: string; source: 'database' | 'hardcoded' }>>([]);
+  const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string; industry: string }>>([]);
+  const [industryInputMode, setIndustryInputMode] = useState<'select' | 'custom'>('select');
+  const [customIndustry, setCustomIndustry] = useState('');
 
   const [criteria, setCriteria] = useState<ScoringCriterion[]>([
     {
@@ -34,6 +44,50 @@ const CreateScoringModelPage: React.FC = () => {
       type: 'KEYWORD',
     },
   ]);
+
+  // Load data on component mount
+  useEffect(() => {
+    loadAvailableIndustries();
+    loadCampaigns();
+  }, []);
+
+  // Auto-detect industry when campaign is selected
+  useEffect(() => {
+    if (formData.campaignId) {
+      const selectedCampaign = campaigns.find(c => c.id === formData.campaignId);
+      if (selectedCampaign) {
+        setFormData(prev => ({ ...prev, industry: selectedCampaign.industry }));
+        addNotification({
+          type: 'info',
+          title: 'Industry Auto-Detected',
+          message: `Industry set to "${selectedCampaign.industry}" from campaign "${selectedCampaign.name}"`
+        });
+      }
+    }
+  }, [formData.campaignId, campaigns, addNotification]);
+
+  const loadAvailableIndustries = async () => {
+    try {
+      const industries = await aiDiscoveryService.getAvailableIndustriesForScoring();
+      setAvailableIndustries(industries);
+    } catch (error) {
+      console.error('Failed to load industries:', error);
+      addNotification({
+        type: 'error',
+        title: 'Failed to Load Industries',
+        message: 'Using default industry list. You can still enter a custom industry.'
+      });
+    }
+  };
+
+  const loadCampaigns = async () => {
+    try {
+      const response = await campaignsAPI.getAll();
+      setCampaigns(response.campaigns || []);
+    } catch (error) {
+      console.error('Failed to load campaigns:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -114,9 +168,18 @@ const CreateScoringModelPage: React.FC = () => {
     }
 
     try {
+      // Determine the final industry value
+      const finalIndustry = industryInputMode === 'custom' ? customIndustry : formData.industry;
+      
+      if (!finalIndustry.trim()) {
+        setError('Please select or enter an industry');
+        setLoading(false);
+        return;
+      }
+
       const scoringData = {
         name: formData.name,
-        industry: formData.industry,
+        industry: finalIndustry,
         criteria: criteria.map(c => ({
           ...c,
           searchTerms: c.searchTerms.filter(term => term.trim() !== ''),
@@ -124,6 +187,11 @@ const CreateScoringModelPage: React.FC = () => {
       };
 
       await scoringAPI.create(scoringData);
+      addNotification({
+        type: 'success',
+        title: 'Scoring Model Created',
+        message: `"${formData.name}" has been created successfully for ${finalIndustry} industry`
+      });
       navigate('/scoring');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create scoring model');
@@ -178,24 +246,87 @@ const CreateScoringModelPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
-                Industry *
+              <label htmlFor="campaignId" className="block text-sm font-medium text-gray-700 mb-2">
+                Auto-detect from Campaign (Optional)
               </label>
               <select
-                id="industry"
-                name="industry"
-                required
-                value={formData.industry}
+                id="campaignId"
+                name="campaignId"
+                value={formData.campaignId}
                 onChange={handleInputChange}
                 className="input-field"
               >
-                <option value="">Select Industry</option>
-                <option value="Dental Equipment">Dental Equipment</option>
-                <option value="Medical Devices">Medical Devices</option>
-                <option value="Pharmaceuticals">Pharmaceuticals</option>
-                <option value="Healthcare IT">Healthcare IT</option>
-                <option value="Biotechnology">Biotechnology</option>
+                <option value="">No campaign selected</option>
+                {campaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.name} ({campaign.industry})
+                  </option>
+                ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Select a campaign to automatically set the industry
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
+                Industry *
+              </label>
+              
+              {/* Industry Input Mode Toggle */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setIndustryInputMode('select')}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    industryInputMode === 'select'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Select from List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIndustryInputMode('custom')}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    industryInputMode === 'custom'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Enter Custom
+                </button>
+              </div>
+
+              {/* Industry Selection */}
+              {industryInputMode === 'select' ? (
+                <select
+                  id="industry"
+                  name="industry"
+                  required
+                  value={formData.industry}
+                  onChange={handleInputChange}
+                  className="input-field"
+                >
+                  <option value="">Select Industry</option>
+                  {availableIndustries.map((industry) => (
+                    <option key={industry.value} value={industry.value}>
+                      {industry.label} {industry.source === 'database' ? '📊' : '🔧'}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  id="customIndustry"
+                  value={customIndustry}
+                  onChange={(e) => setCustomIndustry(e.target.value)}
+                  className="input-field"
+                  placeholder="Enter custom industry name"
+                  required
+                />
+              )}
             </div>
           </div>
         </div>

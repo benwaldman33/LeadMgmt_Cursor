@@ -83,17 +83,6 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
       setDiscoveredIndustries(result.industries);
       setAiEngineUsed(result.aiEngineUsed);
       
-      // Check for configuration errors and notify user
-      if (result.industries[0]?.configurationError) {
-        const error = result.industries[0].configurationError;
-        addNotification({
-          type: 'warning',
-          title: 'AI Configuration Issue',
-          message: error.userMessage,
-          duration: 10000 // Show for 10 seconds
-        });
-      }
-      
       // Convert discovered industries to the format expected by existing code
       const convertedIndustries = result.industries.map(industry => ({
         id: industry.id,
@@ -138,33 +127,36 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     setDiscoverySession(null);
     setSearchResults([]);
 
+    // Get the industry name for better user experience
+    const selectedIndustryData = industries.find(ind => ind.id === industryId);
+    const industryName = selectedIndustryData?.name || industryId;
+
     try {
       setLoadingVerticals(true);
       console.log('Loading product verticals for industry:', industryId);
       
-      // Show notification that Claude is discovering verticals
+      // Show notification that Claude is discovering verticals with proper industry name
       addNotification({
         type: 'info',
         title: 'AI Discovery in Progress',
-        message: `Claude AI is analyzing the ${industryId} industry to discover product verticals...`
+        message: `Claude AI is analyzing the ${industryName} industry to discover product verticals...`
       });
-      
+
       const verticals = await aiDiscoveryService.getProductVerticals(industryId);
-      console.log('Product verticals loaded:', verticals);
       setProductVerticals(verticals);
+      console.log('Product verticals loaded:', verticals.length);
       
-      // Show success notification
       addNotification({
         type: 'success',
-        title: 'Discovery Complete',
-        message: `Claude discovered ${verticals.length} product verticals for ${industryId}`
+        title: 'Product Verticals Discovered',
+        message: `Found ${verticals.length} product verticals in the ${industryName} industry`
       });
     } catch (error: any) {
       console.error('Error loading product verticals:', error);
       addNotification({
         type: 'error',
         title: 'Failed to Load Product Verticals',
-        message: error.response?.data?.error || 'Failed to load product verticals'
+        message: error.response?.data?.error || 'Failed to load product verticals for the selected industry'
       });
     } finally {
       setLoadingVerticals(false);
@@ -267,11 +259,16 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     const selectedVertical = productVerticals.find(v => v.id === selectedProductVertical);
     const customerTypes = selectedVertical?.customerTypes?.map(ct => ct.id) || [];
     
+    // Get proper names for better user experience
+    const selectedIndustryData = industries.find(ind => ind.id === selectedIndustry);
+    const industryName = selectedIndustryData?.name || selectedIndustry;
+    const productVerticalName = selectedVertical?.name || selectedProductVertical;
+    
     console.log('Selected vertical:', selectedVertical);
     console.log('Customer types from vertical:', customerTypes);
     console.log('Searching for customers with:', {
-      selectedIndustry,
-      selectedProductVertical,
+      selectedIndustry: industryName,
+      selectedProductVertical: productVerticalName,
       customerTypes,
       constraints: searchConstraints
     });
@@ -287,6 +284,14 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
 
     try {
       setLoadingSearch(true);
+      
+      // Show notification with proper names
+      addNotification({
+        type: 'info',
+        title: 'Searching for Customers',
+        message: `AI is searching for customers in the ${industryName} industry for ${productVerticalName}...`
+      });
+      
       console.log('Calling searchForCustomers...');
       const result = await aiDiscoveryService.searchForCustomers(
         selectedIndustry,
@@ -300,7 +305,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
       addNotification({
         type: 'success',
         title: 'Search Complete',
-        message: `Found ${result.totalFound} potential customers`
+        message: `Found ${result.totalFound} potential customers in ${industryName}/${productVerticalName}`
       });
     } catch (error: any) {
       console.error('Search error:', error);

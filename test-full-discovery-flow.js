@@ -194,7 +194,7 @@ async function testFullDiscoveryFlow() {
 
     if (progressChecks >= maxChecks) {
       console.log('\n   ⏰ Monitoring timeout reached. Discovery is still running...');
-      console.log(`   🌐 Check progress at: http://localhost:5173/market-discovery/execution/${execution.id}`);
+      console.log(`   🌐 Check progress at: http://localhost:3000/market-discovery/execution/${execution.id}`);
     }
 
     // 9. Test Market Stats
@@ -211,15 +211,15 @@ async function testFullDiscoveryFlow() {
 
     console.log('\n🎉 ALL TESTS PASSED! Full Discovery Flow Working!\n');
     console.log('🌐 Frontend URLs to test:');
-    console.log(`   • Market Discovery: http://localhost:5173/market-discovery`);
-    console.log(`   • Discovery Wizard: http://localhost:5173/market-discovery/wizard`);
-    console.log(`   • Progress Monitor: http://localhost:5173/market-discovery/execution/${execution.id}`);
+    console.log(`   • Market Discovery: http://localhost:3000/market-discovery`);
+    console.log(`   • Discovery Wizard: http://localhost:3000/market-discovery/wizard`);
+    console.log(`   • Progress Monitor: http://localhost:3000/market-discovery/execution/${execution.id}`);
     console.log('\n✨ The AI Market Discovery system is fully operational!');
 
   } catch (error) {
     console.error('\n❌ Test failed:', error.response?.data || error.message);
     console.log('\n🔧 Debug Information:');
-    console.log('   - Make sure both backend (3001) and frontend (5173) servers are running');
+    console.log('   - Make sure both backend (3001) and frontend (3000) servers are running');
     console.log('   - Verify Claude API key is configured');
     console.log('   - Check database connectivity');
     console.log('   - Ensure all dependencies are installed');

@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import { authenticateToken, requireAnalyst } from '../middleware/auth';
 import { AIDiscoveryService } from '../services/aiDiscoveryService';
 import { webSocketService } from '../services/websocketService';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const router = Router();
 
@@ -87,7 +90,38 @@ router.post('/sessions/:sessionId/messages', authenticateToken, requireAnalyst, 
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    const updatedSession = await AIDiscoveryService.addUserMessage(sessionId, message, industry, productVertical);
+    // Resolve industry and product vertical IDs to names for better AI prompts
+    let industryName = industry;
+    let productVerticalName = productVertical;
+
+    try {
+      // Try to resolve industry ID to name
+      if (industry) {
+        const industryRecord = await prisma.industry.findUnique({
+          where: { id: industry },
+          select: { name: true }
+        });
+        if (industryRecord) {
+          industryName = industryRecord.name;
+        }
+      }
+
+      // Try to resolve product vertical ID to name
+      if (productVertical) {
+        const productVerticalRecord = await prisma.productVertical.findUnique({
+          where: { id: productVertical },
+          select: { name: true }
+        });
+        if (productVerticalRecord) {
+          productVerticalName = productVerticalRecord.name;
+        }
+      }
+    } catch (resolveError) {
+      console.warn('[AI Discovery] Could not resolve IDs to names for conversation, using original values:', resolveError);
+      // Continue with original values if resolution fails
+    }
+
+    const updatedSession = await AIDiscoveryService.addUserMessage(sessionId, message, industryName, productVerticalName);
 
     res.json({
       success: true,
@@ -108,7 +142,34 @@ router.post('/customer-insights', authenticateToken, requireAnalyst, async (req:
       return res.status(400).json({ error: 'Industry and product vertical are required' });
     }
 
-    const insights = await AIDiscoveryService.generateCustomerInsights(industry, productVertical);
+    // Resolve industry and product vertical IDs to names for better AI prompts
+    let industryName = industry;
+    let productVerticalName = productVertical;
+
+    try {
+      // Try to resolve industry ID to name
+      const industryRecord = await prisma.industry.findUnique({
+        where: { id: industry },
+        select: { name: true }
+      });
+      if (industryRecord) {
+        industryName = industryRecord.name;
+      }
+
+      // Try to resolve product vertical ID to name
+      const productVerticalRecord = await prisma.productVertical.findUnique({
+        where: { id: productVertical },
+        select: { name: true }
+      });
+      if (productVerticalRecord) {
+        productVerticalName = productVerticalRecord.name;
+      }
+    } catch (resolveError) {
+      console.warn('[AI Discovery] Could not resolve IDs to names for insights, using original values:', resolveError);
+      // Continue with original values if resolution fails
+    }
+
+    const insights = await AIDiscoveryService.generateCustomerInsights(industryName, productVerticalName);
 
     res.json({
       success: true,
@@ -139,17 +200,48 @@ router.post('/search-customers', authenticateToken, requireAnalyst, async (req: 
     // Ensure customerTypes is an array (can be empty)
     const customerTypesArray = Array.isArray(customerTypes) ? customerTypes : [];
 
+    // Resolve industry and product vertical IDs to names for better AI prompts and user experience
+    let industryName = industry;
+    let productVerticalName = productVertical;
+
+    try {
+      // Try to resolve industry ID to name
+      const industryRecord = await prisma.industry.findUnique({
+        where: { id: industry },
+        select: { name: true }
+      });
+      if (industryRecord) {
+        industryName = industryRecord.name;
+        console.log(`[AI Discovery] Resolved industry ID ${industry} to name: ${industryName}`);
+      }
+
+      // Try to resolve product vertical ID to name
+      const productVerticalRecord = await prisma.productVertical.findUnique({
+        where: { id: productVertical },
+        select: { name: true }
+      });
+      if (productVerticalRecord) {
+        productVerticalName = productVerticalRecord.name;
+        console.log(`[AI Discovery] Resolved product vertical ID ${productVertical} to name: ${productVerticalName}`);
+      }
+    } catch (resolveError) {
+      console.warn('[AI Discovery] Could not resolve IDs to names, using original values:', resolveError);
+      // Continue with original values if resolution fails
+    }
+
+    console.log(`[AI Discovery] Searching for customers with resolved names: ${industryName}/${productVerticalName}`);
+
     const results = await AIDiscoveryService.searchForCustomers(
-      industry,
-      productVertical,
+      industryName,
+      productVerticalName,
       customerTypesArray,
       constraints
     );
 
-    // Send notification
+    // Send notification with proper names
     await webSocketService.sendUserActivity(
       req.user!.id, 
-      `searched for ${results.length} customers in ${industry}/${productVertical}`
+      `searched for ${results.length} customers in ${industryName}/${productVerticalName}`
     );
 
     res.json({
@@ -175,6 +267,21 @@ router.get('/industries', authenticateToken, requireAnalyst, async (req: Request
   } catch (error) {
     console.error('Error getting industries:', error);
     res.status(500).json({ error: 'Failed to get industries' });
+  }
+});
+
+// Get available industries for scoring model creation
+router.get('/industries-for-scoring', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const industries = await AIDiscoveryService.getAvailableIndustriesForScoring();
+
+    res.json({
+      success: true,
+      industries
+    });
+  } catch (error) {
+    console.error('Error getting industries for scoring:', error);
+    res.status(500).json({ error: 'Failed to get industries for scoring' });
   }
 });
 

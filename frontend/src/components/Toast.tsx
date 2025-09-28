@@ -71,32 +71,42 @@ const Toast: React.FC<ToastProps> = ({ id, type, title, message, onClose }) => {
     }
   };
 
+  const handleClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClose(id);
+  };
+
   return (
     <div
-      className={`max-w-sm w-full ${getBackgroundColor()} border rounded-lg shadow-lg p-4 mb-4 transition-all duration-300 ease-in-out transform hover:scale-105`}
+      className={`max-w-sm w-full ${getBackgroundColor()} border rounded-lg shadow-lg p-4 mb-4 transition-all duration-300 ease-in-out transform hover:scale-105 relative`}
       role="alert"
     >
       <div className="flex items-start">
         <div className="flex-shrink-0">
           {getIcon()}
         </div>
-        <div className="ml-3 flex-1">
+        <div className="ml-3 flex-1 pr-8">
           <div className="flex items-center justify-between">
             <h3 className={`text-sm font-medium ${getTitleColor()}`}>
               {title}
             </h3>
-            <button
-              onClick={() => onClose(id)}
-              className="ml-4 flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <XMarkIcon className="h-4 w-4" />
-            </button>
           </div>
           <div className={`mt-1 text-sm ${getMessageColor()}`}>
             {message}
           </div>
         </div>
       </div>
+      
+      {/* Enhanced close button - positioned absolutely to ensure visibility */}
+      <button
+        onClick={handleClose}
+        className="absolute top-2 right-2 flex-shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1 transition-all duration-200 z-10"
+        aria-label="Close notification"
+        title="Close notification"
+      >
+        <XMarkIcon className="h-4 w-4" />
+      </button>
     </div>
   );
 };

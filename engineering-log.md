@@ -1,456 +1,471 @@
-# Engineering Log - BBDS Universal Lead Scoring Platform
+# LeadMgmt Engineering Log
 
-## Project Overview
-BBDS (Business Business Development System) is a comprehensive lead scoring and market discovery platform that combines AI-powered analysis with web scraping to identify and qualify business opportunities.
+## Latest Updates - 2025-09-28
 
-## Current Status: ✅ **AI DISCOVERY SYSTEM FULLY OPERATIONAL**
+### 🔧 CRITICAL FIXES: AI Discovery Conversation & Leads Page Issues
 
-### Latest Achievement: Resolved AI Discovery Fallback Issues
-**Date**: 2025-08-28  
-**Status**: ✅ **COMPLETED**  
-**Priority**: CRITICAL
+#### Problem 1: AI Discovery Conversation ID Resolution
+**Issue**: AI conversations were displaying database IDs (e.g., "cmg2upxjz000d6429mbhbf7y1") instead of human-readable industry names, causing confusion and poor user experience.
 
-#### What Was Fixed
-- **Critical AI Discovery Failure**: System was falling back to generic "Fallback Analysis" instead of using Claude AI
-- **Invalid Model Configuration**: Claude model name `claude-3-sonnet-20240229` was causing 404 Not Found errors
-- **API Key Issues**: Resolved Claude API key authentication problems
-- **Silent Failures**: Implemented comprehensive error handling and user notifications
+**Root Cause**: The conversation message endpoint (`/sessions/:sessionId/messages`) was missing the ID resolution logic that existed in other AI Discovery endpoints.
 
-#### Technical Implementation Details
-
-##### **Root Cause Analysis**
+**Solution**: Added the same ID resolution pattern used in customer search and insights endpoints:
 ```typescript
-// The issue was in the Claude model configuration
-const model = await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229';
-// This model name was invalid and caused 404 errors
-```
+// Resolve industry and product vertical IDs to names for better AI prompts
+let industryName = industry;
+let productVerticalName = productVertical;
 
-##### **Solution Implemented**
-```typescript
-// Updated to current valid model
-const model = 'claude-sonnet-4-20250514';
-// This model is available and working with Claude API
-```
-
-##### **Enhanced Error Handling**
-```typescript
-private static analyzeClaudeError(error: any): any {
-  if (errorMessage.includes('404 Not Found') && errorMessage.includes('model:')) {
-    return {
-      type: 'MODEL_NOT_FOUND',
-      severity: 'HIGH',
-      userMessage: `The Claude model '${failedModel}' is not available or has been discontinued.`,
-      suggestedActions: [
-        'Update your Claude model configuration to a current model name',
-        'Use claude-sonnet-4-20250514 or claude-3-haiku-20240307'
-      ]
-    };
+try {
+  if (industry) {
+    const industryRecord = await prisma.industry.findUnique({
+      where: { id: industry },
+      select: { name: true }
+    });
+    if (industryRecord) {
+      industryName = industryRecord.name;
+    }
   }
+  // Similar logic for productVertical...
+} catch (resolveError) {
+  console.warn('[AI Discovery] Could not resolve IDs to names for conversation, using original values:', resolveError);
 }
 ```
 
-##### **User Experience Improvements**
-1. **Clear Error Messages**: Users now see exactly what's wrong with their AI configuration
-2. **Actionable Guidance**: Specific steps to fix configuration issues
-3. **Configuration Notifications**: Warning alerts when AI services have problems
-4. **Smart Fallbacks**: Intelligent fallback with error context instead of silent failures
+#### Problem 2: Leads Page 400 Bad Request Error
+**Issue**: Leads page was failing to load with 400 Bad Request errors when making search requests.
 
-#### **Previous Achievement: Enhanced Service Configuration Panel**
-**Date**: 2025-08-24  
-**Status**: ✅ **COMPLETED**  
-**Priority**: HIGH  
+**Root Cause**: Frontend-backend validation mismatch:
+- Frontend sent `status` as string (`""`)
+- Backend expected `status` as array (`[]`)
+- Date fields sent as strings but validated as Date objects
 
-#### What Was Implemented
-- **Dual Interface System**: Form View + JSON View for maximum user flexibility
-- **Type-Specific Templates**: Dynamic placeholders and examples for each service type
-- **Service Provider Testing**: Test button for each provider to verify connectivity
-- **Smart Form Validation**: JSON validation with visual feedback
-- **Capabilities Selection**: Checkbox-based capability management
-
-#### Technical Implementation Details
-
-##### **Frontend Architecture**
-```tsx
-// Modular form components
-const renderStructuredForm = () => {
-  // Type-specific configuration fields
-  // Capabilities selection with checkboxes
-  // Common limits section
-  // Scraping configuration for applicable types
-};
-
-const renderJsonInput = () => {
-  // JSON textareas with template buttons
-  // Dynamic placeholders based on service type
-  // JSON validation and error handling
-};
-```
-
-##### **State Management**
-```tsx
-const [inputMode, setInputMode] = useState<'form' | 'json'>('form');
-const [editForm, setEditForm] = useState({
-  name: '',
-  type: '',
-  priority: 1,
-  capabilities: '[]',
-  config: '{}',
-  limits: '{}',
-  scrapingConfig: ''
+**Solution**: Updated frontend filter handling:
+```typescript
+// Fixed initial state
+const [filters, setFilters] = useState<LeadFilters>({
+  status: [], // Array instead of string
+  dateFrom: undefined, // Undefined instead of empty string
+  dateTo: undefined,
+  // ... other fields
 });
-```
 
-##### **Type-Specific Templates**
-```tsx
-const getTypeTemplates = (type: string) => {
-  switch (type) {
-    case 'AI_ENGINE':
-      return {
-        capabilities: '["AI_DISCOVERY", "MARKET_DISCOVERY", "KEYWORD_EXTRACTION", "CONTENT_ANALYSIS", "LEAD_SCORING"]',
-        config: '{"apiKey": "your-api-key", "model": "gpt-4", "maxTokens": 4096, "temperature": 0.7}',
-        limits: '{"monthlyQuota": 1000, "concurrentRequests": 5, "costPerRequest": 0.03}',
-        scrapingConfig: 'null'
-      };
-    // ... other types
-  }
+// Enhanced filter change handler
+const handleAdvancedFilterChange = (key: string, value: any) => {
+  setFilters(prev => {
+    const newFilters = { ...prev };
+    
+    if (key === 'status') {
+      if (value === '' || value === undefined) {
+        newFilters[key] = [];
+      } else {
+        newFilters[key] = Array.isArray(value) ? value : [value];
+      }
+    } else {
+      newFilters[key] = value;
+    }
+    
+    return newFilters;
+  });
 };
 ```
 
-##### **Service Testing Implementation**
-```tsx
-const testProvider = async (provider: ServiceProvider) => {
+### 🚀 MAJOR ENHANCEMENT: Scoring Model Industry Selection Overhaul
+
+#### Problem Identified
+Users were unable to create scoring models for industries discovered through AI Discovery (e.g., "Plant-Based Protein Manufacturing") because the scoring model creation form only offered 5 hardcoded healthcare industries.
+
+#### Root Cause Analysis
+1. **Separate Industry Systems**: AI Discovery used dynamic database-driven industries, while scoring models used hardcoded list
+2. **No Custom Input**: No way to enter custom industry names
+3. **No Auto-Detection**: No way to automatically detect industry from existing campaigns
+4. **Limited Flexibility**: Only 5 predefined options available
+
+#### Solution Implemented
+
+##### 1. Dynamic Industry List Integration
+```typescript
+// New service method combining database and hardcoded industries
+async getAvailableIndustriesForScoring(): Promise<Array<{ value: string; label: string; source: 'database' | 'hardcoded' }>> {
   try {
-    const response = await api.post(`/service-configuration/providers/${provider.id}/test`);
-    // Handle success/failure with user feedback
+    // Get dynamic industries from database
+    const dbIndustries = await this.getIndustries();
+    
+    // Get hardcoded industries for backward compatibility
+    const hardcodedIndustries = [
+      { value: 'Dental Equipment', label: 'Dental Equipment' },
+      // ... other hardcoded options
+    ];
+
+    // Combine and deduplicate
+    const allIndustries = [
+      ...dbIndustries.map(ind => ({ value: ind.name, label: ind.name, source: 'database' as const })),
+      ...hardcodedIndustries.map(ind => ({ ...ind, source: 'hardcoded' as const }))
+    ];
+
+    // Remove duplicates and sort alphabetically
+    const uniqueIndustries = allIndustries.filter((industry, index, self) => 
+      index === self.findIndex(i => i.value === industry.value)
+    );
+
+    return uniqueIndustries.sort((a, b) => a.label.localeCompare(b.label));
   } catch (error) {
-    // Error handling and user notification
-  }
-};
-```
-
-#### **User Experience Improvements**
-1. **Form View (New Users)**: Clean, structured inputs with type-specific fields
-2. **JSON View (Advanced Users)**: Raw JSON with templates and validation
-3. **Smart Defaults**: New providers default to Form View, editing defaults to JSON View
-4. **Template Support**: Quick population with working examples
-5. **Visual Feedback**: JSON validation with color-coded borders and error messages
-
-#### **Service Types Supported**
-- **AI_ENGINE**: Claude, OpenAI, GPT models
-- **SCRAPER**: Apify, custom scrapers
-- **SITE_ANALYZER**: Website analysis tools
-- **CONTENT_ANALYZER**: Content analysis services
-
-#### **Capabilities System**
-- **AI_DISCOVERY**: AI-powered lead discovery
-- **MARKET_DISCOVERY**: Market research and analysis
-- **WEB_SCRAPING**: Web data extraction
-- **SITE_ANALYSIS**: Full website analysis
-- **KEYWORD_EXTRACTION**: Keyword identification
-- **CONTENT_ANALYSIS**: Content analysis and insights
-- **LEAD_SCORING**: Lead quality scoring
-
----
-
-## Previous Achievements
-
-### ✅ **Service Configuration System - COMPLETED**
-**Date**: [Previous Date]  
-**Status**: ✅ **COMPLETED**  
-**Priority**: HIGH  
-
-#### What Was Implemented
-- **Database Schema**: ServiceProvider, OperationServiceMapping, ServiceUsage models
-- **Backend Service Layer**: ServiceConfigurationService with smart service selection
-- **Admin API Endpoints**: Full REST API for service management
-- **Frontend Admin Interface**: Tabbed interface for service management
-- **Service Provider Management**: Enable/disable, configure, set limits
-- **Operation-Specific Mapping**: Assign services to specific operations
-- **Usage Tracking**: Monitor usage, costs, performance
-
-#### Technical Details
-- **Prisma Schema**: Extended with service configuration models
-- **Role-Based Access**: SUPER_ADMIN only access control
-- **JSON Configuration**: Flexible storage for API keys and settings
-- **Priority System**: Automatic failover based on priority and availability
-
-### ✅ **AI Discovery System - COMPLETED**
-**Date**: [Previous Date]  
-**Status**: ✅ **COMPLETED**  
-**Priority**: HIGH  
-
-#### What Was Implemented
-- **Industry Selection**: 6 major industries (Dental, Construction, Manufacturing, Healthcare, Food & Beverage, Distribution)
-- **Product Vertical Discovery**: Industry-specific verticals and customer types
-- **AI Conversation Interface**: Guided discovery sessions
-- **Pipeline Integration**: Send discovered customers to enrichment workflow
-- **WebSocket Notifications**: Real-time discovery activity updates
-
-#### Technical Details
-- **Claude AI Integration**: Real-time industry analysis
-- **Dynamic Discovery**: Works for any industry Claude can analyze
-- **Mock Data Fallback**: Reliable operation even if AI fails
-- **Progress Tracking**: Real-time discovery progress monitoring
-
-### ✅ **Web Scraping & Enrichment - COMPLETED**
-**Date**: [Previous Date]  
-**Status**: ✅ **COMPLETED**  
-**Priority**: HIGH  
-
-#### What Was Implemented
-- **Comprehensive Scraping**: Full page content, metadata, structured data
-- **Enhanced Storage**: Store full scraped content (truncated to 10KB)
-- **Processing Metadata**: Success status, timing, error information
-- **Raw Data Viewer**: Advanced data visualization for scraped content
-
-#### Technical Details
-- **Apify Integration**: Professional web scraping service
-- **Content Storage**: Enhanced LeadEnrichment model
-- **Error Handling**: Comprehensive error tracking and reporting
-- **Performance Optimization**: Efficient content processing and storage
-
----
-
-## Technical Debt & Areas to Revisit
-
-### 🔄 **Service Testing Backend Implementation**
-**Priority**: MEDIUM  
-**Status**: ✅ **COMPLETED**  
-
-#### What Was Implemented
-- **Test Endpoint**: Added `POST /api/service-configuration/providers/:id/test` endpoint
-- **Service Testing Logic**: Implemented type-specific testing for each service type
-- **Configuration Validation**: Tests validate API keys, tokens, and required configuration fields
-- **Error Handling**: Comprehensive error handling with detailed feedback
-- **Response Format**: Standardized response format with success/failure indicators
-
-#### Technical Implementation Details
-```typescript
-// Route endpoint
-router.post('/providers/:id/test', auth, requireSuperAdmin, async (req, res) => {
-  const testResult = await serviceConfigService.testServiceProvider(id);
-  // Handle success/failure responses
-});
-
-// Service method
-async testServiceProvider(serviceId: string): Promise<{
-  success: boolean;
-  message: string;
-  details?: any;
-}> {
-  // Type-specific testing logic
-  switch (provider.type) {
-    case 'AI_ENGINE': return await this.testAIEngine(provider, config, capabilities);
-    case 'SCRAPER': return await this.testScraper(provider, config, capabilities);
-    case 'SITE_ANALYZER': return await this.testSiteAnalyzer(provider, config, capabilities);
-    case 'CONTENT_ANALYZER': return await this.testContentAnalyzer(provider, config, capabilities);
+    // Graceful fallback to hardcoded industries
+    return hardcodedIndustries;
   }
 }
 ```
 
-#### Testing Capabilities by Service Type
-- **AI_ENGINE**: Validates API keys, models, and endpoints
-- **SCRAPER**: Checks API tokens, default actors, and endpoints  
-- **SITE_ANALYZER**: Validates concurrency, timeout, and user agent settings
-- **CONTENT_ANALYZER**: Tests scoring models and confidence thresholds
+##### 2. Custom Industry Input
+```typescript
+// Toggle between selection modes
+const [industryInputMode, setIndustryInputMode] = useState<'select' | 'custom'>('select');
+const [customIndustry, setCustomIndustry] = useState('');
 
-#### Future Enhancements
-- **Real API Calls**: Currently validates configuration only, could be extended to make actual API calls
-- **Performance Testing**: Add response time and throughput testing
-- **Health Monitoring**: Continuous health checks and alerting
-
-### 🔄 **Enhanced Error Handling**
-**Priority**: MEDIUM  
-**Status**: PLANNED  
-
-#### What Needs to Be Done
-- Improve error messages for service configuration
-- Add validation for service-specific requirements
-- Implement better error recovery mechanisms
-- Add user guidance for common configuration issues
-
-### 🔄 **Performance Optimization**
-**Priority**: LOW  
-**Status**: PLANNED  
-
-#### What Needs to Be Done
-- Optimize form rendering for large numbers of providers
-- Implement lazy loading for service configurations
-- Add caching for frequently accessed service data
-- Optimize JSON parsing and validation
-
----
-
-## Development Notes
-
-### **React Component Architecture**
-- **Modular Design**: Separate components for form and JSON views
-- **State Management**: Centralized form state with type-specific handling
-- **Event Handling**: Efficient onChange handlers for form inputs
-- **Validation**: Real-time JSON validation with visual feedback
-
-### **TypeScript Implementation**
-- **Type Safety**: Comprehensive interface definitions
-- **Error Handling**: Proper error typing and handling
-- **Component Props**: Well-defined component interfaces
-- **State Types**: Strict typing for all state variables
-
-### **User Experience Design**
-- **Progressive Disclosure**: Show relevant fields based on service type
-- **Visual Feedback**: Color-coded validation and status indicators
-- **Template System**: Quick-start configuration with examples
-- **Flexible Input**: Support for both structured forms and raw JSON
-
----
-
-## Next Steps
-
-### **Immediate (Next Sprint)**
-1. ✅ **COMPLETED**: Dual interface service configuration
-2. ✅ **COMPLETED**: Backend service testing implementation
-3. 🔄 **PLANNED**: Enhanced error handling and validation
-
-### **Short Term (Next 2-3 Sprints)**
-1. **Service Monitoring Dashboard**: Real-time service health monitoring
-2. **Advanced Configuration Validation**: Service-specific validation rules
-3. **Configuration Templates**: Pre-built configurations for common services
-4. **Service Analytics**: Usage patterns and performance metrics
-
-### **Medium Term (Next Quarter)**
-1. **Service Marketplace**: Integration with third-party service providers
-2. **Automated Service Discovery**: Auto-detect and configure compatible services
-3. **Service Performance Optimization**: AI-driven service selection and optimization
-4. **Multi-Tenant Service Management**: Support for multiple organizations
-
----
-
-## Technical Architecture
-
-### **Frontend Stack**
-- **React 18**: Modern React with hooks and functional components
-- **TypeScript**: Full type safety and better development experience
-- **Tailwind CSS**: Utility-first CSS framework for rapid UI development
-- **React Router**: Client-side routing and navigation
-
-### **Backend Stack**
-- **Node.js**: JavaScript runtime environment
-- **Express.js**: Web application framework
-- **Prisma**: Modern database toolkit and ORM
-- **PostgreSQL**: Primary database for data persistence
-
-### **Service Integration**
-- **REST APIs**: Standard HTTP-based service communication
-- **WebSocket**: Real-time communication for live updates
-- **JSON Configuration**: Flexible service configuration storage
-- **Rate Limiting**: Service usage control and monitoring
-
----
-
-## Quality Assurance
-
-### **Testing Strategy**
-- **Unit Tests**: Component and service function testing
-- **Integration Tests**: API endpoint and service integration testing
-- **User Acceptance Testing**: End-to-end user workflow validation
-- **Performance Testing**: Load testing for service configuration operations
-
-### **Code Quality**
-- **TypeScript**: Strict type checking and compile-time error detection
-- **ESLint**: Code style and quality enforcement
-- **Prettier**: Consistent code formatting
-- **Code Review**: Peer review process for all changes
-
----
-
-*This engineering log is maintained by the development team and updated with each major milestone and technical decision.* 
-
-## 2025-08-24 - Authentication & API Access Fixes
-
-### Issue Summary
-Critical authentication problems preventing access to Apify Integration page and other authenticated endpoints. Users were getting 401 Unauthorized errors despite successful login.
-
-### Root Causes Identified
-1. **Environment Variable Misconfiguration**: `VITE_API_URL` was set to `http://localhost:3001` in docker-compose.yml, bypassing Vite proxy
-2. **Token Key Inconsistency**: Services were using different localStorage keys (`token` vs `bbds_access_token`)
-3. **Multiple PrismaClient Instances**: Each service creating its own database connection
-4. **Database Schema Mismatches**: Analytics service using SQLite functions instead of PostgreSQL
-
-### Technical Solutions Implemented
-
-#### 1. PrismaClient Consolidation
-- **Problem**: Multiple PrismaClient instances causing connection pool exhaustion
-- **Solution**: Created shared PrismaClient instance in `backend/src/index.ts`
-- **Impact**: All services now use single database connection, improved performance
-
-#### 2. Environment Variable Fix
-- **Problem**: `VITE_API_URL=http://localhost:3001` bypassed authentication middleware
-- **Solution**: Changed to `VITE_API_URL=/api` to use Vite proxy
-- **Impact**: API calls now properly route through proxy with authentication headers
-
-#### 3. Token Key Standardization
-- **Problem**: Inconsistent localStorage keys across services
-- **Solution**: Updated all services to use `bbds_access_token` key
-- **Files Modified**:
-  - `frontend/src/services/apifyService.ts`
-  - `frontend/src/services/webScrapingService.ts`
-- **Impact**: Consistent authentication across all service layers
-
-#### 4. Database Schema Compatibility
-- **Problem**: Analytics service using SQLite date functions (`strftime`) instead of PostgreSQL
-- **Solution**: Updated to use PostgreSQL functions (`TO_CHAR`, `DATE_TRUNC`)
-- **Files Modified**: `backend/src/services/analyticsService.ts`
-- **Impact**: Analytics queries now work correctly with PostgreSQL
-
-### Testing & Validation
-- ✅ Backend server accessible on port 3001
-- ✅ Database connection working with existing data
-- ✅ Authentication flow working correctly
-- ✅ API endpoints returning 200 OK instead of 401
-- ✅ Existing APIFY - BING SCRAPER now visible in UI
-- ✅ All services using consistent token handling
-
-### Files Modified
-```
-backend/
-├── src/
-│   ├── index.ts (PrismaClient consolidation)
-│   ├── services/
-│   │   ├── analyticsService.ts (PostgreSQL compatibility)
-│   │   ├── apifyService.ts (token key fix)
-│   │   └── webScrapingService.ts (token key fix)
-frontend/
-├── src/services/
-│   ├── apifyService.ts (token key fix)
-│   └── webScrapingService.ts (token key fix)
-docker-compose.yml (environment variable fix)
+// Dynamic form rendering
+{industryInputMode === 'select' ? (
+  <select>
+    <option value="">Select Industry</option>
+    {availableIndustries.map((industry) => (
+      <option key={industry.value} value={industry.value}>
+        {industry.label} {industry.source === 'database' ? '📊' : '🔧'}
+      </option>
+    ))}
+  </select>
+) : (
+  <input
+    type="text"
+    value={customIndustry}
+    onChange={(e) => setCustomIndustry(e.target.value)}
+    placeholder="Enter custom industry name"
+  />
+)}
 ```
 
-### Performance Impact
-- **Database Connections**: Reduced from N connections to 1 shared connection
-- **API Response Time**: Improved due to proper authentication flow
-- **Memory Usage**: Reduced due to single PrismaClient instance
+##### 3. Campaign Auto-Detection
+```typescript
+// Auto-detect industry when campaign is selected
+useEffect(() => {
+  if (formData.campaignId) {
+    const selectedCampaign = campaigns.find(c => c.id === formData.campaignId);
+    if (selectedCampaign) {
+      setFormData(prev => ({ ...prev, industry: selectedCampaign.industry }));
+      addNotification({
+        type: 'info',
+        title: 'Industry Auto-Detected',
+        message: `Industry set to "${selectedCampaign.industry}" from campaign "${selectedCampaign.name}"`
+      });
+    }
+  }
+}, [formData.campaignId, campaigns, addNotification]);
+```
 
-### Security Improvements
-- **Authentication**: Now properly enforced through Vite proxy
-- **Token Handling**: Standardized and secure token storage
-- **API Access**: All endpoints now require valid authentication
+#### Benefits Achieved
+1. **Unlimited Industry Support**: Users can now create scoring models for any industry
+2. **Seamless Integration**: AI Discovery industries automatically available in scoring models
+3. **Improved UX**: Multiple input methods (select, custom, auto-detect)
+4. **Backward Compatibility**: Existing hardcoded industries still supported
+5. **Visual Clarity**: Icons indicate data source (database vs hardcoded)
 
-### Next Steps
-- Monitor authentication performance
-- Consider implementing token refresh mechanism
-- Add comprehensive API endpoint testing
-- Document authentication flow for developers
+### 🔍 Technical Architecture Improvements
+
+#### Frontend-Backend Type Consistency
+- Enhanced validation schemas alignment
+- Improved error handling for API requests
+- Better data type conversion and validation
+- Consistent filter handling across components
+
+#### Service Layer Enhancements
+- Added new methods to AI Discovery service
+- Improved error handling and fallback mechanisms
+- Enhanced data deduplication and sorting
+- Better separation of concerns
+
+#### User Experience Improvements
+- Clear visual indicators for different data sources
+- Intuitive toggle between input modes
+- Helpful notifications and feedback
+- Consistent behavior across similar features
+
+## Previous Updates - 2025-08-31
+
+### 🚨 CRITICAL FIX: AI Discovery Customer Search Issue
+
+#### Problem Identified
+The AI Discovery customer search was consistently returning 0 results despite having a robust AI search system. After deep analysis, we identified **Hypothesis 3: Frontend-Backend Data Mismatch** as the root cause.
+
+#### Root Cause Analysis
+1. **Frontend passes database IDs**: `selectedIndustry` and `selectedProductVertical` were database UUIDs
+2. **Backend expects names**: AI prompts were built using these IDs directly
+3. **AI receives garbage**: Instead of "Healthcare / Medical Devices", AI got "uuid-123 / uuid-456"
+4. **AI can't understand**: The AI couldn't search for customers in "uuid-123" industry
+5. **Returns empty results**: AI either returned no results or malformed responses
+6. **Parsing fails**: Even if AI returned something, it wasn't the expected format
+7. **Empty array returned**: Error handling returned empty array
+
+#### Solution Implemented
+
+##### Backend Fix (aiDiscovery.ts)
+```typescript
+// ID Resolution Phase
+let industryName = industry;
+let productVerticalName = productVertical;
+
+try {
+  // Resolve industry ID to name
+  const industryRecord = await prisma.industry.findUnique({
+    where: { id: industry },
+    select: { name: true }
+  });
+  if (industryRecord) {
+    industryName = industryRecord.name;
+  }
+
+  // Resolve product vertical ID to name
+  const productVerticalRecord = await prisma.productVertical.findUnique({
+    where: { id: productVertical },
+    select: { name: true }
+  });
+  if (productVerticalRecord) {
+    productVerticalName = productVerticalRecord.name;
+  }
+} catch (resolveError) {
+  // Graceful fallback to original values
+  console.warn('[AI Discovery] Could not resolve IDs to names, using original values');
+}
+
+// AI now receives proper names
+const results = await AIDiscoveryService.searchForCustomers(
+  industryName,  // "Healthcare" instead of "uuid-123"
+  productVerticalName,  // "Medical Devices" instead of "uuid-456"
+  customerTypesArray,
+  constraints
+);
+```
+
+##### Frontend Improvements (AIDiscoveryPage.tsx)
+```typescript
+// Enhanced user experience with proper names
+const selectedIndustryData = industries.find(ind => ind.id === selectedIndustry);
+const industryName = selectedIndustryData?.name || selectedIndustry;
+const productVerticalName = selectedVertical?.name || selectedProductVertical;
+
+// User sees meaningful notifications
+addNotification({
+  type: 'info',
+  title: 'Searching for Customers',
+  message: `AI is searching for customers in the ${industryName} industry for ${productVerticalName}...`
+});
+```
+
+#### Notification System Enhancement
+
+##### Problem
+"User Activity" notifications couldn't be closed and showed database IDs instead of meaningful names.
+
+##### Solution
+1. **Enhanced Toast Component**: Repositioned close buttons with better visibility
+2. **Improved RealTimeNotifications**: Better type mapping and positioning
+3. **Accessibility**: Added proper ARIA labels and hover effects
+4. **Name Resolution**: All notifications now show proper industry/product vertical names
+
+```typescript
+// Enhanced close button positioning
+<button
+  onClick={handleClose}
+  className="absolute top-2 right-2 flex-shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1 transition-all duration-200 z-10"
+  aria-label="Close notification"
+  title="Close notification"
+>
+  <XMarkIcon className="h-4 w-4" />
+</button>
+```
+
+### 🔧 Technical Architecture Improvements
+
+#### Multi-Tier AI Search Strategy
+Implemented robust search strategy to maximize customer discovery:
+
+1. **Primary Search**: Specific criteria with exact industry/product vertical match
+2. **Broader Search**: Expanded criteria if primary search returns no results
+3. **Industry-Specific Search**: Focus on industry characteristics as final fallback
+
+```typescript
+// Multi-tier search implementation
+const results = await this.parseClaudeCustomerResults(claudeResponse);
+if (results.length > 0) {
+  return results;
+}
+
+// Try broader search
+const broaderResults = await this.parseClaudeCustomerResults(broaderResponse);
+if (broaderResults.length > 0) {
+  return broaderResults;
+}
+
+// Try industry-specific search
+const industryResults = await this.parseClaudeCustomerResults(industryResponse);
+return industryResults;
+```
+
+#### Database Schema Relationships
+```
+Industry (id, name, description, ...)
+├── ProductVertical (id, name, industryId, ...)
+│   └── CustomerType (id, name, productVerticalId, ...)
+└── OperationServiceMapping (operation, serviceId, priority, ...)
+    └── ServiceProvider (id, name, type, config, ...)
+```
+
+#### Error Handling Strategy
+1. **ID Resolution Errors**: Graceful fallback to original values
+2. **AI Engine Failures**: Multi-tier search with different strategies
+3. **Database Connection Issues**: Comprehensive logging and user feedback
+4. **Frontend State Errors**: Proper error boundaries and user notifications
+
+### 📊 Performance Optimizations
+
+#### Database Queries
+- **Selective Field Queries**: Only fetch required fields for ID resolution
+- **Optimized Joins**: Efficient relationship queries
+- **Caching Strategy**: Strategic caching of resolved names
+
+#### AI API Calls
+- **Retry Logic**: Implemented retry mechanisms for failed calls
+- **Fallback Strategies**: Multiple search approaches
+- **Response Parsing**: Robust JSON parsing with error handling
+
+#### Frontend State Management
+- **Efficient Re-renders**: Minimal state updates
+- **Optimized Notifications**: Proper cleanup and memory management
+- **Debug Logging**: Comprehensive logging for troubleshooting
+
+### 🔍 Debugging and Monitoring
+
+#### Enhanced Logging
+```typescript
+console.log(`[AI Discovery] Resolved industry ID ${industry} to name: ${industryName}`);
+console.log(`[AI Discovery] Searching for customers with resolved names: ${industryName}/${productVerticalName}`);
+```
+
+#### User Feedback
+- **Meaningful Notifications**: Users see proper names instead of IDs
+- **Progress Indicators**: Clear feedback during AI operations
+- **Error Context**: Helpful error messages with actionable guidance
+
+### 🏗️ Architectural Decisions
+
+#### ID Resolution Strategy
+- **Problem**: Frontend passes database IDs, but AI needs human-readable names
+- **Solution**: Backend resolves IDs to names before AI processing
+- **Benefits**: 
+  - AI receives meaningful prompts
+  - Users see proper names in notifications
+  - Maintains database integrity with IDs
+  - Graceful fallback if resolution fails
+
+#### Notification System Design
+- **Problem**: Some notifications couldn't be closed and showed IDs instead of names
+- **Solution**: 
+  - Enhanced Toast component with better positioning
+  - Improved RealTimeNotifications with proper type mapping
+  - Added accessibility features and better styling
+  - Resolved names displayed in all user-facing content
+
+#### Multi-Tier Search Architecture
+- **Problem**: Single search strategy often failed to find customers
+- **Solution**: Implemented three-tier search with progressive fallback
+- **Benefits**: Maximizes chances of finding relevant customers
+
+### 🧪 Testing Strategy
+
+#### Unit Testing
+- ID resolution functions
+- AI response parsing
+- Notification system components
+
+#### Integration Testing
+- End-to-end customer search flow
+- Database ID resolution
+- AI engine communication
+
+#### User Acceptance Testing
+- Notification close functionality
+- Meaningful name display
+- Error handling and user feedback
+
+### 📚 Documentation Updates
+
+#### Process Flow Documentation
+- Complete AI Discovery customer search flow
+- ID resolution process
+- Multi-tier search strategy
+- Error handling procedures
+
+#### Architectural Documentation
+- Database schema relationships
+- Service layer interactions
+- Frontend-backend communication
+- Performance considerations
+
+#### Troubleshooting Guide
+- Common issues and solutions
+- Debug logging interpretation
+- Performance optimization tips
+- Error recovery procedures
+
+### 🚀 Future Enhancements
+
+#### Planned Improvements
+1. **Caching Layer**: Implement Redis caching for resolved names
+2. **AI Response Validation**: Enhanced response validation and error recovery
+3. **Performance Monitoring**: Real-time performance metrics
+4. **User Analytics**: Track search success rates and user behavior
+
+#### Scalability Considerations
+1. **Database Optimization**: Index optimization for ID resolution queries
+2. **AI Service Load Balancing**: Distribute AI calls across multiple engines
+3. **Frontend Performance**: Implement virtual scrolling for large result sets
+4. **Caching Strategy**: Implement intelligent caching for frequently accessed data
 
 ---
 
-## Previous Entries
+## Previous Engineering Log Entries
 
-### 2025-08-24 - Service Configuration System Implementation
-- Implemented comprehensive service provider configuration system
-- Added testing capabilities for AI engines, scrapers, and analyzers
-- Enhanced UI with dual view modes (Form/JSON)
+### 2025-08-30: Service Configuration System Overhaul
+- Implemented comprehensive operation-service mapping system
+- Fixed priority ordering and synchronization issues
+- Enhanced error handling and user feedback
 
-### 2025-08-23 - Market Discovery Enhancements
-- Improved discovery workflow with execution monitoring
-- Added progress tracking and real-time updates
-- Enhanced AI-powered analysis capabilities 
+### 2025-08-29: Database Connectivity Issues
+- Resolved complex Docker database connectivity problems
+- Fixed PrismaClient instance management
+- Implemented proper environment variable configuration
+
+### 2025-08-28: Initial System Setup
+- Basic AI Discovery functionality
+- Service provider configuration
+- User authentication and authorization
+
+---
+
+## Technical Debt and Considerations
+
+### Current Technical Debt
+1. **Hardcoded Values**: Some fallback values are hardcoded
+2. **Error Recovery**: Limited automatic error recovery mechanisms
+3. **Performance Monitoring**: No comprehensive performance metrics
+4. **Testing Coverage**: Limited automated testing
+
+### Recommended Improvements
+1. **Configuration Management**: Move hardcoded values to configuration
+2. **Circuit Breaker Pattern**: Implement circuit breaker for AI service calls
+3. **Performance Monitoring**: Add comprehensive metrics and alerting
+4. **Test Automation**: Increase test coverage for critical paths
+
+### Security Considerations
+1. **API Key Management**: Ensure secure storage and rotation of AI API keys
+2. **Input Validation**: Validate all user inputs and AI responses
+3. **Rate Limiting**: Implement rate limiting for AI service calls
+4. **Audit Logging**: Comprehensive audit logging for all operations
+
+This engineering log provides a comprehensive record of the technical decisions, implementations, and considerations for the LeadMgmt AI Discovery system. Future developers can use this as a reference for understanding the system architecture and making informed decisions about enhancements and modifications. 

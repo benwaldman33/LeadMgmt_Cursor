@@ -87,6 +87,18 @@ router.post('/', authenticateToken, requireAnalyst, validateLead, async (req: Re
       },
     });
 
+    // Update campaign lead count
+    if (campaignId) {
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          currentLeadCount: {
+            increment: 1
+          }
+        }
+      });
+    }
+
     // Send WebSocket notification
     await webSocketService.sendLeadCreated(lead);
 
@@ -490,11 +502,37 @@ router.delete('/bulk', authenticateToken, requireAnalyst, validateBulkDelete, as
   try {
     const { leadIds } = req.body;
 
+    // Get leads with campaign info before deleting
+    const leadsToDelete = await prisma.lead.findMany({
+      where: { id: { in: leadIds } },
+      select: { id: true, campaignId: true }
+    });
+
+    // Count leads per campaign
+    const campaignCounts: Record<string, number> = {};
+    leadsToDelete.forEach(lead => {
+      if (lead.campaignId) {
+        campaignCounts[lead.campaignId] = (campaignCounts[lead.campaignId] || 0) + 1;
+      }
+    });
+
     const result = await prisma.lead.deleteMany({
       where: {
         id: { in: leadIds }
       }
     });
+
+    // Update campaign lead counts
+    for (const [campaignId, count] of Object.entries(campaignCounts)) {
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: {
+          currentLeadCount: {
+            decrement: count
+          }
+        }
+      });
+    }
 
     res.json({ 
       success: true,
@@ -793,6 +831,20 @@ router.get('/campaign/:campaignId/pipeline', authenticateToken, requireAnalyst, 
     res.json({ jobs });
   } catch (error) {
     console.error('Get campaign pipeline jobs error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get detailed pipeline results with scoring breakdown and ranking
+router.get('/pipeline-results/:campaignId', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const { campaignId } = req.params;
+    
+    const results = await PipelineService.getDetailedPipelineResults(campaignId);
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Pipeline results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,6 +1,7 @@
 import { prisma } from '../index';
 import { AIScoringService } from './aiScoringService';
 import { ServiceConfigurationService } from './serviceConfigurationService';
+import APIKeyService from './apiKeyService';
 
 // Helper function to decrypt sensitive values
 function decryptValue(encryptedValue: string): string {
@@ -97,104 +98,273 @@ async function getDecryptedConfig(key: string): Promise<string | null> {
     
     console.log(`[Config] Config found for ${key}:`, {
       isEncrypted: config.isEncrypted,
-      valueLength: config.value ? config.value.length : 0,
-      valueStartsWith: config.value ? config.value.substring(0, 20) + '...' : 'none'
+      valueLength: config.value.length,
+      valueStartsWith: config.value.substring(0, 20) + '...'
     });
     
     if (config.isEncrypted) {
-      console.log(`[Config] Decrypting encrypted value for ${key}`);
       const decrypted = decryptValue(config.value);
-      console.log(`[Config] Decryption result for ${key}:`, {
-        resultLength: decrypted ? decrypted.length : 0,
-        resultStartsWith: decrypted ? decrypted.substring(0, 20) + '...' : 'none',
-        isEncryptedPlaceholder: decrypted === '[ENCRYPTED]'
+      console.log(`[Config] Decrypted value for ${key}:`, {
+        length: decrypted.length,
+        startsWith: decrypted.substring(0, 20) + '...'
       });
-      
-      // If decryption returned [ENCRYPTED] placeholder, the actual value might be stored differently
-      if (decrypted === '[ENCRYPTED]') {
-        console.log(`[Config] Decryption returned [ENCRYPTED] placeholder for ${key}, checking if value is stored as-is`);
-        
-        // Check if the actual value is stored directly (not encrypted)
-        if (config.value && config.value.startsWith('sk-ant-')) {
-          console.log(`[Config] Found actual API key stored directly for ${key}, returning it`);
-          return config.value;
-        }
-        
-        // If still [ENCRYPTED], we need to get the real value from somewhere else
-        console.log(`[Config] Still getting [ENCRYPTED] for ${key}, this indicates a configuration issue`);
-        return null;
-      }
-      
       return decrypted;
+    } else {
+      console.log(`[Config] Config ${key} is not encrypted, returning as-is`);
+      return config.value;
     }
-    
-    console.log(`[Config] Returning non-encrypted value for ${key}`);
-    return config.value;
   } catch (error) {
-    console.error(`[Config] Error getting decrypted config ${key}:`, error);
+    console.error(`[Config] Error getting decrypted config for ${key}:`, error);
     return null;
   }
 }
 
+// Dynamic AI Engine API call function
+async function callAIEngine(prompt: string, operation: string = 'AI_DISCOVERY'): Promise<any> {
+  console.log(`\n[AI Discovery] === DYNAMIC AI ENGINE CALL START ===`);
+  console.log(`[AI Discovery] Operation: ${operation}`);
+  console.log(`[AI Discovery] Prompt length: ${prompt.length} characters`);
+  
+  const serviceConfigService = new ServiceConfigurationService();
+  
+  try {
+    // Get available AI engines for this operation
+    console.log(`[AI Discovery] Fetching available services for operation: ${operation}`);
+    const availableServices = await serviceConfigService.getAvailableServices(operation);
+    console.log(`[AI Discovery] Total available services: ${availableServices.length}`);
+    
+    const aiEngines = availableServices.filter(service => service.type === 'AI_ENGINE');
+    console.log(`[AI Discovery] AI engines found: ${aiEngines.length}`);
+    
+    // Log each service found
+    availableServices.forEach((service, index) => {
+      console.log(`[AI Discovery] Service ${index + 1}: ${service.name} (Type: ${service.type}, Priority: ${service.priority}, Active: ${service.isActive})`);
+    });
+    
+    if (aiEngines.length === 0) {
+      console.error(`[AI Discovery] No AI engines available for operation: ${operation}`);
+      console.log(`[AI Discovery] Available service types:`, availableServices.map(s => s.type));
+      throw new Error(`No AI engines available for operation: ${operation}`);
+    }
+    
+    // Sort by priority (lower number = higher priority)
+    console.log(`[AI Discovery] Sorting engines by priority...`);
+    aiEngines.sort((a, b) => a.priority - b.priority);
+    
+    console.log(`[AI Discovery] Engine priority order:`);
+    aiEngines.forEach((engine, index) => {
+      console.log(`[AI Discovery] ${index + 1}. ${engine.name} (Priority: ${engine.priority})`);
+    });
+    
+    // Try each AI engine in priority order
+    for (let i = 0; i < aiEngines.length; i++) {
+      const engine = aiEngines[i];
+      console.log(`\n[AI Discovery] === ATTEMPTING ENGINE ${i + 1}/${aiEngines.length} ===`);
+      console.log(`[AI Discovery] Engine: ${engine.name}`);
+      console.log(`[AI Discovery] Priority: ${engine.priority}`);
+      console.log(`[AI Discovery] Type: ${engine.type}`);
+      console.log(`[AI Discovery] Active: ${engine.isActive}`);
+      
+      try {
+        console.log(`[AI Discovery] Calling ${engine.name}...`);
+        const result = await callSpecificAIEngine(engine, prompt);
+        console.log(`[AI Discovery] === AI ENGINE CALL SUCCESS (${engine.name}) ===`);
+        console.log(`[AI Discovery] Engine used: ${engine.name}`);
+        console.log(`[AI Discovery] Priority: ${engine.priority}`);
+        return {
+          ...result,
+          engineUsed: engine.name,
+          priority: engine.priority
+        };
+      } catch (error: any) {
+        console.error(`[AI Discovery] AI engine ${engine.name} failed:`);
+        console.error(`[AI Discovery] Error type: ${error.constructor.name}`);
+        console.error(`[AI Discovery] Error message: ${error.message}`);
+        console.error(`[AI Discovery] Error stack: ${error.stack ? error.stack.split('\n').slice(0, 3).join('\n') : 'No stack trace'}`);
+        
+        // If this is the last engine, throw the error
+        if (i === aiEngines.length - 1) {
+          console.error(`[AI Discovery] All ${aiEngines.length} AI engines failed. Throwing final error.`);
+          throw new Error(`All AI engines failed. Last error: ${error.message}`);
+        }
+        
+        // Otherwise, continue to the next engine
+        console.log(`[AI Discovery] Continuing to next AI engine...`);
+      }
+    }
+    
+    throw new Error('No AI engines available');
+    
+  } catch (error) {
+    console.error('[AI Discovery] === DYNAMIC AI ENGINE CALL FAILED ===');
+    console.error('[AI Discovery] Final error:', error);
+    console.error('[AI Discovery] Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 5).join('\n') : 'No stack trace'
+    });
+    throw error;
+  }
+}
+
+// Call a specific AI engine based on its configuration
+async function callSpecificAIEngine(engine: any, prompt: string): Promise<any> {
+  console.log(`[AI Discovery] === CALLING SPECIFIC ENGINE: ${engine.name} ===`);
+  
+  try {
+    const config = JSON.parse(engine.config);
+    const capabilities = JSON.parse(engine.capabilities);
+    
+    console.log(`[AI Discovery] Engine config parsed successfully`);
+    console.log(`[AI Discovery] Config details:`, {
+      hasApiKey: !!config.apiKey,
+      apiKeyLength: config.apiKey?.length || 0,
+      apiKeyStartsWith: config.apiKey ? config.apiKey.substring(0, 10) + '...' : 'none',
+      model: config.model,
+      endpoint: config.endpoint,
+      maxTokens: config.maxTokens,
+      capabilities: capabilities
+    });
+    
+    // Determine which API to call based on the engine name/type
+    const engineName = engine.name.toLowerCase();
+    console.log(`[AI Discovery] Engine name (lowercase): ${engineName}`);
+    
+    let result;
+    if (engineName.includes('claude') || engineName.includes('anthropic')) {
+      console.log(`[AI Discovery] Routing to Claude API`);
+      result = await callClaudeAPI(config, prompt);
+    } else if (engineName.includes('openai') || engineName.includes('gpt')) {
+      console.log(`[AI Discovery] Routing to OpenAI API`);
+      result = await callOpenAIAPI(config, prompt);
+    } else if (engineName.includes('grok')) {
+      console.log(`[AI Discovery] Routing to Grok API`);
+      result = await callGrokAPI(config, prompt);
+    } else {
+      console.log(`[AI Discovery] Unknown engine type, defaulting to Claude API`);
+      result = await callClaudeAPI(config, prompt);
+    }
+    
+    console.log(`[AI Discovery] === ENGINE ${engine.name} CALL COMPLETED SUCCESSFULLY ===`);
+    return result;
+    
+  } catch (error) {
+    console.error(`[AI Discovery] === ENGINE ${engine.name} CONFIGURATION ERROR ===`);
+    console.error(`[AI Discovery] Error parsing engine config:`, error);
+    throw error;
+  }
+}
+
 // Claude API call function
-async function callClaudeAPI(prompt: string): Promise<any> {
+async function callClaudeAPI(config: any, prompt: string): Promise<any> {
   console.log('[AI Discovery] === CLAUDE API CALL START ===');
   
-  // Get and log API key status - try multiple sources
-  let CLAUDE_API_KEY = await getDecryptedConfig('Claude_API_Key') || await getDecryptedConfig('CLAUDE_API_KEY');
+  const apiKey = config.apiKey;
+  const model = config.model || 'claude-sonnet-4-20250514';
+  const maxTokens = config.maxTokens || 4096;
+  const endpoint = config.endpoint || 'https://api.anthropic.com/v1';
   
-  // Fallback: try to get the API key directly from the database if decryption failed
-  if (!CLAUDE_API_KEY || CLAUDE_API_KEY === '[ENCRYPTED]') {
-    console.log('[AI Discovery] Primary config failed, trying direct database lookup...');
-    try {
-      const directConfig = await prisma.systemConfig.findFirst({
-        where: { 
-          key: { in: ['CLAUDE_API_KEY', 'Claude_API_Key'] },
-          value: { startsWith: 'sk-ant-' }
-        }
-      });
-      
-      if (directConfig) {
-        CLAUDE_API_KEY = directConfig.value;
-        console.log('[AI Discovery] Found API key directly in database:', {
-          key: directConfig.key,
-          valueLength: directConfig.value.length,
-          valueStartsWith: directConfig.value.substring(0, 10) + '...'
-        });
-      }
-    } catch (fallbackError) {
-      console.error('[AI Discovery] Fallback database lookup failed:', fallbackError);
-    }
-  }
-  
-  console.log('[AI Discovery] Claude API key status:', {
-    hasKey: !!CLAUDE_API_KEY,
-    keyLength: CLAUDE_API_KEY ? CLAUDE_API_KEY.length : 0,
-    keyStartsWith: CLAUDE_API_KEY ? CLAUDE_API_KEY.substring(0, 10) + '...' : 'none',
-    isEncrypted: CLAUDE_API_KEY === '[ENCRYPTED]'
+  console.log('[AI Discovery] Claude configuration:', { 
+    model, 
+    maxTokens, 
+    endpoint,
+    hasApiKey: !!apiKey,
+    apiKeyLength: apiKey?.length || 0,
+    apiKeyStartsWith: apiKey ? apiKey.substring(0, 10) + '...' : 'none'
   });
-  
-  if (!CLAUDE_API_KEY || CLAUDE_API_KEY === '[ENCRYPTED]') {
-    console.error('[AI Discovery] Claude API key not configured or decryption failed');
-    throw new Error('Claude API key not configured');
-  }
 
-  const model = await getConfig('CLAUDE_MODEL') || 'claude-3-sonnet-20240229';
-  const maxTokens = await getConfig('CLAUDE_MAX_TOKENS') || '4000';
-  
-  console.log('[AI Discovery] Claude configuration:', { model, maxTokens });
+  // Validate API key
+  if (!apiKey || apiKey === '[ENCRYPTED]' || apiKey === 'your-api-key') {
+    console.error('[AI Discovery] Invalid API key detected');
+    throw new Error('Invalid Claude API key - please check your configuration');
+  }
 
   try {
-    console.log(`[AI Discovery] Making Claude API request for industry discovery`);
-    console.log(`[AI Discovery] API endpoint: https://api.anthropic.com/v1/messages`);
-    console.log(`[AI Discovery] Request payload length: ${prompt.length} characters`);
+    console.log(`[AI Discovery] Making Claude API request to: ${endpoint}/messages`);
+    console.log(`[AI Discovery] Using model: ${model}`);
+    console.log(`[AI Discovery] Max tokens: ${maxTokens}`);
     
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const requestBody = {
+      model: model,
+      max_tokens: parseInt(maxTokens),
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    };
+    
+    console.log(`[AI Discovery] Request body prepared, sending request...`);
+    
+    const response = await fetch(`${endpoint}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    console.log(`[AI Discovery] Claude API response received`);
+    console.log(`[AI Discovery] Status: ${response.status} ${response.statusText}`);
+    console.log(`[AI Discovery] Headers:`, Object.fromEntries(response.headers.entries()));
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[AI Discovery] Claude API error response:`, errorText);
+      throw new Error(`Claude API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log(`[AI Discovery] Claude API response parsed successfully`);
+    console.log(`[AI Discovery] Response type: ${typeof responseData}`);
+    console.log(`[AI Discovery] Response keys:`, Object.keys(responseData));
+    
+    if (responseData.content && responseData.content.length > 0) {
+      console.log(`[AI Discovery] Content length: ${responseData.content[0]?.text?.length || 0} characters`);
+    }
+    
+    console.log(`[AI Discovery] === CLAUDE API CALL SUCCESS ===`);
+    return responseData;
+  } catch (error) {
+    console.error('[AI Discovery] === CLAUDE API CALL FAILED ===');
+    console.error('[AI Discovery] Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 3).join('\n') : 'No stack trace'
+    });
+    throw error;
+  }
+}
+
+// OpenAI API call function
+async function callOpenAIAPI(config: any, prompt: string): Promise<any> {
+  console.log('[AI Discovery] === OPENAI API CALL START ===');
+  
+  const apiKey = config.apiKey;
+  const model = config.model || 'gpt-4';
+  const maxTokens = config.maxTokens || 4096;
+  const endpoint = config.endpoint || 'https://api.openai.com/v1';
+  
+  console.log('[AI Discovery] OpenAI configuration:', { 
+    model, 
+    maxTokens, 
+    endpoint,
+    hasApiKey: !!apiKey,
+    apiKeyLength: apiKey?.length || 0
+  });
+
+  try {
+    console.log(`[AI Discovery] Making OpenAI API request`);
+    console.log(`[AI Discovery] API endpoint: ${endpoint}/chat/completions`);
+    
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: model,
@@ -208,26 +378,75 @@ async function callClaudeAPI(prompt: string): Promise<any> {
       })
     });
 
-    console.log(`[AI Discovery] Claude API response status: ${response.status} ${response.statusText}`);
+    console.log(`[AI Discovery] OpenAI API response status: ${response.status} ${response.statusText}`);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[AI Discovery] Claude API error response:`, errorText);
-      throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+      console.error(`[AI Discovery] OpenAI API error response:`, errorText);
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
     }
 
     const responseData = await response.json();
-    console.log(`[AI Discovery] Claude API response received, content length: ${JSON.stringify(responseData).length}`);
-    console.log('[AI Discovery] === CLAUDE API CALL SUCCESS ===');
+    console.log(`[AI Discovery] OpenAI API response received, content length: ${JSON.stringify(responseData).length}`);
     return responseData;
   } catch (error) {
-    console.error('[AI Discovery] Claude API request failed:', error);
-    console.error('[AI Discovery] Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : 'No stack trace'
+    console.error('[AI Discovery] OpenAI API request failed:', error);
+    throw error;
+  }
+}
+
+// Grok API call function
+async function callGrokAPI(config: any, prompt: string): Promise<any> {
+  console.log('[AI Discovery] === GROK API CALL START ===');
+  
+  const apiKey = config.apiKey;
+  const model = config.model || 'grok-beta';
+  const maxTokens = config.maxTokens || 4096;
+  const endpoint = config.endpoint || 'https://api.x.ai/v1';
+  
+  console.log('[AI Discovery] Grok configuration:', { 
+    model, 
+    maxTokens, 
+    endpoint,
+    hasApiKey: !!apiKey,
+    apiKeyLength: apiKey?.length || 0
+  });
+
+  try {
+    console.log(`[AI Discovery] Making Grok API request`);
+    console.log(`[AI Discovery] API endpoint: ${endpoint}/chat/completions`);
+    
+    const response = await fetch(`${endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: parseInt(maxTokens),
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      })
     });
-    console.log('[AI Discovery] === CLAUDE API CALL FAILED ===');
+
+    console.log(`[AI Discovery] Grok API response status: ${response.status} ${response.statusText}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[AI Discovery] Grok API error response:`, errorText);
+      throw new Error(`Grok API error: ${response.status} ${response.statusText}`);
+    }
+
+    const responseData = await response.json();
+    console.log(`[AI Discovery] Grok API response received, content length: ${JSON.stringify(responseData).length}`);
+    return responseData;
+  } catch (error) {
+    console.error('[AI Discovery] Grok API request failed:', error);
     throw error;
   }
 }
@@ -309,7 +528,271 @@ export class AIDiscoveryService {
   }
 
   /**
+   * Save discovered industries to database
+   */
+  private static async saveDiscoveredIndustries(industries: Array<{
+    id: string;
+    name: string;
+    description: string;
+    marketSize: string;
+    growthRate: string;
+    relevanceScore: number;
+    reasoning: string;
+    suggestedVerticals: string[];
+  }>): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    marketSize: string;
+    growthRate: string;
+    relevanceScore: number;
+    reasoning: string;
+    suggestedVerticals: string[];
+  }>> {
+    console.log('[AI Discovery] Saving discovered industries to database...');
+    
+    const savedIndustries = [];
+    
+    for (const industry of industries) {
+      try {
+        // Check if industry already exists by name
+        let existingIndustry = await prisma.industry.findFirst({
+          where: { name: industry.name }
+        });
+        
+        if (existingIndustry) {
+          console.log(`[AI Discovery] Industry "${industry.name}" already exists, using existing ID: ${existingIndustry.id}`);
+          savedIndustries.push({
+            ...industry,
+            id: existingIndustry.id
+          });
+        } else {
+          // Create new industry in database
+          const newIndustry = await prisma.industry.create({
+            data: {
+              name: industry.name,
+              description: industry.description,
+              marketSize: industry.marketSize,
+              growthRate: industry.growthRate
+            }
+          });
+          
+          console.log(`[AI Discovery] Created new industry "${industry.name}" with ID: ${newIndustry.id}`);
+          savedIndustries.push({
+            ...industry,
+            id: newIndustry.id
+          });
+        }
+
+        // Note: Product verticals will be created on-demand when user clicks on industry
+        
+      } catch (error) {
+        console.error(`[AI Discovery] Error saving industry "${industry.name}":`, error);
+        // Continue with other industries even if one fails
+        savedIndustries.push(industry);
+      }
+    }
+    
+    console.log(`[AI Discovery] Successfully saved ${savedIndustries.length} industries to database`);
+    console.log(`[AI Discovery] Final saved industries with IDs:`, savedIndustries.map(s => ({ id: s.id, name: s.name })));
+    return savedIndustries;
+  }
+
+  /**
+   * Generate product verticals for an industry using AI
+   */
+  private static async generateProductVerticalsForIndustry(industryName: string): Promise<string[]> {
+    console.log(`[AI Discovery] Generating product verticals for industry "${industryName}" using AI...`);
+    
+    try {
+      const prompt = `You are an expert in market analysis and product categorization.
+
+I need you to identify the most important product verticals (product categories) for the "${industryName}" industry.
+
+Please provide 5-8 specific product verticals that represent the main product categories or service areas within this industry.
+
+Requirements:
+- Focus on B2B products/services that companies would buy
+- Be specific and actionable (e.g., "Industrial Automation Systems" not just "Automation")
+- Consider both established and emerging product categories
+- Focus on high-value, high-growth areas
+- Each vertical should be a distinct product/service category
+
+Please respond with a JSON array of strings, like this:
+["Product Vertical 1", "Product Vertical 2", "Product Vertical 3"]
+
+Example for "Manufacturing":
+["Industrial Automation Systems", "Quality Control Equipment", "CNC Machinery", "Safety Equipment", "Manufacturing Software", "Material Handling Systems"]
+
+For the "${industryName}" industry, what are the key product verticals?`;
+
+      const aiResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
+      const content = aiResponse.content?.[0]?.text || aiResponse.choices?.[0]?.message?.content;
+      
+      if (!content) {
+        throw new Error('No content in AI response');
+      }
+
+      // Extract JSON array from AI response
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('No JSON array found in AI response');
+      }
+
+      const verticals = JSON.parse(jsonMatch[0]);
+      
+      // Validate and clean the verticals
+      const cleanedVerticals = verticals
+        .filter((v: any) => typeof v === 'string' && v.trim().length > 0)
+        .map((v: string) => v.trim())
+        .slice(0, 8); // Limit to 8 verticals
+
+      console.log(`[AI Discovery] AI generated ${cleanedVerticals.length} product verticals for "${industryName}":`, cleanedVerticals);
+      return cleanedVerticals;
+
+    } catch (error) {
+      console.error(`[AI Discovery] Error generating product verticals for "${industryName}":`, error);
+      
+      // Fallback to generic verticals based on industry type
+      const fallbackVerticals = this.getFallbackProductVerticals(industryName);
+      console.log(`[AI Discovery] Using fallback verticals for "${industryName}":`, fallbackVerticals);
+      return fallbackVerticals;
+    }
+  }
+
+  /**
+   * Get fallback product verticals when AI generation fails
+   */
+  private static getFallbackProductVerticals(industryName: string): string[] {
+    const industry = industryName.toLowerCase();
+    
+    if (industry.includes('healthcare') || industry.includes('medical')) {
+      return ['Medical Devices', 'Healthcare IT', 'Diagnostic Equipment', 'Patient Monitoring Systems', 'Surgical Equipment'];
+    }
+    
+    if (industry.includes('manufacturing') || industry.includes('industrial')) {
+      return ['Industrial Automation', 'Quality Control Equipment', 'Manufacturing Software', 'Safety Equipment', 'Material Handling'];
+    }
+    
+    if (industry.includes('software') || industry.includes('tech')) {
+      return ['Enterprise Software', 'Cloud Solutions', 'Data Analytics', 'Cybersecurity', 'Business Intelligence'];
+    }
+    
+    if (industry.includes('financial') || industry.includes('banking')) {
+      return ['Financial Software', 'Payment Processing', 'Risk Management', 'Compliance Solutions', 'Trading Systems'];
+    }
+    
+    if (industry.includes('construction')) {
+      return ['Construction Equipment', 'Building Materials', 'Project Management Software', 'Safety Equipment', 'HVAC Systems'];
+    }
+    
+    if (industry.includes('food') || industry.includes('beverage')) {
+      return ['Food Processing Equipment', 'Beverage Manufacturing', 'Packaging Solutions', 'Quality Control Systems', 'Supply Chain Software'];
+    }
+    
+    // Generic fallback
+    return ['Business Solutions', 'Professional Services', 'Technology Systems', 'Operational Equipment', 'Management Software'];
+  }
+
+  /**
+   * Create product verticals for an industry based on AI suggestions
+   */
+  private static async createProductVerticalsForIndustry(industryId: string, suggestedVerticals: string[], industryName: string): Promise<void> {
+    console.log(`[AI Discovery] Creating product verticals for industry "${industryName}"...`);
+    
+    if (!suggestedVerticals || suggestedVerticals.length === 0) {
+      console.log(`[AI Discovery] No suggested verticals for industry "${industryName}"`);
+      return;
+    }
+
+    for (const verticalName of suggestedVerticals) {
+      try {
+        // Check if vertical already exists for this industry
+        const existingVertical = await prisma.productVertical.findFirst({
+          where: { 
+            name: verticalName,
+            industryId: industryId
+          }
+        });
+
+        if (existingVertical) {
+          console.log(`[AI Discovery] Product vertical "${verticalName}" already exists for industry "${industryName}"`);
+          continue;
+        }
+
+        // Create new product vertical
+        const newVertical = await prisma.productVertical.create({
+          data: {
+            name: verticalName,
+            description: `${verticalName} solutions and services for the ${industryName} industry`,
+            marketSize: '$10M+',
+            growthRate: '8% annually',
+            industryId: industryId
+          }
+        });
+
+        console.log(`[AI Discovery] Created product vertical "${verticalName}" for industry "${industryName}" with ID: ${newVertical.id}`);
+
+        // Create some default customer types for this vertical
+        await this.createDefaultCustomerTypes(newVertical.id, verticalName, industryName);
+
+      } catch (error) {
+        console.error(`[AI Discovery] Error creating product vertical "${verticalName}" for industry "${industryName}":`, error);
+        // Continue with other verticals even if one fails
+      }
+    }
+  }
+
+  /**
+   * Create default customer types for a product vertical
+   */
+  private static async createDefaultCustomerTypes(verticalId: string, verticalName: string, industryName: string): Promise<void> {
+    const defaultCustomerTypes = [
+      {
+        name: 'Enterprise Customers',
+        description: `Large ${industryName} companies requiring comprehensive ${verticalName} solutions`,
+        characteristics: ['500+ employees', 'High budget', 'Long sales cycles'],
+        buyingBehavior: 'Strategic partnerships, RFPs, multiple stakeholders',
+        marketSegment: 'Enterprise',
+        estimatedValue: '$100K-$500K'
+      },
+      {
+        name: 'Mid-Market Customers',
+        description: `Medium-sized ${industryName} businesses seeking ${verticalName} solutions`,
+        characteristics: ['50-500 employees', 'Moderate budget', 'Growth-focused'],
+        buyingBehavior: 'Direct sales, references, ROI-focused',
+        marketSegment: 'Mid-Market',
+        estimatedValue: '$25K-$100K'
+      },
+      {
+        name: 'Small Business Customers',
+        description: `Small ${industryName} companies needing ${verticalName} solutions`,
+        characteristics: ['<50 employees', 'Budget-conscious', 'Quick decisions'],
+        buyingBehavior: 'Online research, referrals, price-sensitive',
+        marketSegment: 'SMB',
+        estimatedValue: '$5K-$25K'
+      }
+    ];
+
+    for (const customerType of defaultCustomerTypes) {
+      try {
+        const newCustomerType = await prisma.customerType.create({
+          data: {
+            ...customerType,
+            productVerticalId: verticalId
+          }
+        });
+
+        console.log(`[AI Discovery] Created customer type "${customerType.name}" for vertical "${verticalName}"`);
+      } catch (error) {
+        console.error(`[AI Discovery] Error creating customer type "${customerType.name}":`, error);
+      }
+    }
+  }
+
+  /**
    * Get product verticals for an industry from database
+   * Creates them on-demand if they don't exist
    */
   static async getProductVerticals(industryId: string): Promise<ProductVertical[]> {
     try {
@@ -322,7 +805,8 @@ export class AIDiscoveryService {
         throw new Error(`Industry with ID '${industryId}' not found`);
       }
 
-      const verticals = await prisma.productVertical.findMany({
+      // Check if product verticals already exist for this industry
+      let verticals = await prisma.productVertical.findMany({
         where: { 
           industryId: industry.id,
           isActive: true 
@@ -335,6 +819,34 @@ export class AIDiscoveryService {
         },
         orderBy: { name: 'asc' }
       });
+
+      // If no verticals exist, create them on-demand using AI
+      if (verticals.length === 0) {
+        console.log(`[AI Discovery] No product verticals found for industry "${industry.name}", creating them on-demand...`);
+        
+        // Generate product verticals using AI
+        const suggestedVerticals = await this.generateProductVerticalsForIndustry(industry.name);
+        
+        // Create the product verticals in the database
+        await this.createProductVerticalsForIndustry(industryId, suggestedVerticals, industry.name);
+        
+        // Fetch the newly created verticals
+        verticals = await prisma.productVertical.findMany({
+          where: { 
+            industryId: industry.id,
+            isActive: true 
+          },
+          include: {
+            customerTypes: {
+              where: { isActive: true },
+              orderBy: { name: 'asc' }
+            }
+          },
+          orderBy: { name: 'asc' }
+        });
+        
+        console.log(`[AI Discovery] Created ${verticals.length} product verticals for industry "${industry.name}"`);
+      }
 
       return verticals;
     } catch (error) {
@@ -573,7 +1085,7 @@ What specific area would you like to explore? I can provide market analysis and 
       const prompt = this.buildSelfPromptingAnalysisPrompt(industry, productVertical, vertical.customerTypes);
       
       // Call Claude API for self-prompting analysis
-      const claudeResponse = await callClaudeAPI(prompt);
+      const claudeResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
       
       // Parse Claude's response
       const content = claudeResponse.content[0]?.text || this.getFallbackCustomerInsights(industry, productVertical, vertical.customerTypes);
@@ -770,7 +1282,7 @@ ${customerTypeInfo}
       const prompt = this.buildConversationPrompt(userMessage, industry, productVertical);
       
       // Call Claude API for intelligent response
-      const claudeResponse = await callClaudeAPI(prompt);
+      const claudeResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
       
       // Parse Claude's response - keep it focused and concise
       const content = claudeResponse.content[0]?.text || this.getFallbackResponse(userMessage, industry, productVertical);
@@ -860,7 +1372,7 @@ Provide a focused, analytical response that:
 
 Keep the analysis concise but thorough. Focus on practical insights that help with customer discovery.`;
       
-      const claudeResponse = await callClaudeAPI(prompt);
+      const claudeResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
       const analysis = claudeResponse.content[0]?.text;
       
       return analysis ? `\n\n**Detailed Analysis:**\n${analysis}` : null;
@@ -932,20 +1444,44 @@ Format your response as: [Brief answer] + [1-2 follow-up questions to continue t
       const prompt = this.buildCustomerSearchPrompt(industry, productVertical, customerTypes, constraints);
       
       // Call Claude API for real-time customer discovery
-      const claudeResponse = await callClaudeAPI(prompt);
+      const claudeResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
       
       // Parse Claude's response into structured results
       const results = this.parseClaudeCustomerResults(claudeResponse);
       
       console.log(`[AI Discovery] Found ${results.length} customers using Claude AI`);
       
-      return results;
+      // If we got results, return them
+      if (results.length > 0) {
+        return results;
+      }
+      
+      // If no results, try a broader search
+      console.log('[AI Discovery] No specific results found, trying broader search...');
+      const broaderPrompt = this.buildBroaderCustomerSearchPrompt(industry, productVertical, customerTypes, constraints);
+      const broaderResponse = await callAIEngine(broaderPrompt, 'AI_DISCOVERY');
+      const broaderResults = this.parseClaudeCustomerResults(broaderResponse);
+      
+      if (broaderResults.length > 0) {
+        console.log(`[AI Discovery] Found ${broaderResults.length} customers using broader search`);
+        return broaderResults;
+      }
+      
+      // If still no results, try industry-specific search
+      console.log('[AI Discovery] No broader results found, trying industry-specific search...');
+      const industryPrompt = this.buildIndustrySpecificCustomerSearchPrompt(industry, productVertical, constraints);
+      const industryResponse = await callAIEngine(industryPrompt, 'AI_DISCOVERY');
+      const industryResults = this.parseClaudeCustomerResults(industryResponse);
+      
+      console.log(`[AI Discovery] Found ${industryResults.length} customers using industry-specific search`);
+      return industryResults;
       
     } catch (error) {
-      console.error('[AI Discovery] Claude search failed, falling back to mock data:', error);
+      console.error('[AI Discovery] All AI search attempts failed:', error);
       
-      // Fallback to mock data if Claude fails
-      return this.getMockResults(industry, productVertical, constraints);
+      // Instead of mock data, return an empty array with error information
+      console.log('[AI Discovery] Returning empty results instead of mock data');
+      return [];
     }
   }
 
@@ -976,6 +1512,8 @@ Requirements:
 - Geography: ${geography}
 - Max Results: ${maxResults}
 
+IMPORTANT: You must find REAL companies that actually exist. Do not create fictional companies.
+
 Please provide a list of potential customers in this JSON format:
 [
   {
@@ -990,12 +1528,107 @@ Please provide a list of potential customers in this JSON format:
 
 Focus on:
 1. Companies that would actually need ${productVertical}
-2. Real companies with online presence
+2. Real companies with online presence (provide actual URLs)
 3. High-value prospects with purchasing power
 4. Companies in the specified geography
 5. Relevance scores based on how well they match the criteria
 
-Make sure the JSON is valid and properly formatted.`;
+Search for actual companies in the ${industry} industry that could benefit from ${productVertical} solutions. Make sure the JSON is valid and properly formatted.`;
+  }
+
+  /**
+   * Build broader customer search prompt when specific search fails
+   */
+  private static buildBroaderCustomerSearchPrompt(
+    industry: string,
+    productVertical: string,
+    customerTypes: string[],
+    constraints?: {
+      geography?: string[];
+      maxResults?: number;
+      companySize?: string[];
+    }
+  ): string {
+    const maxResults = constraints?.maxResults || 10;
+    const geography = constraints?.geography?.join(', ') || 'United States';
+    
+    return `You are an expert in customer discovery and market research. 
+
+I need you to find potential customers for ${productVertical} in the ${industry} industry, but with a broader approach.
+
+Requirements:
+- Industry: ${industry}
+- Product Vertical: ${productVertical}
+- Customer Types: ${customerTypes.join(', ') || 'All relevant types'}
+- Geography: ${geography}
+- Max Results: ${maxResults}
+
+Since the specific search didn't find results, please:
+1. Think more broadly about companies that might need this type of solution
+2. Consider companies in related industries or adjacent markets
+3. Look for companies that might be expanding into this area
+4. Include companies that could benefit from this technology even if not directly in the industry
+
+Please provide a list of potential customers in this JSON format:
+[
+  {
+    "url": "company website or LinkedIn",
+    "title": "Company Name",
+    "description": "Brief description of the company and why they would be interested in this product",
+    "relevanceScore": 0.85,
+    "location": "City, State",
+    "companyType": "Type of business"
+  }
+]
+
+Focus on real companies with online presence and purchasing power. Make sure the JSON is valid and properly formatted.`;
+  }
+
+  /**
+   * Build industry-specific customer search prompt
+   */
+  private static buildIndustrySpecificCustomerSearchPrompt(
+    industry: string,
+    productVertical: string,
+    constraints?: {
+      geography?: string[];
+      maxResults?: number;
+      companySize?: string[];
+    }
+  ): string {
+    const maxResults = constraints?.maxResults || 10;
+    const geography = constraints?.geography?.join(', ') || 'United States';
+    
+    return `You are an expert in customer discovery and market research. 
+
+I need you to find potential customers in the ${industry} industry, focusing on companies that could benefit from ${productVertical} solutions.
+
+Requirements:
+- Industry: ${industry}
+- Product Vertical: ${productVertical}
+- Geography: ${geography}
+- Max Results: ${maxResults}
+
+Please find companies in the ${industry} industry that:
+1. Are actively growing or modernizing
+2. Have technology adoption initiatives
+3. Could benefit from ${productVertical} solutions
+4. Have the budget and decision-making capability
+5. Are located in the specified geography
+
+Please provide a list of potential customers in this JSON format:
+[
+  {
+    "url": "company website or LinkedIn",
+    "title": "Company Name",
+    "description": "Brief description of the company and why they would be interested in this product",
+    "relevanceScore": 0.85,
+    "location": "City, State",
+    "companyType": "Type of business"
+  }
+]
+
+Focus on real companies with online presence. Make sure the JSON is valid and properly formatted.`;
   }
 
   /**
@@ -1046,76 +1679,193 @@ Make sure the JSON is valid and properly formatted.`;
   ): WebSearchResult[] {
     let mockResults: WebSearchResult[] = [];
     
-    if (industry === 'Dental' && productVertical === 'CBCT Systems') {
-      mockResults = [
-        {
-          url: 'https://example-dental-practice.com',
-          title: 'Advanced Dental Care Center',
-          description: 'Modern dental practice specializing in advanced imaging and CBCT technology',
-          relevanceScore: 0.95,
-          location: 'New York, NY',
-          companyType: 'Dental Practice'
-        },
-        {
-          url: 'https://premium-dental-specialists.com',
-          title: 'Premium Dental Specialists',
-          description: 'Specialized dental practice with CBCT and advanced imaging systems',
-          relevanceScore: 0.92,
-          location: 'Los Angeles, CA',
-          companyType: 'Dental Specialists'
-        },
-        {
-          url: 'https://cosmetic-dental-experts.com',
-          title: 'Cosmetic Dental Experts',
-          description: 'High-end cosmetic dentistry practice with CBCT technology',
-          relevanceScore: 0.88,
-          location: 'Miami, FL',
-          companyType: 'Cosmetic Dentistry'
-        },
-        {
-          url: 'https://dental-imaging-center.com',
-          title: 'Dental Imaging Center',
-          description: 'Specialized dental imaging facility with CBCT and 3D scanning',
-          relevanceScore: 0.85,
-          location: 'Chicago, IL',
-          companyType: 'Dental Imaging'
-        },
-        {
-          url: 'https://advanced-dental-tech.com',
-          title: 'Advanced Dental Technology',
-          description: 'Modern dental practice with CBCT, laser, and digital workflow',
-          relevanceScore: 0.82,
-          location: 'Houston, TX',
-          companyType: 'Dental Practice'
-        }
-      ];
-    } else if (industry === 'Dental' && productVertical === 'Dental Lasers') {
-      mockResults = [
-        {
-          url: 'https://laser-dental-specialists.com',
-          title: 'Laser Dental Specialists',
-          description: 'Specialized practice using advanced laser technology for treatments',
-          relevanceScore: 0.94,
-          location: 'San Francisco, CA',
-          companyType: 'Dental Specialists'
-        },
-        {
-          url: 'https://cosmetic-laser-dental.com',
-          title: 'Cosmetic Laser Dental',
-          description: 'High-end cosmetic dentistry with laser technology',
-          relevanceScore: 0.91,
-          location: 'Beverly Hills, CA',
-          companyType: 'Cosmetic Dentistry'
-        },
-        {
-          url: 'https://periodontal-laser-center.com',
-          title: 'Periodontal Laser Center',
-          description: 'Specialized periodontal practice with laser treatment systems',
-          relevanceScore: 0.89,
-          location: 'Boston, MA',
-          companyType: 'Periodontal Practice'
-        }
-      ];
+    // Dental industry mock data
+    if (industry.toLowerCase().includes('dental') || industry.toLowerCase().includes('healthcare')) {
+      if (productVertical.toLowerCase().includes('cbct') || productVertical.toLowerCase().includes('imaging')) {
+        mockResults = [
+          {
+            url: 'https://example-dental-practice.com',
+            title: 'Advanced Dental Care Center',
+            description: 'Modern dental practice specializing in advanced imaging and CBCT technology',
+            relevanceScore: 0.95,
+            location: 'New York, NY',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://premium-dental-specialists.com',
+            title: 'Premium Dental Specialists',
+            description: 'Specialized dental practice with CBCT and advanced imaging systems',
+            relevanceScore: 0.92,
+            location: 'Los Angeles, CA',
+            companyType: 'Dental Specialists'
+          },
+          {
+            url: 'https://cosmetic-dental-experts.com',
+            title: 'Cosmetic Dental Experts',
+            description: 'High-end cosmetic dentistry practice with CBCT technology',
+            relevanceScore: 0.88,
+            location: 'Miami, FL',
+            companyType: 'Cosmetic Dentistry'
+          },
+          {
+            url: 'https://dental-imaging-center.com',
+            title: 'Dental Imaging Center',
+            description: 'Specialized dental imaging facility with CBCT and 3D scanning',
+            relevanceScore: 0.85,
+            location: 'Chicago, IL',
+            companyType: 'Dental Imaging'
+          },
+          {
+            url: 'https://advanced-dental-tech.com',
+            title: 'Advanced Dental Technology',
+            description: 'Modern dental practice with CBCT, laser, and digital workflow',
+            relevanceScore: 0.82,
+            location: 'Houston, TX',
+            companyType: 'Dental Practice'
+          }
+        ];
+      } else if (productVertical.toLowerCase().includes('laser')) {
+        mockResults = [
+          {
+            url: 'https://laser-dental-specialists.com',
+            title: 'Laser Dental Specialists',
+            description: 'Specialized practice using advanced laser technology for treatments',
+            relevanceScore: 0.94,
+            location: 'San Francisco, CA',
+            companyType: 'Dental Specialists'
+          },
+          {
+            url: 'https://cosmetic-laser-dental.com',
+            title: 'Cosmetic Laser Dental',
+            description: 'High-end cosmetic dentistry with laser technology',
+            relevanceScore: 0.91,
+            location: 'Beverly Hills, CA',
+            companyType: 'Cosmetic Dentistry'
+          },
+          {
+            url: 'https://periodontal-laser-center.com',
+            title: 'Periodontal Laser Center',
+            description: 'Specialized periodontal practice with laser treatment systems',
+            relevanceScore: 0.89,
+            location: 'Boston, MA',
+            companyType: 'Periodontal Practice'
+          }
+        ];
+      } else if (productVertical.toLowerCase().includes('software') || productVertical.toLowerCase().includes('management')) {
+        mockResults = [
+          {
+            url: 'https://dental-practice-management.com',
+            title: 'Dental Practice Management Solutions',
+            description: 'Modern dental practice using comprehensive management software',
+            relevanceScore: 0.93,
+            location: 'Austin, TX',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://digital-dental-workflow.com',
+            title: 'Digital Dental Workflow',
+            description: 'Advanced dental practice with integrated digital workflow systems',
+            relevanceScore: 0.90,
+            location: 'Seattle, WA',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://smart-dental-clinic.com',
+            title: 'Smart Dental Clinic',
+            description: 'Innovative dental clinic using cutting-edge management technology',
+            relevanceScore: 0.87,
+            location: 'Denver, CO',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://tech-savvy-dentists.com',
+            title: 'Tech-Savvy Dentists Group',
+            description: 'Multi-location dental group with advanced practice management',
+            relevanceScore: 0.84,
+            location: 'Phoenix, AZ',
+            companyType: 'Dental Group'
+          },
+          {
+            url: 'https://modern-dental-systems.com',
+            title: 'Modern Dental Systems',
+            description: 'Contemporary dental practice with integrated software solutions',
+            relevanceScore: 0.81,
+            location: 'Portland, OR',
+            companyType: 'Dental Practice'
+          }
+        ];
+      } else if (productVertical.toLowerCase().includes('equipment') || productVertical.toLowerCase().includes('devices')) {
+        mockResults = [
+          {
+            url: 'https://advanced-dental-equipment.com',
+            title: 'Advanced Dental Equipment Co.',
+            description: 'Dental practice with state-of-the-art equipment and devices',
+            relevanceScore: 0.92,
+            location: 'Dallas, TX',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://premium-dental-devices.com',
+            title: 'Premium Dental Devices',
+            description: 'High-end dental practice using premium equipment and devices',
+            relevanceScore: 0.89,
+            location: 'Atlanta, GA',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://innovative-dental-tech.com',
+            title: 'Innovative Dental Technology',
+            description: 'Cutting-edge dental practice with latest equipment',
+            relevanceScore: 0.86,
+            location: 'Nashville, TN',
+            companyType: 'Dental Practice'
+          }
+        ];
+      } else {
+        // Generic dental customers for any dental product vertical
+        mockResults = [
+          {
+            url: 'https://comprehensive-dental-care.com',
+            title: 'Comprehensive Dental Care',
+            description: 'Full-service dental practice serving diverse patient needs',
+            relevanceScore: 0.90,
+            location: 'San Diego, CA',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://family-dental-center.com',
+            title: 'Family Dental Center',
+            description: 'Family-oriented dental practice with modern facilities',
+            relevanceScore: 0.87,
+            location: 'Orlando, FL',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://premier-dental-group.com',
+            title: 'Premier Dental Group',
+            description: 'Multi-specialty dental group with advanced technology',
+            relevanceScore: 0.84,
+            location: 'Charlotte, NC',
+            companyType: 'Dental Group'
+          },
+          {
+            url: 'https://elite-dental-solutions.com',
+            title: 'Elite Dental Solutions',
+            description: 'Premium dental practice with comprehensive services',
+            relevanceScore: 0.81,
+            location: 'Las Vegas, NV',
+            companyType: 'Dental Practice'
+          },
+          {
+            url: 'https://modern-dental-care.com',
+            title: 'Modern Dental Care',
+            description: 'Contemporary dental practice with latest technology',
+            relevanceScore: 0.78,
+            location: 'Salt Lake City, UT',
+            companyType: 'Dental Practice'
+          }
+        ];
+      }
     }
 
     // Apply constraints
@@ -1169,6 +1919,10 @@ Make sure the JSON is valid and properly formatted.`;
       marketInsights?: string;
     };
   }> {
+    console.log(`\n[AI Discovery] === DISCOVER INDUSTRIES START ===`);
+    console.log(`[AI Discovery] User input: "${userInput}"`);
+    console.log(`[AI Discovery] Constraints:`, constraints);
+    
     try {
       console.log(`[AI Discovery] Starting AI-driven industry discovery for: "${userInput}" with criteria:`, constraints);
       
@@ -1196,6 +1950,7 @@ Make sure the JSON is valid and properly formatted.`;
       }
       
       // Try different operation names that might be configured
+      console.log('[AI Discovery] Attempting to select AI_DISCOVERY service...');
       let aiService = await serviceConfigService.selectService('AI_DISCOVERY');
       if (!aiService) {
         console.log('[AI Discovery] AI_DISCOVERY not found, trying MARKET_DISCOVERY...');
@@ -1239,35 +1994,42 @@ Make sure the JSON is valid and properly formatted.`;
       
       if (aiService.name.includes('Claude')) {
         console.log('[AI Discovery] Calling Claude API directly...');
-        aiResponse = await callClaudeAPI(prompt);
+        aiResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
         console.log('[AI Discovery] Claude API call completed successfully');
       } else if (aiService.type === 'AI_ENGINE') {
         // For other AI engines, try to use their specific APIs
         // For now, fallback to Claude
         console.log('[AI Discovery] AI_ENGINE type detected, falling back to Claude...');
-        aiResponse = await callClaudeAPI(prompt);
+        aiResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
         console.log('[AI Discovery] Claude API fallback call completed successfully');
       } else {
         // Fallback to Claude
         console.log('[AI Discovery] Using Claude as final fallback...');
-        aiResponse = await callClaudeAPI(prompt);
+        aiResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
         console.log('[AI Discovery] Claude API final fallback call completed successfully');
       }
 
-      // Parse AI response into structured industry data
+                   // Parse AI response into structured industry data
       const discoveredIndustries = this.parseIndustryDiscoveryResponse(aiResponse, userInput);
+      console.log('[AI Discovery] Parsed industries with temporary IDs:', discoveredIndustries.map(s => ({ id: s.id, name: s.name })));
       
       // Apply criteria filtering and generate smart suggestions
       const filteredResults = this.applyCriteriaFiltering(discoveredIndustries, constraints);
+      console.log('[AI Discovery] Filtered results with temporary IDs:', filteredResults.map(s => ({ id: s.id, name: s.name })));
+      
+      // Save discovered industries to database and get the actual database IDs
+      const savedIndustries = await this.saveDiscoveredIndustries(filteredResults);
+      console.log('[AI Discovery] Saved industries with database IDs:', savedIndustries.map(s => ({ id: s.id, name: s.name })));
       
       // Generate smart suggestions if results are limited
       const suggestions = this.generateSmartSuggestions(userInput, filteredResults, constraints);
       
-      console.log(`[AI Discovery] Discovered ${filteredResults.length} industries using ${aiService.name}`);
+      console.log(`[AI Discovery] Discovered and saved ${savedIndustries.length} industries using ${aiService.name}`);
+      console.log(`[AI Discovery] Returning saved industries with database IDs:`, savedIndustries.map(s => ({ id: s.id, name: s.name })));
       
       return {
-        industries: filteredResults,
-        totalFound: filteredResults.length,
+        industries: savedIndustries,
+        totalFound: savedIndustries.length,
         aiEngineUsed: aiService.name,
         suggestions
       };
@@ -1285,7 +2047,7 @@ Make sure the JSON is valid and properly formatted.`;
       console.error('[AI Discovery] Error analysis:', errorDetails);
       
       // Fallback to intelligent industry suggestions based on user input
-      const fallbackResult = this.getFallbackIndustrySuggestions(userInput, constraints, errorDetails);
+      const fallbackResult = await this.getFallbackIndustrySuggestions(userInput, constraints, errorDetails);
       console.log('[AI Discovery] Fallback result generated:', {
         industriesCount: fallbackResult.industries.length,
         aiEngineUsed: fallbackResult.aiEngineUsed,
@@ -1550,17 +2312,17 @@ Make sure the JSON is valid and properly formatted.`;
 
       const industries = JSON.parse(jsonMatch[0]);
       
-      // Validate and format results
-      return industries.map((industry: any, index: number) => ({
-        id: `ai_discovered_${Date.now()}_${index}`,
-        name: industry.name || `Industry ${index + 1}`,
-        description: industry.description || 'Industry description',
-        marketSize: industry.marketSize || '$10B+',
-        growthRate: industry.growthRate || '5% annually',
-        relevanceScore: industry.relevanceScore || 0.8,
-        reasoning: industry.reasoning || 'AI analysis suggests this industry is relevant',
-        suggestedVerticals: industry.suggestedVerticals || ['Product Category 1', 'Product Category 2']
-      }));
+             // Validate and format results (without generating IDs - they'll be assigned by saveDiscoveredIndustries)
+       return industries.map((industry: any, index: number) => ({
+         id: `temp_${index}`, // Temporary ID that will be replaced by actual database ID
+         name: industry.name || `Industry ${index + 1}`,
+         description: industry.description || 'Industry description',
+         marketSize: industry.marketSize || '$10B+',
+         growthRate: industry.growthRate || '5% annually',
+         relevanceScore: industry.relevanceScore || 0.8,
+         reasoning: industry.reasoning || 'AI analysis suggests this industry is relevant',
+         suggestedVerticals: industry.suggestedVerticals || ['Product Category 1', 'Product Category 2']
+       }));
 
     } catch (error) {
       console.error('[AI Discovery] Error parsing AI industry response:', error);
@@ -1642,11 +2404,11 @@ Make sure the JSON is valid and properly formatted.`;
   /**
    * Fallback industry suggestions when AI fails
    */
-  private static getFallbackIndustrySuggestions(
+  private static async getFallbackIndustrySuggestions(
     userInput: string, 
     constraints?: any,
     errorDetails?: any
-  ): any {
+  ): Promise<any> {
     console.log('[Fallback] === GENERATING FALLBACK SUGGESTIONS ===');
     console.log('[Fallback] User input:', userInput);
     console.log('[Fallback] Constraints:', constraints);
@@ -1655,68 +2417,71 @@ Make sure the JSON is valid and properly formatted.`;
     const input = userInput.toLowerCase();
     const suggestions = [];
 
-    if (input.includes('healthcare') || input.includes('medical') || input.includes('health')) {
-      suggestions.push({
-        id: 'fallback_healthcare',
-        name: 'Healthcare Technology',
-        description: 'Digital health solutions, medical devices, and healthcare IT',
-        marketSize: '$350B+',
-        growthRate: '12% annually',
-        relevanceScore: 0.95,
-        reasoning: 'Directly matches healthcare focus in user input',
-        suggestedVerticals: ['Digital Health Platforms', 'Medical Devices', 'Healthcare IT']
-      });
-    }
+         if (input.includes('healthcare') || input.includes('medical') || input.includes('health')) {
+       suggestions.push({
+         id: 'temp_0', // Temporary ID that will be replaced by actual database ID
+         name: 'Healthcare Technology',
+         description: 'Digital health solutions, medical devices, and healthcare IT',
+         marketSize: '$350B+',
+         growthRate: '12% annually',
+         relevanceScore: 0.95,
+         reasoning: 'Directly matches healthcare focus in user input',
+         suggestedVerticals: ['Digital Health Platforms', 'Medical Devices', 'Healthcare IT']
+       });
+     }
 
-    if (input.includes('software') || input.includes('tech') || input.includes('digital')) {
-      suggestions.push({
-        id: 'fallback_software',
-        name: 'Enterprise Software',
-        description: 'B2B software solutions for businesses',
-        marketSize: '$200B+',
-        growthRate: '15% annually',
-        relevanceScore: 0.9,
-        reasoning: 'Software focus in user input suggests enterprise software opportunities',
-        suggestedVerticals: ['CRM Systems', 'ERP Solutions', 'Business Intelligence']
-      });
-    }
+     if (input.includes('software') || input.includes('tech') || input.includes('digital')) {
+       suggestions.push({
+         id: 'temp_1', // Temporary ID that will be replaced by actual database ID
+         name: 'Enterprise Software',
+         description: 'B2B software solutions for businesses',
+         marketSize: '$200B+',
+         growthRate: '15% annually',
+         relevanceScore: 0.9,
+         reasoning: 'Software focus in user input suggests enterprise software opportunities',
+         suggestedVerticals: ['CRM Systems', 'ERP Solutions', 'Business Intelligence']
+       });
+     }
 
-    if (input.includes('manufacturing') || input.includes('industrial') || input.includes('factory')) {
-      suggestions.push({
-        id: 'fallback_manufacturing',
-        name: 'Industrial Manufacturing',
-        description: 'Manufacturing equipment, automation, and industrial solutions',
-        marketSize: '$150B+',
-        growthRate: '8% annually',
-        relevanceScore: 0.85,
-        reasoning: 'Manufacturing focus in user input',
-        suggestedVerticals: ['Industrial Automation', 'Manufacturing Equipment', 'Quality Control']
-      });
-    }
+     if (input.includes('manufacturing') || input.includes('industrial') || input.includes('factory')) {
+       suggestions.push({
+         id: 'temp_2', // Temporary ID that will be replaced by actual database ID
+         name: 'Industrial Manufacturing',
+         description: 'Manufacturing equipment, automation, and industrial solutions',
+         marketSize: '$150B+',
+         growthRate: '8% annually',
+         relevanceScore: 0.85,
+         reasoning: 'Manufacturing focus in user input',
+         suggestedVerticals: ['Industrial Automation', 'Manufacturing Equipment', 'Quality Control']
+       });
+     }
 
-    // Add more intelligent suggestions based on input analysis
-    if (suggestions.length === 0) {
-      suggestions.push({
-        id: 'fallback_general',
-        name: 'Business Services',
-        description: 'General B2B services and solutions',
-        marketSize: '$100B+',
-        growthRate: '6% annually',
-        relevanceScore: 0.7,
-        reasoning: 'General business focus in user input',
-        suggestedVerticals: ['Consulting Services', 'Business Solutions', 'Professional Services']
-      });
-    }
+     // Add more intelligent suggestions based on input analysis
+     if (suggestions.length === 0) {
+       suggestions.push({
+         id: 'temp_0', // Temporary ID that will be replaced by actual database ID
+         name: 'Business Services',
+         description: 'General B2B services and solutions',
+         marketSize: '$100B+',
+         growthRate: '6% annually',
+         relevanceScore: 0.7,
+         reasoning: 'General business focus in user input',
+         suggestedVerticals: ['Consulting Services', 'Business Solutions', 'Professional Services']
+       });
+     }
 
+    // Save fallback industries to database
+    const savedIndustries = await this.saveDiscoveredIndustries(suggestions);
+    
     const result = {
-      industries: suggestions,
-      totalFound: suggestions.length,
+      industries: savedIndustries,
+      totalFound: savedIndustries.length,
       aiEngineUsed: 'Fallback Analysis',
       configurationError: errorDetails,
       fallbackReason: errorDetails ? errorDetails.userMessage : 'AI service temporarily unavailable'
     };
     
-    console.log('[Fallback] Generated suggestions:', suggestions.map(s => s.name));
+    console.log('[Fallback] Generated and saved suggestions:', savedIndustries.map(s => s.name));
     console.log('[Fallback] === FALLBACK SUGGESTIONS COMPLETE ===');
     return result;
   }

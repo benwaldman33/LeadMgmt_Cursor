@@ -36,6 +36,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3001:3001"
+      - "5555:5555"
+      - "5556:5556"
     environment:
       - NODE_ENV=development
       - PORT=3001

@@ -137,6 +137,26 @@ class AIDiscoveryService {
   }
 
   /**
+   * Get available industries for scoring models (includes both database and hardcoded options)
+   */
+  async getAvailableIndustriesForScoring(): Promise<Array<{ value: string; label: string; source: 'database' | 'hardcoded' }>> {
+    try {
+      const response = await api.get('/ai-discovery/industries-for-scoring');
+      return response.data.industries;
+    } catch (error) {
+      console.error('Error fetching industries for scoring:', error);
+      // Fallback to hardcoded industries
+      return [
+        { value: 'Dental Equipment', label: 'Dental Equipment', source: 'hardcoded' as const },
+        { value: 'Medical Devices', label: 'Medical Devices', source: 'hardcoded' as const },
+        { value: 'Pharmaceuticals', label: 'Pharmaceuticals', source: 'hardcoded' as const },
+        { value: 'Healthcare IT', label: 'Healthcare IT', source: 'hardcoded' as const },
+        { value: 'Biotechnology', label: 'Biotechnology', source: 'hardcoded' as const }
+      ];
+    }
+  }
+
+  /**
    * Start a new discovery session
    */
   async startDiscoverySession(industry: string): Promise<DiscoverySession> {

@@ -161,10 +161,15 @@ const PipelinePage: React.FC = () => {
             <div className="mt-6 p-4 bg-blue-100 rounded-lg">
               <h3 className="font-medium text-blue-900 mb-2">Results</h3>
               <p className="text-sm text-blue-700">
-                After processing, leads will be available in the Leads page with full enrichment data, 
-                scoring results, and qualification status. Qualified leads (score ≥ 70) will be marked 
-                for immediate follow-up.
+                After processing, you can view detailed scoring results and rankings for each lead. 
+                Go to the Campaigns page and click "Results" on your campaign to see:
               </p>
+              <ul className="text-sm text-blue-700 mt-2 ml-4 list-disc">
+                <li>Leads ranked by score (highest to lowest)</li>
+                <li>Detailed scoring breakdown for each criterion</li>
+                <li>Matched content and confidence levels</li>
+                <li>Summary statistics and score distribution</li>
+              </ul>
             </div>
           </div>
         )}

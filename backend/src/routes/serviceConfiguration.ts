@@ -1,18 +1,10 @@
 import express from 'express';
 import { ServiceConfigurationService } from '../services/serviceConfigurationService';
-import { authenticateToken as auth } from '../middleware/auth';
+import { authenticateToken as auth, requireSuperAdmin } from '../middleware/auth';
 
 
 const router = express.Router();
 const serviceConfigService = new ServiceConfigurationService();
-
-// Middleware to ensure user is SUPER_ADMIN
-const requireSuperAdmin = (req: any, res: any, next: any) => {
-  if (req.user.role !== 'SUPER_ADMIN') {
-    return res.status(403).json({ error: 'Access denied. Super admin required.' });
-  }
-  next();
-};
 
 // Get all service providers
 router.get('/providers', auth, async (req, res) => {
@@ -293,6 +285,28 @@ router.get('/metadata', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching metadata:', error);
     res.status(500).json({ error: 'Failed to fetch metadata' });
+  }
+});
+
+// Get priority synchronization status
+router.get('/priority-sync-status', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const status = await serviceConfigService.getPrioritySyncStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Error getting priority sync status:', error);
+    res.status(500).json({ error: 'Failed to get priority sync status' });
+  }
+});
+
+// Bulk sync all operation mapping priorities
+router.post('/sync-all-priorities', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const result = await serviceConfigService.syncAllOperationMappingPriorities();
+    res.json(result);
+  } catch (error) {
+    console.error('Error syncing all priorities:', error);
+    res.status(500).json({ error: 'Failed to sync all priorities' });
   }
 });
 

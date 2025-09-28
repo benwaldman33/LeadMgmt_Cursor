@@ -10,7 +10,7 @@
 const axios = require('axios');
 
 const BACKEND_URL = 'http://localhost:3001';
-const FRONTEND_URL = 'http://localhost:5173';
+const FRONTEND_URL = 'http://localhost:3000';
 
 // Test credentials
 const TEST_CREDENTIALS = [
@@ -258,7 +258,7 @@ async function main() {
     console.log('');
     console.log('💡 NEXT STEPS:');
     console.log('1. Open browser developer tools (F12)');
-    console.log('2. Go to http://localhost:5173');
+    console.log('2. Go to http://localhost:3000');
     console.log('3. Try logging in with one of the test credentials');
     console.log('4. Watch the Console and Network tabs for detailed error messages');
     

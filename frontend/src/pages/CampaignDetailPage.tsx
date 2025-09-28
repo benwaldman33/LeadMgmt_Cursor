@@ -21,6 +21,10 @@ interface Campaign {
     id: string;
     name: string;
   };
+  scoringModel?: {
+    id: string;
+    name: string;
+  };
 }
 
 const CampaignDetailPage: React.FC = () => {
@@ -80,6 +84,14 @@ const CampaignDetailPage: React.FC = () => {
         {campaign.targetEndDate && <div><strong>Target End:</strong> {new Date(campaign.targetEndDate).toLocaleDateString()}</div>}
         <div><strong>Created By:</strong> {campaign.createdBy.fullName}</div>
         {campaign.assignedTeam && <div><strong>Assigned Team:</strong> {campaign.assignedTeam.name}</div>}
+        {campaign.scoringModel && (
+          <div>
+            <strong>Scoring Model:</strong> 
+            <span className="ml-2 px-2 py-1 bg-primary-100 text-primary-800 text-sm font-medium rounded">
+              {campaign.scoringModel.name}
+            </span>
+          </div>
+        )}
         <div><strong>Created At:</strong> {new Date(campaign.createdAt).toLocaleString()}</div>
       </div>
     </div>

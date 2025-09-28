@@ -1,381 +1,420 @@
-# BBDS Universal Lead Scoring Platform - Help & FAQ
+# LeadMgmt System Help & FAQ
 
-## Table of Contents
-1. [Getting Started](#getting-started)
-2. [Service Configuration](#service-configuration)
-3. [Lead Management](#lead-management)
-4. [AI Discovery](#ai-discovery)
-5. [Troubleshooting](#troubleshooting)
+## 🆕 Latest Updates - September 28, 2025
 
-## Getting Started
+### ✅ **RESOLVED: AI Discovery Conversation ID Display Issue**
 
-### What is BBDS?
-BBDS (Business Business Development System) is a comprehensive lead scoring and market discovery platform that combines AI-powered analysis with web scraping to identify and qualify business opportunities.
+**Problem**: AI conversations were showing database IDs (like "cmg2upxjz000d6429mbhbf7y1") instead of readable industry names.
 
-### How do I access the platform?
-1. Navigate to the login page
-2. Enter your credentials
-3. If you don't have an account, contact your system administrator
+**Root Cause**: The conversation message endpoint was missing ID resolution logic that existed in other AI Discovery features.
 
----
+**Solution**: 
+- Added ID resolution to conversation messages endpoint
+- AI now receives proper industry names like "Plant-Based Protein Manufacturing"
+- Consistent behavior across all AI Discovery features
 
-## Service Configuration
+**Status**: ✅ **FIXED** - Conversations now show proper industry names
 
-### Overview
-The Service Configuration panel allows administrators to manage AI engines, scrapers, and other service providers that power the platform's capabilities.
+### ✅ **RESOLVED: Leads Page 400 Bad Request Error**
 
-### Dual Interface System
+**Problem**: Leads page was failing to load with 400 Bad Request errors.
 
-The Service Configuration panel now offers two input modes for maximum flexibility:
+**Root Cause**: Frontend was sending filter data in wrong format (strings instead of arrays for status, strings instead of Date objects for dates).
 
-#### **Form View (Recommended for New Users)**
-- **Clean, structured forms** with type-specific fields
-- **Checkbox-based capability selection** for easy configuration
-- **Type-specific configuration fields** that adapt to your service type
-- **Common limits section** for quotas and concurrency settings
-- **Scraping configuration** for applicable service types
+**Solution**: 
+- Updated frontend to send correct data types
+- Enhanced filter validation and error handling
+- Improved data type consistency
 
-#### **JSON View (Advanced Users)**
-- **Raw JSON input** for users who prefer direct configuration
-- **Dynamic placeholders** that change based on selected service type
-- **Template buttons** to quickly populate fields with examples
-- **JSON validation** with visual feedback and error handling
+**Status**: ✅ **FIXED** - Leads page now loads correctly
 
-### Service Types
+### ✅ **ENHANCED: Scoring Model Industry Selection**
 
-#### **AI_ENGINE**
-- **Use Case**: AI-powered services like Claude, OpenAI, GPT models
-- **Capabilities**: AI_DISCOVERY, MARKET_DISCOVERY, KEYWORD_EXTRACTION, CONTENT_ANALYSIS, LEAD_SCORING
-- **Configuration Fields**: API Key, Model, Max Tokens, Temperature
-- **Example**: Claude AI, OpenAI GPT-4
+**Problem**: Users couldn't create scoring models for AI Discovery industries (like "Plant-Based Protein Manufacturing") due to limited 5-option dropdown.
 
-#### **SCRAPER**
-- **Use Case**: Web scraping services like Apify
-- **Capabilities**: WEB_SCRAPING, SITE_ANALYSIS
-- **Configuration Fields**: API Token, Default Actor, Max Concurrency
-- **Example**: Apify Web Scraper
+**Solution**: 
+- **Dynamic Industry List**: Now includes all AI Discovery industries
+- **Custom Input**: Enter any industry name manually
+- **Auto-Detection**: Automatically set industry from selected campaign
+- **Visual Indicators**: Icons show data source (database vs hardcoded)
 
-#### **SITE_ANALYZER**
-- **Use Case**: Custom website analysis tools
-- **Capabilities**: SITE_ANALYSIS, KEYWORD_EXTRACTION
-- **Configuration Fields**: Max Concurrency, Timeout, User Agent
-- **Example**: Custom Site Analyzer
+**Status**: ✅ **ENHANCED** - Unlimited industry support for scoring models
 
-#### **CONTENT_ANALYZER**
-- **Use Case**: Content analysis and lead scoring services
-- **Capabilities**: CONTENT_ANALYSIS, LEAD_SCORING
-- **Configuration Fields**: Scoring Model, Confidence Threshold, Max Analysis Time
-- **Example**: Lead Scoring AI
+### ✅ **RESOLVED: Customer Search Returning 0 Results** (Previous Fix)
 
-### Configuration Fields
+**Problem**: AI Discovery customer search was consistently returning 0 results despite having a robust AI search system.
 
-#### **Capabilities Field (Required)**
-Define which operations this service can handle using checkboxes or JSON:
+**Root Cause**: Frontend was passing database IDs (UUIDs) to the backend, but the AI needed human-readable names. The AI was receiving prompts like "Search for customers in uuid-123 / uuid-456" instead of "Search for customers in Healthcare / Medical Devices".
 
-**Available Operations:**
-- `AI_DISCOVERY` - AI-powered lead discovery
-- `MARKET_DISCOVERY` - Market research and analysis  
-- `WEB_SCRAPING` - Web data extraction
-- `SITE_ANALYSIS` - Full website analysis
-- `KEYWORD_EXTRACTION` - Keyword identification
-- `CONTENT_ANALYSIS` - Content analysis and insights
-- `LEAD_SCORING` - Lead quality scoring
+**Solution**: 
+- Backend now resolves industry and product vertical IDs to actual names before sending to AI
+- Frontend displays proper names in all notifications and messages
+- Enhanced notification system with better close buttons and accessibility
 
-**Example JSON:**
-```json
-["AI_DISCOVERY", "MARKET_DISCOVERY", "KEYWORD_EXTRACTION"]
-```
-
-#### **Configuration Field (Required - JSON Format)**
-Service-specific configuration parameters:
-
-**AI_ENGINE Example:**
-```json
-{
-  "apiKey": "your-api-key",
-  "model": "gpt-4",
-  "maxTokens": 4096,
-  "temperature": 0.7
-}
-```
-
-**SCRAPER Example:**
-```json
-{
-  "apiToken": "your-apify-api-token",
-  "defaultActor": "apify/web-scraper",
-  "maxConcurrency": 10
-}
-```
-
-#### **Limits Field (Required - JSON Format)**
-Service usage limits and quotas:
-
-**Example:**
-```json
-{
-  "monthlyQuota": 1000,
-  "concurrentRequests": 5,
-  "costPerRequest": 0.03
-}
-```
-
-#### **Scraping Config Field (Optional - JSON Format)**
-For services that support web scraping:
-
-**Example:**
-```json
-{
-  "maxDepth": 3,
-  "maxPages": 100,
-  "respectRobotsTxt": true,
-  "requestDelay": 1000
-}
-```
-
-### Testing Service Providers
-
-Each service provider now includes a **Test** button that:
-- **Verifies connectivity** to the service
-- **Tests basic functionality** with a simple API call
-- **Provides feedback** on success or failure
-- **Helps troubleshoot** configuration issues
-
-**To test a service:**
-1. Click the **Test** button next to any service provider
-2. Wait for the test to complete
-3. Review the results in the popup dialog
-4. Fix any configuration issues if the test fails
-
-### Operation Mappings
-
-#### Overview
-Operation Mappings connect specific operations (like AI Discovery) to service providers, allowing you to control which services handle which tasks.
-
-#### Configuration Fields
-
-**Operation** (Required)
-- Select from available operations (AI_DISCOVERY, MARKET_DISCOVERY, etc.)
-
-**Service Provider** (Required)
-- Choose from configured service providers
-- Only shows providers with matching capabilities
-
-**Priority** (Required)
-- Lower numbers = higher priority
-- Used for load balancing and failover
-
-**Configuration** (Required - JSON Format)
-- Operation-specific configuration
-- Can override service provider defaults
-
-**Example:**
-```json
-{
-  "customConfig": "value",
-  "timeout": 30000,
-  "maxRetries": 3
-}
-```
-
-### Usage Statistics
-
-#### Overview
-The Usage Statistics tab provides insights into service usage, costs, and performance.
-
-#### What's Tracked
-- **Token Usage**: Input/output tokens for AI services
-- **Request Counts**: Number of API calls made
-- **Cost Tracking**: Estimated costs based on usage
-- **Performance Metrics**: Response times, success rates
-- **Service Health**: Uptime and error rates
+**Status**: ✅ **FIXED** - Customer search now returns actual results
 
 ---
 
-## Lead Management
+## 🤖 AI Discovery System
 
-### How do I create a new lead?
-1. Navigate to Leads → Create Lead
-2. Fill in the required information
-3. Select a campaign
-4. Click "Create Lead"
+### How does AI Discovery work?
 
-### How do I import leads?
-1. Navigate to Leads → Import/Export
-2. Upload a CSV file with lead data
-3. Map the columns to lead fields
-4. Select a campaign
-5. Click "Import Leads"
+AI Discovery is a multi-step process that helps you find potential customers:
 
-### How do I score leads?
-1. Navigate to Scoring → Scoring Models
-2. Create or select a scoring model
-3. Apply the model to your leads
-4. View scores in the Leads table
+1. **Industry Discovery**: Enter your business description and AI suggests relevant industries
+2. **Product Vertical Selection**: Choose specific product categories within your industry
+3. **Customer Search**: AI searches for real companies that could be interested in your product
+4. **Lead Generation**: Process discovered companies into your lead pipeline
 
----
+### Why is my customer search returning 0 results?
 
-## AI Discovery
+**Most Common Causes:**
+1. **AI Configuration Issues**: Check that your AI engines are properly configured
+2. **Database Connectivity**: Ensure the database is running and accessible
+3. **Operation Mappings**: Verify that AI engines are mapped to the AI_DISCOVERY operation
 
-### What is AI Discovery?
-AI Discovery uses Claude AI to automatically find and qualify potential leads based on your industry and product verticals. The system now includes comprehensive error handling and user notifications for configuration issues.
+**Troubleshooting Steps:**
+1. Check the Service Configuration page for AI engine status
+2. Verify database connection in the backend logs
+3. Ensure operation mappings exist for AI_DISCOVERY
+4. Check browser console for error messages
 
-### AI Configuration Requirements
+### How do I configure AI engines for discovery?
 
-#### **Claude API Setup**
-To use AI Discovery, you need:
-1. **Valid Claude API Key**: Configured in the system with proper permissions
-2. **Current Model Name**: The system uses `claude-sonnet-4-20250514` (automatically configured)
-3. **Proper API Access**: Ensure your API key has access to the specified model
+1. Go to **Service Configuration** (Admin only)
+2. Add or edit AI engines (Claude, OpenAI, Grok)
+3. Set proper API keys and model names
+4. Ensure engines are mapped to AI_DISCOVERY operation
+5. Set priorities for failover order
 
-#### **Configuration Error Handling**
-The system now provides clear error messages when AI services have configuration problems:
+### How do I create scoring models for any industry?
 
-**Common Issues & Solutions:**
+**New Enhanced Process**:
+1. Go to **Scoring Models** → **Create New Model**
+2. **Choose your input method**:
+   - **Select from List**: Choose from all AI Discovery industries + hardcoded options
+   - **Enter Custom**: Type any industry name manually
+   - **Auto-detect**: Select a campaign to automatically set the industry
+3. **Visual Indicators**: 
+   - 📊 = Database industry (from AI Discovery)
+   - 🔧 = Hardcoded industry (legacy support)
+4. **Complete the form** with your scoring criteria
+5. **Save** - Your model is now available for any industry!
 
-**Model Not Found (404 Error)**
-- **Problem**: The AI model specified is not available or has been discontinued
-- **Solution**: The system automatically uses the current model `claude-sonnet-4-20250514`
-- **User Action**: No action required - the system self-heals
+**Benefits**:
+- ✅ Unlimited industry support
+- ✅ Seamless integration with AI Discovery
+- ✅ Multiple input methods for flexibility
+- ✅ Backward compatibility with existing models
 
-**API Key Invalid (401 Error)**
-- **Problem**: Your Claude API key is invalid or has expired
-- **Solution**: Update your API key in the system configuration
-- **User Action**: Contact your system administrator to update the API key
+### What industries can AI Discovery analyze?
 
-**Rate Limit Exceeded (429 Error)**
-- **Problem**: You have exceeded your Claude API rate limits
-- **Solution**: Wait a few minutes before trying again
-- **User Action**: Check your Anthropic account usage limits
+AI Discovery can analyze any industry that the AI engines can understand. Common industries include:
+- Healthcare & Medical
+- Manufacturing & Industrial
+- Technology & Software
+- Financial Services
+- Construction & Real Estate
+- Food & Beverage
+- And many more...
 
-### Enhanced User Experience
+### How accurate are the customer search results?
 
-#### **Smart Error Notifications**
-- **Configuration Issues**: Clear warnings when AI services have problems
-- **Actionable Guidance**: Specific steps to fix configuration issues
-- **Error Context**: Detailed information about what went wrong
-- **Self-Healing**: System automatically uses fallbacks when possible
+The system uses a multi-tier search strategy:
+1. **Primary Search**: Specific criteria with exact industry/product vertical match
+2. **Broader Search**: Expanded criteria if primary search returns no results
+3. **Industry-Specific Search**: Focus on industry characteristics as final fallback
 
-#### **Intelligent Fallbacks**
-Instead of silent failures, the system now:
-- **Analyzes Errors**: Determines the specific type of configuration problem
-- **Provides Context**: Shows users exactly what's happening
-- **Suggests Actions**: Gives clear guidance on how to fix issues
-- **Maintains Functionality**: Uses intelligent fallbacks when AI is unavailable
-
-### How do I use AI Discovery?
-1. Navigate to AI Discovery
-2. Select your industry
-3. Choose product verticals
-4. Start the discovery process
-5. Review and approve discovered leads
-
-**Note**: If you see "Fallback Analysis" instead of AI-generated insights, check the configuration error notifications for guidance on fixing the issue.
+This maximizes the chances of finding relevant customers while maintaining accuracy.
 
 ---
 
-## Troubleshooting
+## 🔧 Technical Troubleshooting
 
-### AI Discovery Issues
+### Database Connection Issues
 
-#### Q: I'm seeing "Fallback Analysis" instead of AI-generated insights
-**A:** This issue has been resolved in the latest update. The problem was caused by:
-- Invalid Claude model name (`claude-3-sonnet-20240229`) causing 404 errors
-- Claude API key configuration issues
-- Silent fallbacks to generic data instead of error notifications
+**Symptoms:**
+- AI Discovery shows "Fallback Analysis"
+- Service Configuration shows connection errors
+- Backend logs show database connection failures
 
-**Solution:** The system now:
-- Uses the current Claude model `claude-sonnet-4-20250514`
-- Provides clear error messages for configuration issues
-- Shows actionable guidance to fix problems
-- Uses intelligent fallbacks with error context
+**Solutions:**
+1. **Check Docker Status**: Ensure PostgreSQL container is running
+   ```bash
+   docker-compose ps
+   ```
 
-#### Q: How do I know if my Claude API key is working?
-**A:** The system now provides clear notifications when there are configuration issues:
-1. Check for warning alerts in the AI Discovery page
-2. Look for configuration error notifications
-3. The system will show specific error types and suggested actions
-4. Contact your system administrator if you see API key errors
+2. **Restart Database**: Restart the PostgreSQL service
+   ```bash
+   docker-compose restart postgres
+   ```
 
-#### Q: What should I do if AI Discovery fails?
-**A:** The enhanced error handling system will:
-1. **Analyze the Error**: Determine if it's a model, API key, or rate limit issue
-2. **Show Clear Messages**: Explain exactly what went wrong
-3. **Provide Solutions**: Give specific steps to fix the problem
-4. **Use Fallbacks**: Maintain functionality while issues are resolved
+3. **Check Environment Variables**: Verify DATABASE_URL in .env file
+   ```bash
+   # For Docker
+   DATABASE_URL="postgresql://dev:devpass@postgres:5432/leadscoring_dev"
+   
+   # For Local Development
+   DATABASE_URL="postgresql://dev:devpass@localhost:5433/leadscoring_dev"
+   ```
 
-### Authentication & API Access Issues
+### AI Engine Configuration Issues
 
-#### Q: I'm getting 401 Unauthorized errors when trying to access the Apify Integration page
-**A:** This issue has been resolved in the latest update. The problem was caused by:
-- Incorrect environment variable configuration (`VITE_API_URL` pointing directly to backend)
-- Inconsistent token key usage across services
-- Multiple PrismaClient instances causing database connection issues
+**Symptoms:**
+- AI Discovery fails with configuration errors
+- Service Configuration shows invalid model names
+- API calls return 404 or authentication errors
 
-**Solution:** The system now:
-- Uses proper Vite proxy configuration (`/api` → backend)
-- Standardizes token handling with `bbds_access_token` key
-- Consolidates database connections through shared PrismaClient
+**Solutions:**
+1. **Update Model Names**: Use current model names
+   - Claude: `claude-sonnet-4-20250514`
+   - OpenAI: `gpt-4` or `gpt-3.5-turbo`
+   - Grok: Check current model availability
 
-#### Q: My existing Apify scraper isn't showing up in the Apify Integration page
-**A:** This was caused by the authentication issues above. Your existing scrapers are stored in the database and should now be visible after the fixes.
+2. **Verify API Keys**: Ensure API keys are valid and have proper permissions
 
-#### Q: I'm seeing database connection errors in the console
-**A:** The system now uses a consolidated PrismaClient instance. If you still see errors:
-1. Ensure the backend server is running (`npm run dev` in backend directory)
-2. Check that PostgreSQL is running on port 5433
-3. Verify the `.env` file has correct `DATABASE_URL`
+3. **Check Operation Mappings**: Verify AI engines are mapped to AI_DISCOVERY operation
 
-### General Issues
+### Notification System Issues
 
-#### Q: How do I start the development environment?
-**A:** 
-1. Start the backend: `cd backend && npm run dev`
-2. Start the frontend: `cd frontend && npm run dev`
-3. Ensure PostgreSQL is running (Docker or local)
+**Symptoms:**
+- Notifications can't be closed
+- Notifications show database IDs instead of names
+- Toast notifications appear but don't respond to clicks
 
-#### Q: How do I access the system?
-**A:** 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-- Default admin credentials: admin@bbds.com / [your password]
+**Solutions:**
+1. **Refresh Browser**: Clear browser cache and refresh
+2. **Check Console**: Look for JavaScript errors in browser console
+3. **Restart Frontend**: Restart the frontend development server
 
-## Previous FAQ Content
+### Frontend-Backend Communication Issues
 
-### Service Configuration
+**Symptoms:**
+- API calls return 401 Unauthorized
+- Frontend can't connect to backend
+- Authentication tokens not working
 
-#### Q: How do I configure a new AI service provider?
-**A:** 
-1. Go to Service Configuration page
-2. Click "Add New Provider"
-3. Select type (AI_ENGINE, SCRAPER, etc.)
-4. Fill in required fields
-5. Use templates for quick setup
-
-#### Q: How do I test a service provider?
-**A:** 
-1. In Service Configuration, click the "Test" button for your provider
-2. The system will verify connectivity and functionality
-3. Check the test results for any issues
-
-### Market Discovery
-
-#### Q: How do I start a market discovery process?
-**A:** 
-1. Go to Market Discovery page
-2. Click "Start New Discovery"
-3. Configure your search parameters
-4. Monitor progress in real-time
-5. View results and insights
-
-## Need More Help?
-
-If you encounter issues not covered here:
-1. Check the console for error messages
-2. Review the CHANGELOG for recent fixes
-3. Check the engineering log for technical details
-4. Ensure all services are running properly
+**Solutions:**
+1. **Check Vite Proxy**: Ensure VITE_API_URL is set to `/api`
+2. **Verify Authentication**: Check that user is properly logged in
+3. **Check Token Storage**: Verify localStorage contains `bbds_access_token`
 
 ---
 
-*This help guide is regularly updated to reflect the latest features and capabilities of the BBDS Universal Lead Scoring Platform. For the most current information, please refer to the online documentation or contact your system administrator.*
+## 📊 Performance Optimization
+
+### Improving AI Discovery Performance
+
+1. **Database Optimization**:
+   - Ensure proper indexes on industry and product vertical tables
+   - Monitor query performance for ID resolution
+   - Consider caching frequently accessed data
+
+2. **AI API Optimization**:
+   - Use appropriate model sizes for different tasks
+   - Implement request batching where possible
+   - Monitor API rate limits and quotas
+
+3. **Frontend Optimization**:
+   - Minimize unnecessary re-renders
+   - Implement virtual scrolling for large result sets
+   - Cache resolved names to reduce database queries
+
+### Monitoring System Performance
+
+1. **Backend Logs**: Monitor for errors and performance issues
+2. **Database Metrics**: Track query performance and connection usage
+3. **AI API Usage**: Monitor rate limits and response times
+4. **Frontend Performance**: Use browser dev tools to identify bottlenecks
+
+---
+
+## 🔐 Security & Authentication
+
+### API Key Management
+
+**Best Practices:**
+1. **Secure Storage**: Store API keys in environment variables, never in code
+2. **Key Rotation**: Regularly rotate API keys for security
+3. **Access Control**: Limit API key permissions to minimum required
+4. **Monitoring**: Monitor API key usage for unusual activity
+
+**Configuration:**
+```bash
+# .env file
+CLAUDE_API_KEY=your_claude_api_key
+OPENAI_API_KEY=your_openai_api_key
+GROK_API_KEY=your_grok_api_key
+```
+
+### User Authentication
+
+**Token Management:**
+1. **Automatic Expiration**: Tokens expire after configured time
+2. **Secure Storage**: Tokens stored in localStorage with proper security
+3. **Role-Based Access**: Different user roles have different permissions
+
+**Troubleshooting:**
+1. Clear browser localStorage if authentication issues persist
+2. Check backend logs for authentication errors
+3. Verify JWT_SECRET is properly configured
+
+---
+
+## 🚀 Advanced Features
+
+### Custom AI Prompts
+
+You can customize AI prompts for better results:
+
+1. **Industry Discovery**: Modify prompts to focus on specific criteria
+2. **Customer Search**: Adjust search parameters for better targeting
+3. **Response Parsing**: Customize how AI responses are processed
+
+### Integration with Lead Pipeline
+
+**Workflow:**
+1. Discover customers using AI Discovery
+2. Review and filter results
+3. Send to lead pipeline for enrichment
+4. Process enriched leads for sales outreach
+
+**Configuration:**
+- Set up web scraping for discovered companies
+- Configure lead scoring models
+- Define enrichment workflows
+
+### Service Configuration Management
+
+**Advanced Features:**
+1. **Priority Management**: Set failover order for AI engines
+2. **Usage Limits**: Configure rate limits and quotas
+3. **Performance Monitoring**: Track service performance and costs
+4. **Testing**: Test service configurations before use
+
+---
+
+## 📚 Developer Resources
+
+### API Documentation
+
+**AI Discovery Endpoints:**
+- `POST /api/ai-discovery/discover-industries` - Discover industries
+- `GET /api/ai-discovery/industries/:id/verticals` - Get product verticals
+- `POST /api/ai-discovery/search-customers` - Search for customers
+- `POST /api/ai-discovery/customer-insights` - Generate customer insights
+
+**Service Configuration Endpoints:**
+- `GET /api/service-configuration/providers` - List service providers
+- `POST /api/service-configuration/providers` - Create service provider
+- `PUT /api/service-configuration/providers/:id` - Update service provider
+- `POST /api/service-configuration/providers/:id/test` - Test service provider
+
+### Database Schema
+
+**Key Tables:**
+- `Industry` - Industry information
+- `ProductVertical` - Product categories within industries
+- `CustomerType` - Customer segments for product verticals
+- `ServiceProvider` - AI engines and services
+- `OperationServiceMapping` - Links services to operations
+
+### Debugging Tools
+
+**Built-in Diagnostics:**
+1. **Service Configuration Page**: Test AI engine connectivity
+2. **Browser Console**: Frontend error logging
+3. **Backend Logs**: Server-side error tracking
+4. **Database Queries**: Direct database access for troubleshooting
+
+**Custom Scripts:**
+- `check-database-config.js` - Verify database configuration
+- `check-operation-mappings.js` - Check operation mappings
+- `test-ai-discovery.js` - Test AI discovery functionality
+
+---
+
+## 🆘 Getting Help
+
+### Support Channels
+
+1. **Documentation**: Check this FAQ and other documentation files
+2. **Logs**: Review backend and frontend logs for error details
+3. **Console**: Check browser console for JavaScript errors
+4. **Database**: Direct database queries for data verification
+
+### Common Error Messages
+
+**"No AI engines available for operation: AI_DISCOVERY"**
+- Solution: Check operation mappings in Service Configuration
+
+**"Database connection failed"**
+- Solution: Verify Docker containers are running and database is accessible
+
+**"Invalid API key"**
+- Solution: Update API keys in Service Configuration
+
+**"Model not found"**
+- Solution: Update to current model names in Service Configuration
+
+**"400 Bad Request" on Leads page**
+- Solution: This has been fixed - refresh the page. If it persists, check browser console for details
+
+**"Campaign not showing in Pipeline dropdown"**
+- Solution: Campaigns must have a scoring model assigned. Create a scoring model first, then assign it to the campaign
+
+**"AI showing database IDs instead of industry names"**
+- Solution: This has been fixed - AI conversations now show proper industry names
+
+### Reporting Issues
+
+When reporting issues, please include:
+1. **Error Message**: Exact error text
+2. **Steps to Reproduce**: Detailed steps to recreate the issue
+3. **Environment**: Browser, OS, and system details
+4. **Logs**: Relevant backend and frontend logs
+5. **Screenshots**: Visual evidence of the issue
+
+---
+
+## 📈 System Status
+
+### Current Status: ✅ **OPERATIONAL**
+
+**All Systems Working:**
+- ✅ AI Discovery Customer Search
+- ✅ AI Discovery Conversations (with proper industry names)
+- ✅ Service Configuration Management
+- ✅ Database Connectivity
+- ✅ Authentication & Authorization
+- ✅ Notification System
+- ✅ Web Scraping & Enrichment
+- ✅ Leads Page (no more 400 errors)
+- ✅ Scoring Model Creation (unlimited industries)
+
+### Recent Fixes (2025-09-28)
+- ✅ Fixed AI Discovery conversation ID display issue
+- ✅ Fixed Leads page 400 Bad Request error
+- ✅ Enhanced scoring model industry selection with unlimited support
+- ✅ Added dynamic industry list integration
+- ✅ Added custom industry input capability
+- ✅ Added campaign auto-detection for scoring models
+
+### Previous Fixes (2025-08-31)
+- ✅ Fixed customer search returning 0 results
+- ✅ Enhanced notification system with proper close buttons
+- ✅ Improved ID resolution for better AI prompts
+- ✅ Added comprehensive error handling and logging
+
+### Known Issues
+- None currently identified
+
+### Planned Improvements
+1. **Performance Monitoring**: Real-time system metrics
+2. **Advanced Caching**: Redis-based caching for better performance
+3. **Enhanced Analytics**: Detailed usage and performance analytics
+4. **Mobile Optimization**: Better mobile device support
+
+---
+
+*This help document is maintained by the development team and updated with each system release. For the latest information, check the CHANGELOG.md and engineering-log.md files.*

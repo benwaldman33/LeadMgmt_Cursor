@@ -210,6 +210,14 @@ This document tracks the implementation status of PRD features and ongoing devel
   - [x] Implemented real-time connection monitoring
   - [x] Added fallback authentication mechanisms for development
   - [x] Enhanced error handling and logging for WebSocket connections
+- [x] **Service Configuration Form View Enhancement** (2025-08-31)
+  - [x] Added missing endpoint field to AI_ENGINE form view
+  - [x] Added API key and endpoint fields to SITE_ANALYZER form view
+  - [x] Added API key and endpoint fields to CONTENT_ANALYZER form view
+  - [ ] **Form View Population for Editing** (Low Priority)
+    - [ ] Populate existing values into form fields when editing providers
+    - [ ] Allow users to see and modify current API keys, endpoints, etc. in form view
+    - [ ] Currently users must switch to JSON view to edit existing values
 - [ ] **React Warnings**
   - [ ] Fix duplicate key warnings in lists
   - [ ] Resolve useEffect dependency warnings

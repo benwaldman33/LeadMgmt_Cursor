@@ -86,15 +86,15 @@ const LeadsPage: React.FC = () => {
   const { addNotification } = useNotifications();
   const [filters, setFilters] = useState<LeadFilters>({
     query: '',
-    status: '',
+    status: [],
     campaignId: '',
     assignedToId: '',
     assignedTeamId: '',
     industry: '',
     scoreMin: undefined,
     scoreMax: undefined,
-    dateFrom: '',
-    dateTo: '',
+    dateFrom: undefined,
+    dateTo: undefined,
     enriched: undefined,
     scored: undefined,
   });
@@ -114,7 +114,12 @@ const LeadsPage: React.FC = () => {
         value !== '' &&
         !(Array.isArray(value) && value.length === 0)
       ) {
-        cleaned[key as keyof LeadFilters] = value;
+        // Convert date strings to Date objects for date fields
+        if ((key === 'dateFrom' || key === 'dateTo') && typeof value === 'string') {
+          cleaned[key as keyof LeadFilters] = new Date(value) as any;
+        } else {
+          cleaned[key as keyof LeadFilters] = value;
+        }
       }
     });
     return cleaned;
@@ -186,21 +191,37 @@ const LeadsPage: React.FC = () => {
   };
 
   const handleAdvancedFilterChange = (key: string, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => {
+      const newFilters = { ...prev };
+      
+      // Handle status as array
+      if (key === 'status') {
+        if (value === '' || value === undefined) {
+          newFilters[key] = [];
+        } else {
+          // Convert single value to array
+          newFilters[key] = Array.isArray(value) ? value : [value];
+        }
+      } else {
+        newFilters[key] = value;
+      }
+      
+      return newFilters;
+    });
   };
 
   const handleClearFilters = () => {
     setFilters({
       query: '',
-      status: '',
+      status: [],
       campaignId: '',
       assignedToId: '',
       assignedTeamId: '',
       industry: '',
       scoreMin: undefined,
       scoreMax: undefined,
-      dateFrom: '',
-      dateTo: '',
+      dateFrom: undefined,
+      dateTo: undefined,
       enriched: undefined,
       scored: undefined,
     });
@@ -437,7 +458,7 @@ const LeadsPage: React.FC = () => {
           </div>
           <h3 className="mt-2 text-sm font-medium text-gray-900">No leads found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {filters.campaignId || filters.status || filters.query 
+            {filters.campaignId || (filters.status && filters.status.length > 0) || filters.query 
               ? 'Try adjusting your filters or add new leads.'
               : 'Get started by adding your first lead.'
             }

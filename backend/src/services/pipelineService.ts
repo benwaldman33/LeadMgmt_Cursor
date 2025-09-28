@@ -21,7 +21,14 @@ export interface PipelineJob {
     status: 'success' | 'failed';
     error?: string;
     score?: number;
+    confidence?: number;
     qualified?: boolean;
+    criteriaScores?: Array<{
+      criterionId: string;
+      score: number;
+      matchedContent: string[];
+      confidence: number;
+    }>;
   }>;
   createdAt: Date;
   startedAt?: Date;
@@ -102,17 +109,25 @@ export class PipelineService {
           await ScoringService.saveScoringResult(lead.id, scoringResult);
           job.progress.scored++;
           
-          if (scoringResult.totalScore >= 70) {
+          // Count as qualified if score > 0 (any score means some criteria matched)
+          if (scoringResult.totalScore > 0) {
             job.progress.qualified++;
           }
           
-          // Add to results
+          // Add to results with detailed scoring breakdown
           job.results.push({
             url,
             leadId: lead.id,
             status: 'success',
             score: scoringResult.totalScore,
-            qualified: scoringResult.totalScore >= 70
+            confidence: scoringResult.confidence,
+            qualified: scoringResult.totalScore > 0,
+            criteriaScores: scoringResult.criteriaScores.map(cs => ({
+              criterionId: cs.criterionId,
+              score: cs.score,
+              matchedContent: cs.matchedContent,
+              confidence: cs.confidence
+            }))
           });
 
         } catch (error) {
@@ -145,11 +160,12 @@ export class PipelineService {
       await webSocketService.sendPipelineNotification(
         'pipeline_completed',
         'Pipeline Completed',
-        `Successfully processed ${job.progress.processed} URLs. ${job.progress.qualified} leads qualified.`,
+        `Successfully processed ${job.progress.processed} URLs. ${job.progress.scored} leads scored. View detailed results to see scoring breakdown and rankings.`,
         { 
           jobId, 
           results: job.results,
-          summary: job.progress
+          summary: job.progress,
+          campaignId
         }
       );
 
@@ -186,6 +202,16 @@ export class PipelineService {
         industry: industry || 'Unknown',
         campaignId,
         status: 'RAW'
+      }
+    });
+
+    // Update campaign lead count
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: {
+        currentLeadCount: {
+          increment: 1
+        }
       }
     });
 
@@ -285,5 +311,87 @@ export class PipelineService {
     // For now, return empty array since we're not persisting jobs
     // In a production system, you'd query the database
     return [];
+  }
+
+  /**
+   * Get detailed pipeline results with scoring breakdown and ranking
+   */
+  static async getDetailedPipelineResults(campaignId: string): Promise<{
+    leads: Array<{
+      id: string;
+      url: string;
+      companyName: string;
+      domain: string;
+      score: number;
+      confidence: number;
+      criteriaScores: Array<{
+        criterionName: string;
+        criterionDescription?: string;
+        score: number;
+        matchedContent: string[];
+        confidence: number;
+        weight: number;
+      }>;
+      createdAt: Date;
+    }>;
+    scoringModel: {
+      id: string;
+      name: string;
+      industry: string;
+    };
+  }> {
+    // Get campaign with scoring model
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: { scoringModel: { include: { criteria: true } } }
+    });
+
+    if (!campaign || !campaign.scoringModel) {
+      throw new Error('Campaign or scoring model not found');
+    }
+
+    // Get all leads for this campaign with scoring results
+    const leads = await prisma.lead.findMany({
+      where: { campaignId },
+      include: {
+        scoringDetails: {
+          include: {
+            criteriaScores: true
+          }
+        }
+      },
+      orderBy: { score: 'desc' } // Rank by score (highest first)
+    });
+
+    // Map leads with detailed scoring information
+    const detailedLeads = leads.map(lead => ({
+      id: lead.id,
+      url: lead.url,
+      companyName: lead.companyName,
+      domain: lead.domain,
+      score: lead.score || 0,
+      confidence: lead.scoringDetails?.confidence || 0,
+      criteriaScores: lead.scoringDetails?.criteriaScores.map(cs => {
+        const criterion = campaign.scoringModel!.criteria.find(c => c.id === cs.criterionId);
+        return {
+          criterionName: criterion?.name || 'Unknown',
+          criterionDescription: criterion?.description,
+          score: cs.score,
+          matchedContent: JSON.parse(cs.matchedContent),
+          confidence: cs.confidence,
+          weight: criterion?.weight || 0
+        };
+      }) || [],
+      createdAt: lead.createdAt
+    }));
+
+    return {
+      leads: detailedLeads,
+      scoringModel: {
+        id: campaign.scoringModel.id,
+        name: campaign.scoringModel.name,
+        industry: campaign.scoringModel.industry
+      }
+    };
   }
 } 
