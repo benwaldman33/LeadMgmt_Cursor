@@ -104,4 +104,7 @@ ehthumbs.db
 Thumbs.db
 
 # Prisma
-prisma/migrations/ 
+prisma/migrations/
+
+# Test files with sensitive data
+backend/test-claude-model.js 
