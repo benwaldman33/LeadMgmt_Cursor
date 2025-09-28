@@ -1,6 +1,21 @@
 # LeadMgmt System Changelog
 
-## [Unreleased] - 2025-09-28
+## [Unreleased] - 2025-01-02
+
+### 🔐 Security
+- **API Key Management & Repository Security**: Resolved GitHub push protection issues by removing hardcoded API keys from commit history
+  - Removed legacy utility scripts containing API keys (`backend/update-api-key.js`, `backend/update-old-service-config.js`)
+  - Updated `.gitignore` to prevent future API key commits
+  - Verified existing API key management system is working correctly
+  - Preserved all development work while ensuring repository security
+  - Future pushes will no longer be blocked by GitHub security scanning
+
+### 🔧 Technical Improvements
+- **Git Repository Cleanup**: Used `git filter-branch` to remove sensitive files from entire commit history
+- **Security Compliance**: Ensured API keys are only stored in environment variables and encrypted database storage
+- **Development Workflow**: Unblocked Git operations and collaboration capabilities
+
+## [Previous] - 2025-09-28
 
 ### 🐛 Fixed
 - **AI Discovery Conversation ID Resolution**: Fixed issue where AI conversations displayed database IDs instead of human-readable industry/product vertical names
