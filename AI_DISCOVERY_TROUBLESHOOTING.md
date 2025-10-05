@@ -150,3 +150,24 @@ If issues persist:
 3. Check backend logs for specific errors
 4. Verify service configuration in database
 5. Test with minimal configuration first
+
+## Customer Discovery Result Count Issues
+
+### Symptom
+- You select 25 (or other number) customers, but only 10 are returned
+
+### Causes
+- AI model ignored loosely-worded prompt ("Max Results: N")
+- Backend prompt builders fell back to 10 in some paths (now fixed)
+
+### Resolution
+- Prompt rewritten to enforce EXACT result count and strict JSON array output
+- Backend defaults standardized (50) and route safety cap added (100)
+
+### Verify
+1. Select a customer count (e.g., 25) in AI Discovery
+2. Click "Search 25 Customers" and confirm results equal 25
+3. If still inconsistent, restart backend and try again
+
+### Future Enhancements
+- Add post-parse enforcement to re-prompt/fill to exact count if AI under-delivers

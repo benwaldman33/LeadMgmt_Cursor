@@ -45,6 +45,27 @@
 
 **Impact**: Users get "dummy data" instead of real AI-generated industry suggestions
 
+### Customer Discovery Limit & Prompt Enforcement (2025-10-05)
+
+#### Problem
+- UI allowed selecting 10–100 customers, but backend consistently returned 10
+- Prompt wording (“Max Results: N”) was interpreted loosely by the AI
+- Backend prompt builders had inconsistent fallbacks (10 vs 50)
+
+#### Resolution
+- Frontend: Added `maxCustomers` control and wired to request constraints
+- Backend: Added safety cap to 100 in route; standardized prompt builders to default to 50 when missing
+- Prompt: Rewrote Claude customer discovery prompt to enforce EXACT result count and strict JSON-only output with a clear schema and quality rules
+
+#### Files Impacted
+- `frontend/src/pages/AIDiscoveryPage.tsx` (UI, button label, constraints)
+- `backend/src/routes/aiDiscovery.ts` (safety cap)
+- `backend/src/services/aiDiscoveryService.ts` (prompt default alignment; hardened prompt)
+
+#### Outcome
+- Selecting 25 customers now yields 25 results; user verified
+- Stronger compliance from Claude; reduces under-delivery to 10
+
 ### Technical Details
 
 #### Authentication Flow

@@ -114,6 +114,12 @@ Advanced AI-powered lead scoring with multiple models and optimization:
 - Real-time API integration with failsafe encryption handling
 - Automatic model updates for optimal performance
 
+#### AI Discovery Enhancements
+- Industry discovery with configurable limits (5–30)
+- Customer discovery with configurable limits (10, 25, 50, 75, 100)
+- Buttons display selected limits (e.g., "Discover 15 Industries", "Search 25 Customers")
+- Strengthened prompts enforce EXACT result counts and strict JSON output
+
 ### 4. Web Scraping
 Automated content extraction from target websites:
 

@@ -52,6 +52,25 @@ The system has undergone critical fixes to resolve AI Discovery authentication a
 ### 🚨 CRITICAL INTEGRATION UPDATE: Business Rules System & Database Configuration
 **Status: COMPLETED** ✅
 
+### ✅ Customer Discovery Limits & Prompt Enforcement (2025-10-05)
+
+#### Summary
+- Added configurable customer discovery limits (10, 25, 50, 75, 100)
+- Strengthened Claude AI prompt to enforce EXACT result count and strict JSON output
+- Standardized backend defaults and added backend safety cap (100)
+
+#### User Experience
+- Users can request precise counts; button text reflects chosen count
+- Results now consistently match selected count (e.g., exactly 25)
+
+#### Technical Details
+- Frontend: `AIDiscoveryPage.tsx` adds `maxCustomers` control and passes via constraints
+- Backend: `aiDiscovery.ts` applies safety cap; `aiDiscoveryService.ts` prompt improved
+- Prompt: Explicit hard requirements, strict schema, JSON-only response
+
+#### Future Work
+- Add post-parse enforcement to fill to exact count if AI under-delivers
+
 The system has undergone comprehensive integration of business rules automation across the entire lead lifecycle, along with resolution of critical database configuration issues that were preventing proper system operation.
 
 #### Integration Issues Resolved

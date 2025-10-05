@@ -66,3 +66,19 @@ All notable changes to the Universal Lead Scoring Platform will be documented in
 - ✅ Database persistence working
 - ❌ Claude API integration (endpoint bug)
 - ❌ OpenAI API integration (placeholder key)
+
+## [2025-10-05] - Customer Discovery Limits and Prompt Enforcement
+
+### Added
+- Customer discovery limit control in AI Discovery UI with options: 10, 25, 50, 75, 100
+
+### Fixed
+- Backend fallback mismatch causing customer searches to default to 10 when a different limit was selected
+- Strengthened Claude customer search prompt to explicitly require EXACT result count and strict JSON output
+
+### Changed
+- Backend route applies a safety cap of 100 customers for performance
+- Buttons now reflect the selected customer limit (e.g., "Search 25 Customers")
+
+### Notes
+- If the AI still returns fewer than requested, strengthened prompt now significantly reduces occurrence; future step will add post-parse enforcement/fill if needed
