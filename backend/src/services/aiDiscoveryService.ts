@@ -280,7 +280,9 @@ async function callClaudeAPI(config: any, prompt: string): Promise<any> {
   }
 
   try {
-    console.log(`[AI Discovery] Making Claude API request to: ${endpoint}/messages`);
+    // Construct the full endpoint URL - if endpoint already includes /messages, use as-is, otherwise add it
+    const fullEndpoint = endpoint.includes('/messages') ? endpoint : `${endpoint}/messages`;
+    console.log(`[AI Discovery] Making Claude API request to: ${fullEndpoint}`);
     console.log(`[AI Discovery] Using model: ${model}`);
     console.log(`[AI Discovery] Max tokens: ${maxTokens}`);
     
@@ -297,7 +299,7 @@ async function callClaudeAPI(config: any, prompt: string): Promise<any> {
     
     console.log(`[AI Discovery] Request body prepared, sending request...`);
     
-    const response = await fetch(`${endpoint}/messages`, {
+    const response = await fetch(fullEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -20,9 +20,10 @@ async function seedServiceConfiguration() {
         ]),
         config: JSON.stringify({
           apiKey: process.env.CLAUDE_API_KEY || 'your-claude-api-key',
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-3-5-sonnet-20241022', // Standard Claude 4.5 model name
           maxTokens: 8192, // Increased for larger industry lists
-          temperature: 0.7
+          temperature: 0.7,
+          endpoint: 'https://api.anthropic.com/v1' // Correct endpoint without /messages
         }),
         limits: JSON.stringify({
           monthlyQuota: 1000,
