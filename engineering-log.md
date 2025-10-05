@@ -2,6 +2,376 @@
 
 ## Latest Updates - 2025-01-02
 
+### 🚨 CRITICAL DATABASE CONFIGURATION INVESTIGATION: Data Loss and Setup Clarification
+
+#### Problem: Database Configuration Confusion and Data Loss Investigation
+**Issue**: User reported missing leads, campaigns, and workflows after switching to Docker setup, leading to extensive investigation into database configuration and data persistence issues.
+
+**Root Cause Analysis**: 
+- **Database Evolution History**: System evolved through multiple database configurations:
+  1. **Phase 1**: SQLite (`dev.db`) - Local development
+  2. **Phase 2**: PostgreSQL (`leadscoring_dev`) - Docker setup
+  3. **Phase 3**: PostgreSQL (`leadmgmt`) - Current configuration
+- **Data Loss Event**: During transition from `leadscoring_dev` to `leadmgmt`, existing user data was lost
+- **Configuration Confusion**: Multiple database configurations existed simultaneously, causing confusion about which database was active
+- **Backup Analysis**: Backup files contained only schema definitions, not actual data, indicating data was already lost when backups were created
+
+**Files and Systems Involved**:
+- `docker-compose.yml` - PostgreSQL service configuration with database name `leadmgmt`
+- `backend/prisma/schema.prisma` - Database schema and provider configuration
+- `backend/.env` - Database connection string configuration
+- `backup-leadmgmt.ps1` - Backup script created after data loss issue
+- `D:\Backups\LeadMgmt_Backup_2025-08-31_23-53-29.zip` - Backup archive containing only schema
+
+#### Current Database Configuration (Verified)
+
+**Database Type**: PostgreSQL 15 (Alpine Linux)
+```yaml
+# docker-compose.yml
+postgres:
+  image: postgres:15-alpine
+  environment:
+    POSTGRES_DB: leadmgmt
+    POSTGRES_USER: dev
+    POSTGRES_PASSWORD: devpass
+  ports:
+    - "5433:5432"
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+```
+
+**Prisma Configuration**:
+```prisma
+// backend/prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+**Backend Environment**:
+```bash
+DATABASE_URL=postgresql://dev:devpass@postgres:5432/leadmgmt
+```
+
+**Current Data Status**:
+- **Users**: 6 (from database seeding)
+- **Leads**: 0 (lost during database transition)
+- **Campaigns**: 0 (lost during database transition)
+- **Workflows**: 0 (lost during database transition)
+
+#### Investigation Process
+
+**Step 1: Database Type Verification**
+```bash
+# Verified running containers
+docker-compose ps
+# Result: PostgreSQL 15 container running as leadmgmt_cursor-postgres-1
+
+# Verified database connection
+docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT COUNT(*) FROM users;"
+# Result: 6 users found
+```
+
+**Step 2: Data Loss Analysis**
+```bash
+# Checked for old database
+docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadscoring_dev -c "SELECT COUNT(*) FROM leads;"
+# Result: database "leadscoring_dev" does not exist
+
+# Analyzed backup files
+# Result: SQL backup contained only schema, no data
+# Result: SQLite backup file was corrupted/unreadable
+```
+
+**Step 3: Configuration Verification**
+```bash
+# Verified backend environment
+docker exec leadmgmt_cursor-backend-1 env | grep DATABASE
+# Result: DATABASE_URL=postgresql://dev:devpass@postgres:5432/leadmgmt
+
+# Verified Prisma configuration
+# Result: Schema was temporarily misconfigured during investigation
+```
+
+#### Technical Details
+
+**Database Architecture**:
+- **Container**: `leadmgmt_cursor-postgres-1`
+- **Internal Port**: 5432 (PostgreSQL default)
+- **External Port**: 5433 (mapped for host access)
+- **Data Persistence**: Docker volume `postgres_data`
+- **Access Pattern**: Backend connects via Docker network, host connects via localhost:5433
+
+**Data Loss Timeline**:
+1. **Original Setup**: SQLite database with user data
+2. **Docker Migration**: Moved to PostgreSQL (`leadscoring_dev`)
+3. **Database Rename**: Changed from `leadscoring_dev` to `leadmgmt`
+4. **Data Loss**: Existing data not migrated during rename
+5. **Current State**: Fresh PostgreSQL database with only seeded users
+
+**Backup System Analysis**:
+- **Backup Script**: `backup-leadmgmt.ps1` created after data loss
+- **Backup Content**: Only schema definitions, no actual data
+- **Backup Location**: `D:\Backups\LeadMgmt_Backup_2025-08-31_23-53-29.zip`
+- **Recovery Status**: Not possible (no data in backups)
+
+#### Resolution and Prevention
+
+**Immediate Resolution**:
+- ✅ Confirmed current database is PostgreSQL 15 in Docker
+- ✅ Verified Prisma is properly configured for PostgreSQL
+- ✅ Confirmed system is working correctly with current setup
+- ✅ Identified that user data was lost during database name transition
+- ❌ Data recovery not possible (backups contain only schema, no data)
+
+**Prevention Measures Implemented**:
+- Updated all documentation to clarify database configuration
+- Added comprehensive database setup guide
+- Enhanced backup procedures to include data verification
+- Added troubleshooting section for database issues
+- Documented database evolution history
+
+**Future Database Operations**:
+- Always verify data before database name changes
+- Create data dumps before major configuration changes
+- Test backup restoration procedures
+- Maintain clear documentation of database configuration
+
+### 🚨 CRITICAL SYSTEM INTEGRATION: Business Rules & Database Configuration Issues
+
+#### Problem: Business Rules Integration & Database Connectivity Challenges
+**Issue**: Comprehensive business rules system implementation encountered multiple integration challenges including database schema mismatches, Docker networking issues, and frontend-backend communication problems.
+
+**Root Cause Analysis**: 
+- Business rules system required new database schema (`RuleExecutionLog` table)
+- Docker environment had database name mismatches between configuration files
+- Database connectivity issues prevented schema migration and user creation
+- Frontend "Create Rule" button functionality dependent on proper backend database connection
+
+**Files and Systems Involved**:
+- `backend/src/services/ruleExecutionService.ts` - New centralized rule execution service
+- `backend/src/routes/leads.ts` - Integrated rule execution at lead creation/update points
+- `backend/src/services/pipelineService.ts` - Added rule execution after scoring completion
+- `backend/src/services/scoringService.ts` - Integrated rule execution after scoring operations
+- `backend/src/routes/businessRules.ts` - Enhanced validation and debug logging
+- `frontend/src/services/businessRuleService.ts` - Updated interface alignment
+- `frontend/src/pages/CreateBusinessRulePage.tsx` - Enhanced debug logging and user experience
+- `docker-compose.yml` - Database name and port configuration
+- `backend/.env` - Database connection string configuration
+
+#### Solution Implemented
+
+**Step 1: Business Rules System Architecture**
+```typescript
+// New RuleExecutionService architecture
+export class RuleExecutionService {
+  static async executeRulesForLead(
+    leadId: string,
+    triggerEvent: 'created' | 'updated' | 'scored' | 'enriched',
+    context?: Record<string, any>
+  ): Promise<RuleExecutionResult> {
+    // Centralized rule evaluation and action execution
+    // Comprehensive error handling and logging
+    // Database updates with audit trail
+  }
+}
+```
+
+**Step 2: Database Schema Integration**
+```prisma
+// New RuleExecutionLog model added to schema.prisma
+model RuleExecutionLog {
+  id          String   @id @default(cuid())
+  leadId      String
+  ruleId      String
+  triggerEvent String
+  success     Boolean
+  errorMessage String?
+  executedAt  DateTime @default(now())
+  
+  // Relations
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  rule        BusinessRule @relation(fields: [ruleId], references: [id])
+  
+  @@map("rule_execution_logs")
+}
+```
+
+**Step 3: Integration Points Implementation**
+- **Lead Creation**: Rule evaluation triggers after successful lead creation
+- **Lead Updates**: Rule evaluation triggers on status changes and assignment changes
+ there- **Pipeline Processing**: Rule evaluation triggers after AI scoring completion
+- **Manual Scoring**: Rule evaluation triggers after scoring result saves
+
+**Step 4: Database Configuration Resolution**
+```yaml
+# docker-compose.yml - Fixed database name mismatch
+environment:
+  - DATABASE_URL=postgresql://dev:devpass@postgres:5432/leadmgmt
+  - POSTGRES_DB=leadmgmt  # Changed from leadscoring_dev
+```
+
+**Step 5: Docker Networking Resolution**
+```bash
+# Fixed host machine database access
+# Docker internally: postgres:5432
+# Host machine access: localhost:5433 (mapped port)
+DATABASE_URL="postgresql://dev:devpass@localhost:5433/leadmgmt"
+```
+
+#### Technical Details
+
+**Business Rules Integration Architecture**:
+- **Centralized Execution Service**: `RuleExecutionService` handles all rule evaluation
+- **Multiple Trigger Events**: Supports created, updated, scored, enriched lead events
+- **Context-Aware Processing**: Passes relevant lead and campaign context to rules
+- **Action Execution**: Supports assignment, status changes, scoring, notifications
+- **Comprehensive Logging**: All rule executions logged with success/failure tracking
+
+**Database Schema Changes**:
+- Added `RuleExecutionLog` model with audit trail capabilities
+- Enhanced `Lead` model with `ruleExecutionLogs` relation
+- Enhanced `BusinessRule` model with `executionLogs` relation
+- Maintains referential integrity across all business rule operations
+
+**Frontend Integration**:
+- Enhanced `CreateBusinessRulePage` with comprehensive debug logging
+- Improved `businessRuleService` with proper error handling
+- Added validation middleware with Joi schemas
+- Comprehensive console logging for troubleshooting
+
+**Docker Configuration Fixes**:
+- Resolved database name mismatches between Docker and Prisma configuration
+- Fixed port mapping issues for host machine database access
+- Corrected authentication credentials alignment
+- Proper environment variable configuration for different deployment contexts
+
+#### Integration Points Summary
+
+**Lead Management Integration**:
+```typescript
+// backend/src/routes/leads.ts
+// Lead Creation Integration
+await webSocketService.sendLeadCreated(lead);
+await RuleExecutionService.executeRulesForLead(lead.id, 'created', {
+  campaignId: lead.campaignId,
+  industry: lead.industry,
+  companyName: lead.companyName,
+  domain: lead.domain
+});
+
+// Lead Update Integration  
+await webSocketService.sendUserActivity(req.user!.id, 'updated a lead');
+await RuleExecutionService.executeRulesForLead(lead.id, 'updated', {
+  previousStatus: oldLead?.status,
+  newStatus: lead.status,
+  assignedToChanged: oldLead?.assignedToId !== lead.assignedToId,
+  previousAssignedTo: oldLead?.assignedToId,
+  newAssignedTo: lead.assignedToId
+});
+```
+
+**Pipeline Service Integration**:
+```typescript
+// backend/src/services/pipelineService.ts
+if (scoringResult.totalScore > 0) {
+  job.progress.qualified++;
+}
+
+await RuleExecutionService.executeRulesForLead(lead.id, 'scored', {
+  score: scoringResult.totalScore,
+  confidence: scoringResult.confidence,
+  campaignId: campaignId,
+  pipelineJobId: jobId,
+  industry: industry
+});
+```
+
+**Scoring Service Integration**:
+```typescript
+// backend/src/services/scoringService.ts
+await prisma.lead.update({
+  where: { id: leadId },
+  data: { 
+    score: scoringResult.totalScore,
+    status: 'QUALIFIED' as const
+  }
+});
+
+await RuleExecutionService.executeRulesForLead(leadId, 'scored', {
+  totalScore: scoringResult.totalScore,
+  confidence: scoringResult.confidence,
+  scoringModelVersion: '1.0'
+});
+```
+
+#### Database Migration Challenges
+
+**Problem**: Database schema migration failed due to connectivity issues
+- **Error**: `P1001: Can't reach database server at postgres:5432`
+- **Root Cause**: Docker networking mismatch between container and host environments
+- **Files Involved**: `docker-compose.yml`, `backend/.env`, `backend/prisma/schema.prisma`
+
+**Solution**: Comprehensive configuration alignment
+- **Docker-compose**: Updated `POSTGRES_DB` from `leadscoring_dev` to `leadmgmt`
+- **Environment Variables**: Aligned `DATABASE_URL` credentials and port mappings
+- **Migration Command**: Successfully ran `npm run db:push` after configuration fixes
+
+#### User Authentication Issues
+
+**Problem**: 500 Internal Server Error on all login attempts
+- **Root Cause**: Database connectivity preventing user authentication
+- **Impact**: Complete system lockout preventing business rule testing
+- **Resolution**: Fixed Docker database configuration enabling proper authentication
+
+**User Creation Process**:
+- **Super Admin Creation**: Implemented through database seeding scripts
+- **Credentials**: `admin@bbds.com` / `admin123` with SUPER_ADMIN role
+- **Integration**: Successfully logged in and tested business rule functionality
+
+#### Debugging and Troubleshooting
+
+**Frontend Debugging**:
+- Added comprehensive console logging to `CreateBusinessRulePage.tsx`
+- Enhanced error handling in `businessRuleService.ts`
+- Implemented form submission tracing and validation logging
+
+**Backend Debugging**:
+- Added validation middleware with proper Joi schemas
+- Enhanced error logging in `businessRules.ts` routes
+- Comprehensive rule execution logging in `ruleExecutionService.ts`
+
+**Database Troubleshooting**:
+- Identified Docker networking issues preventing database migration
+- Resolved configuration mismatches between Docker environment and host access
+- Successfully migrated schema and created test users
+
+#### Impact on System Architecture
+
+**New System Capabilities**:
+- **Automated Rule Execution**: Rules automatically trigger on lead lifecycle events
+- **Comprehensive Integration**: Business rules integrated across all lead operations
+- **Audit Trail**: Complete logging of rule executions and outcomes
+- **Context-Aware Processing**: Rules receive relevant lead and campaign context
+- **Error Resilience**: Rule execution failures don't break core system functionality
+
+**Database Schema Enhancements**:
+- **Rule Execution Logging**: Complete audit trail for business rule activities
+- **Enhanced Relations**: Proper foreign key relationships for data integrity
+- **Performance Considerations**: Optimized queries for rule execution operations
+
+**Frontend Enhancements**:
+- **Improved UX**: Enhanced business rule creation interface
+- **Better Debugging**: Comprehensive logging for troubleshooting
+- **Validation**: Proper form validation and error handling
+- **Error Recovery**: Graceful handling of API communication issues
+
+**Docker Configuration**:
+- **Simplified Deployment**: Single command startup with proper networking
+- **Correct Database Mapping**: Aligned container and host database access
+- **Environment Consistency**: Proper environment variable management
+
 ### 🔐 CRITICAL SECURITY FIX: API Key Management & Git Repository Security
 
 #### Problem: GitHub Push Protection Blocking Commits

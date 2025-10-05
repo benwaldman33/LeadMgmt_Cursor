@@ -2,6 +2,101 @@
 
 ## 🆕 Latest Updates - January 2, 2025
 
+### 🚨 **CRITICAL DATABASE CONFIGURATION INVESTIGATION: Data Loss and Setup Clarification**
+
+**Problem**: User reported missing leads, campaigns, and workflows after switching to Docker setup, leading to extensive investigation into database configuration and data persistence issues.
+
+**Root Cause Analysis**:
+- **Database Evolution History**: System evolved through multiple database configurations:
+  1. **Phase 1**: SQLite (`dev.db`) - Local development
+  2. **Phase 2**: PostgreSQL (`leadscoring_dev`) - Docker setup
+  3. **Phase 3**: PostgreSQL (`leadmgmt`) - Current configuration
+- **Data Loss Event**: During transition from `leadscoring_dev` to `leadmgmt`, existing user data was lost
+- **Configuration Confusion**: Multiple database configurations existed simultaneously, causing confusion about which database was active
+- **Backup Analysis**: Backup files contained only schema definitions, not actual data, indicating data was already lost when backups were created
+
+**Current Database Configuration (Verified)**:
+- **Database Type**: PostgreSQL 15 (Alpine Linux) running in Docker
+- **Database Name**: `leadmgmt`
+- **Container**: `leadmgmt_cursor-postgres-1`
+- **Access**: `localhost:5433` (mapped from container's 5432)
+- **ORM**: Prisma configured for PostgreSQL
+- **Data Status**: 6 users (from seeding), 0 leads/campaigns/workflows (data lost during transition)
+
+**Files Involved**:
+- `docker-compose.yml` - PostgreSQL service configuration
+- `backend/prisma/schema.prisma` - Database schema and provider configuration
+- `backend/.env` - Database connection string
+- `backup-leadmgmt.ps1` - Backup script (created after data loss issue)
+
+**Resolution**:
+- ✅ Confirmed current database is PostgreSQL 15 in Docker
+- ✅ Verified Prisma is properly configured for PostgreSQL
+- ✅ Confirmed system is working correctly with current setup
+- ✅ Identified that user data was lost during database name transition
+- ❌ Data recovery not possible (backups contain only schema, no data)
+
+**Prevention Measures**:
+- Updated all documentation to clarify database configuration
+- Added comprehensive database setup guide
+- Enhanced backup procedures to include data verification
+- Added troubleshooting section for database issues
+
+### 🚨 **CRITICAL INTEGRATION: Business Rules System & Database Configuration**
+
+**Problem**: Comprehensive business rules system integration encountered multiple technical challenges including database connectivity issues, Docker networking problems, and frontend-backend communication issues that prevented the business rules functionality from working properly.
+
+**Root Cause Analysis**:
+- **Database Schema Migration**: New `RuleExecutionLog` table required for business rules audit trail
+- **Docker Configuration**: Database name mismatch between Docker (`leadscoring_dev`) and Prisma (`leadmgmt`) configuration
+- **Network Connectivity**: Docker networking issues prevented host machine from accessing database containers
+- **Authentication Issues**: 500 errors on login attempts due to database connectivity problems
+- **Frontend Integration**: "Create Rule" button non-functional due to backend communication failures
+
+**Solutions Implemented**:
+- **Business Rules Integration**: Complete integration across lead lifecycle events (creation, updates, scoring)
+- **Database Configuration Fix**: Aligned Docker database name from `leadscoring_dev` to `leadmgmt`
+- **Network Resolution**: Fixed port mapping (Docker: `postgres:5432`, Host: `localhost:5433`) and authentication credentials
+- **Schema Migration Success**: Successfully applied `RuleExecutionLog` model to database
+- **User Authentication**: Resolved login issues and created SUPER_ADMIN user (`admin@bbds.com` / `admin123`)
+- **Frontend Enhancement**: Added comprehensive debug logging and improved error handling
+
+**Status**: ✅ **FULLY INTEGRATED** - Business rules system now fully functional with complete integration across lead lifecycle
+
+**Business Rules Integration Points**:
+```typescript
+// Lead Creation - Rules evaluate automatically
+await RuleExecutionService.executeRulesForLead(lead.id, 'created', {
+  campaignId: lead.campaignId,
+  industry: lead.industry,
+  companyName: lead.companyName,
+  domain: lead.domain
+});
+
+// Lead Updates - Rules evaluate on changes
+await RuleExecutionService.executeRulesForLead(lead.id, 'updated', {
+  previousStatus: oldLead?.status,
+  newStatus: lead.status,
+  assignedToChanged: oldLead?.assignedToId !== lead.assignedToId
+});
+
+// Pipeline Scoring - Rules evaluate after AI scoring
+await RuleExecutionService.executeRulesForLead(lead.id, 'scored', {
+  score: scoringResult.totalScore,
+  confidence: scoringResult.confidence,
+  campaignId: campaignId,
+  pipelineJobId: jobId,
+  industry: industry
+});
+
+// Manual Scoring - Rules evaluate after manual scoring
+await RuleExecutionService.executeRulesForLead(leadId, 'scored', {
+  totalScore: scoringResult.totalScore,
+  confidence: scoringResult.confidence,
+  scoringModelVersion: '1.0'
+});
+```
+
 ### ✅ **RESOLVED: GitHub Push Protection & API Key Security**
 
 **Problem**: GitHub was blocking all code pushes due to detected API keys in the repository, preventing deployment and collaboration.
@@ -84,6 +179,94 @@
 **Status**: ✅ **FIXED** - Customer search now returns actual results
 
 ---
+
+## 🏢 Business Rules System
+
+### How do business rules work?
+Business rules automate actions based on defined conditions. The system evaluates rules automatically during key lead lifecycle events:
+
+1. **Lead Creation**: Rules evaluate when new leads are created
+2. **Lead Updates**: Rules trigger on status changes or assignment modifications  
+3. **Pipeline Processing**: Rules execute after AI scoring completion
+4. **Manual Scoring**: Rules evaluate after manual lead scoring operations
+
+### What actions can business rules perform?
+**Assignment Actions**:
+- **Target**: `user` or `team`
+- **Value**: User ID or Team ID for assignment
+
+**Status Change Actions**:
+- **Target**: N/A (automatic)
+- **Value**: New status (NEW, CONTACTED, QUALIFIED, etc.)
+
+**Scoring Actions**:
+- **Target**: N/A (automatic)
+- **Value**: Score number for lead
+
+**Notification Actions**:
+- **Target**: Notification recipient
+- **Value**: Notification message
+
+**Enrichment Actions**:
+- **Target**: Data field to enrich
+- **Value**: Data source or enrichment instruction
+
+### How do I create a business rule?
+
+1. **Navigate to Business Rules**: Go to Admin → Business Rules
+2. **Create New Rule**: Click "Create Rule" button
+3. **Define Conditions**: Set conditions for when the rule should trigger
+4. **Configure Actions**: Define what actions will be performed
+5. **Set Trigger Events**: Choose when rules should evaluate (created, updated, scored)
+6. **Save & Activate**: Save the rule and it will automatically execute
+
+**Rule Creation Example**:
+```
+Condition: Lead status equals "NEW" AND company name contains "Technology"
+Actions: Assign to user "Sales Rep A", Set status to "CONTACTED"
+Trigger: When lead is created or updated
+```
+
+### Troubleshooting Business Rules
+
+**"Create Rule" button not working**:
+1. **Check Database Connection**: Ensure PostgreSQL container is running (`docker-compose ps`)
+2. **Verify Docker Configuration**: Check database name alignment in docker-compose.yml
+3. **Check Environment**: Ensure DATABASE_URL is properly configured
+4. **Check Console**: Look for JavaScript errors in browser console
+5. **Verify Authentication**: Ensure you're logged in as SUPER_ADMIN or ADMIN
+
+**Rules not executing on lead events**:
+1. **Check Rule Status**: Ensure rules are enabled and not in draft mode
+2. **Verify Conditions**: Review rule conditions match the lead data
+3. **Check Logs**: Review backend logs for rule execution errors
+4. **Verify Integration**: Confirm rule service is properly integrated
+
+### Docker Configuration Issues
+
+**Database Connection Problems**:
+```bash
+# Check Docker status
+docker-compose ps
+
+# Check database connectivity
+docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT 1"
+
+# Restart services
+docker-compose down
+docker-compose up -d
+```
+
+**Common Docker Issues**:
+- **Port Conflicts**: Ensure port 5433 (host) and 5432 (container) are not in use
+- **Database Name**: Must be `leadmgmt` in both Docker and Prisma configuration
+- **Authentication**: Use `dev:devpass` credentials in both environments
+- **Volume Data**: Database data persists in Docker volumes
+
+**Access Credentials**:
+- **Super Admin**: `admin@bbds.com` / `admin123`
+- **Database**: `dev:devpass` for PostgreSQL
+- **Container Access**: `docker exec -it leadmgmt_cursor-backend-1 bash`
 
 ## 🤖 AI Discovery System
 
@@ -396,6 +579,81 @@ You can customize AI prompts for better results:
 **"AI showing database IDs instead of industry names"**
 - Solution: This has been fixed - AI conversations now show proper industry names
 
+## Database Troubleshooting
+
+### Database Configuration Verification
+**Current Configuration**:
+- **Database Type**: PostgreSQL 15 (Alpine Linux) in Docker
+- **Database Name**: `leadmgmt`
+- **Connection**: `postgresql://dev:devpass@postgres:5432/leadmgmt`
+- **Port Mapping**: `localhost:5433` (host) → `5432` (container)
+- **Volume Data**: Database data persists in Docker volumes
+
+### Database Troubleshooting Commands
+**Check Database Status**:
+```bash
+# Check running containers
+docker-compose ps
+
+# Check database connection
+docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT COUNT(*) FROM users;"
+
+# Check backend environment
+docker exec leadmgmt_cursor-backend-1 env | grep DATABASE
+
+# Check database data
+docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT COUNT(*) as user_count FROM users; SELECT COUNT(*) as lead_count FROM leads; SELECT COUNT(*) as campaign_count FROM campaigns;"
+```
+
+**Verify Database Configuration**:
+```bash
+# Check Prisma schema
+cat backend/prisma/schema.prisma | grep -A 3 "datasource db"
+
+# Check Docker Compose configuration
+cat docker-compose.yml | grep -A 10 "postgres:"
+
+# Check environment variables
+docker exec leadmgmt_cursor-backend-1 env | grep -E "(DATABASE|POSTGRES)"
+```
+
+### Common Database Issues
+
+**Issue**: "Database not found" or "Connection refused"
+**Solution**: 
+1. Check if Docker containers are running: `docker-compose ps`
+2. Restart database: `docker-compose restart postgres`
+3. Check database logs: `docker-compose logs postgres`
+
+**Issue**: "Schema out of sync" or migration errors
+**Solution**:
+1. Generate Prisma client: `npx prisma generate`
+2. Push schema changes: `npx prisma db push`
+3. Check for schema conflicts in `backend/prisma/schema.prisma`
+
+**Issue**: "Missing data" or "Empty tables"
+**Solution**:
+1. Verify data exists: Use troubleshooting commands above
+2. Check if data was lost during database transitions
+3. Restore from backup if available (see backup procedures)
+
+### Database Backup and Recovery
+
+**Create Backup**:
+```bash
+# Create full database backup
+docker exec leadmgmt_cursor-postgres-1 pg_dump -U dev -d leadmgmt > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Create backup with data verification
+docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT COUNT(*) FROM users; SELECT COUNT(*) FROM leads; SELECT COUNT(*) FROM campaigns;" > data_check_$(date +%Y%m%d_%H%M%S).txt
+```
+
+**Restore Backup**:
+```bash
+# Restore from backup file
+docker exec -i leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt < backup_file.sql
+```
+
 ### Reporting Issues
 
 When reporting issues, please include:
@@ -404,6 +662,7 @@ When reporting issues, please include:
 3. **Environment**: Browser, OS, and system details
 4. **Logs**: Relevant backend and frontend logs
 5. **Screenshots**: Visual evidence of the issue
+6. **Database Status**: Output from troubleshooting commands above
 
 ---
 

@@ -2,6 +2,78 @@
 
 ## [Unreleased] - 2025-01-02
 
+### 🚨 CRITICAL DATABASE CONFIGURATION CLARIFICATION
+
+#### Database Setup and Data Loss Investigation
+**Issue**: User reported missing leads, campaigns, and workflows after switching to Docker setup, leading to confusion about database configuration and data persistence.
+
+**Root Cause Analysis**:
+- **Database Evolution**: System evolved from SQLite → PostgreSQL (`leadscoring_dev`) → PostgreSQL (`leadmgmt`)
+- **Data Loss Event**: During database name change from `leadscoring_dev` to `leadmgmt`, existing user data was lost
+- **Configuration Confusion**: Multiple database configurations existed simultaneously, causing confusion about which database was active
+- **Backup Limitations**: Backup files contained only schema, not actual data, indicating data was already lost when backups were created
+
+**Current Database Configuration**:
+- **Database Type**: PostgreSQL 15 (Alpine Linux) running in Docker
+- **Database Name**: `leadmgmt`
+- **Container**: `leadmgmt_cursor-postgres-1`
+- **Access**: `localhost:5433` (mapped from container's 5432)
+- **ORM**: Prisma configured for PostgreSQL
+- **Data Status**: 6 users (from seeding), 0 leads/campaigns/workflows (data lost during transition)
+
+**Files Involved**:
+- `docker-compose.yml` - PostgreSQL service configuration
+- `backend/prisma/schema.prisma` - Database schema and provider configuration
+- `backend/.env` - Database connection string
+- `backup-leadmgmt.ps1` - Backup script (created after data loss issue)
+
+**Resolution**:
+- ✅ Confirmed current database is PostgreSQL 15 in Docker
+- ✅ Verified Prisma is properly configured for PostgreSQL
+- ✅ Confirmed system is working correctly with current setup
+- ✅ Identified that user data was lost during database name transition
+- ❌ Data recovery not possible (backups contain only schema, no data)
+
+**Prevention Measures**:
+- Updated all documentation to clarify database configuration
+- Added comprehensive database setup guide
+- Enhanced backup procedures to include data verification
+- Added troubleshooting section for database issues
+
+### 🚨 CRITICAL INTEGRATION: Business Rules System & Database Configuration
+- **Business Rules Integration**: Complete integration of business rule evaluation across lead lifecycle
+  - **Lead Creation Integration**: Rules automatically evaluate on new lead creation
+  - **Lead Update Integration**: Rules trigger on status changes and assignment modifications
+  - **Pipeline Processing**: Rules execute after AI scoring completion in automated pipeline
+  - **Manual Scoring**: Rules trigger after manual lead scoring operations
+  - **Centralized Service**: New `RuleExecutionService` handles all rule evaluation and action execution
+  - **Audit Trail**: Complete logging of rule executions with `RuleExecutionLog` model
+  - **Context-Aware**: Rules receive relevant lead and campaign context for intelligent processing
+
+- **Database Schema Enhancement**: Added comprehensive rule execution logging
+  - **New Model**: `RuleExecutionLog` with complete audit trail capabilities
+  - **Enhanced Relations**: Proper foreign key relationships for data integrity
+  - **Performance Optimization**: Optimized queries for rule execution operations
+  - **Migration Success**: Resolved database connectivity issues preventing schema migration
+
+- **Docker Configuration Resolution**: Fixed critical database connectivity issues
+  - **Database Name Alignment**: Corrected mismatch between Docker (`leadscoring_dev`) and Prisma (`leadmgmt`)
+  - **Port Mapping Fix**: Resolved host machine database access (localhost:5433 vs postgres:5432)
+  - **Authentication Credentials**: Aligned Docker and host environment authentication
+  - **Environment Variables**: Proper configuration for different deployment contexts
+
+- **Frontend Enhancement**: Improved business rule creation and management
+  - **Debug Logging**: Comprehensive console logging for troubleshooting rule creation
+  - **Form Validation**: Enhanced validation with proper error handling
+  - **User Experience**: Improved interface for business rule management
+  - **Error Recovery**: Graceful handling of API communication issues
+
+- **Backend Integration**: Enhanced service architecture for rule processing
+  - **Validation Middleware**: Added Joi validation schemas for business rule operations
+  - **Error Logging**: Comprehensive error tracking and debugging capabilities
+  - **Service Communication**: Improved inter-service communication for rule evaluation
+  - **Service Layer**: Enhanced business rule service with additional functionality
+
 ### 🔐 Security
 - **API Key Management & Repository Security**: Resolved GitHub push protection issues by removing hardcoded API keys from commit history
   - Removed legacy utility scripts containing API keys (`backend/update-api-key.js`, `backend/update-old-service-config.js`)

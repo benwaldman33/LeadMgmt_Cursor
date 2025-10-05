@@ -8,8 +8,19 @@ A universal, AI-powered web scraping and scoring platform that enables systemati
 
 - Node.js 18+
 - Docker and Docker Compose
-- PostgreSQL 15+
-- Redis 7+
+- PostgreSQL 15+ (provided via Docker)
+- Redis 7+ (provided via Docker)
+
+### Database Configuration
+
+**Current Setup**: PostgreSQL 15 running in Docker
+- **Database Name**: `leadmgmt`
+- **Container**: `leadmgmt_cursor-postgres-1`
+- **Access**: `localhost:5433` (mapped from container's 5432)
+- **ORM**: Prisma configured for PostgreSQL
+- **Data Persistence**: Docker volumes
+
+**Important**: This system uses PostgreSQL in Docker. Do not attempt to use SQLite or other databases as the schema is specifically configured for PostgreSQL.
 
 ### Local Development Setup
 
@@ -29,6 +40,8 @@ A universal, AI-powered web scraping and scoring platform that enables systemati
    npm run db:generate
    npm run db:push
    ```
+
+   **Note**: The database is PostgreSQL 15 running in Docker. The schema is automatically applied when you run `npm run db:push`.
 
 4. **Install dependencies:**
    ```bash
@@ -54,6 +67,13 @@ A universal, AI-powered web scraping and scoring platform that enables systemati
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:3001
    - Health Check: http://localhost:3001/health
+   - Database: localhost:5433 (PostgreSQL)
+
+7. **Verify database connection:**
+   ```bash
+   # Check if database is accessible
+   docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT COUNT(*) FROM users;"
+   ```
 
 ## 📁 Project Structure
 
