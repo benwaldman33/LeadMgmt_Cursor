@@ -1500,7 +1500,7 @@ Format your response as: [Brief answer] + [1-2 follow-up questions to continue t
       companySize?: string[];
     }
   ): string {
-    const maxResults = constraints?.maxResults || 10;
+    const maxResults = constraints?.maxResults || 50;
     const geography = constraints?.geography?.join(', ') || 'United States';
     
     return `You are an expert in customer discovery and market research. 
@@ -1551,7 +1551,7 @@ Search for actual companies in the ${industry} industry that could benefit from 
       companySize?: string[];
     }
   ): string {
-    const maxResults = constraints?.maxResults || 10;
+    const maxResults = constraints?.maxResults || 50;
     const geography = constraints?.geography?.join(', ') || 'United States';
     
     return `You are an expert in customer discovery and market research. 
@@ -1598,7 +1598,7 @@ Focus on real companies with online presence and purchasing power. Make sure the
       companySize?: string[];
     }
   ): string {
-    const maxResults = constraints?.maxResults || 10;
+    const maxResults = constraints?.maxResults || 50;
     const geography = constraints?.geography?.join(', ') || 'United States';
     
     return `You are an expert in customer discovery and market research. 
