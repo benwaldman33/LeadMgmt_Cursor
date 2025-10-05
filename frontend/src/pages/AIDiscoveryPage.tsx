@@ -58,6 +58,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     geographyFocus: ''
   });
   const [maxIndustries, setMaxIndustries] = useState(8);
+  const [maxCustomers, setMaxCustomers] = useState(50);
   
   // Loading states
   const [loadingIndustries, setLoadingIndustries] = useState(true);
@@ -298,7 +299,10 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
         selectedIndustry,
         selectedProductVertical,
         customerTypes,
-        searchConstraints
+        {
+          ...searchConstraints,
+          maxResults: maxCustomers
+        }
       );
       console.log('Search result:', result);
       setSearchResults(result.results);
@@ -409,7 +413,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
               {/* Interactive Discovery Criteria */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Refine Your Search Criteria</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Max Industries
@@ -426,6 +430,22 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                       <option value={20}>20 industries</option>
                       <option value={25}>25 industries</option>
                       <option value={30}>30 industries</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Customers
+                    </label>
+                    <select 
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      value={maxCustomers}
+                      onChange={(e) => setMaxCustomers(parseInt(e.target.value))}
+                    >
+                      <option value={10}>10 customers</option>
+                      <option value={25}>25 customers</option>
+                      <option value={50}>50 customers</option>
+                      <option value={75}>75 customers</option>
+                      <option value={100}>100 customers</option>
                     </select>
                   </div>
                   <div>
@@ -684,22 +704,6 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">3. Search Constraints</h2>
                 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Maximum Results
-                    </label>
-                    <input
-                      type="number"
-                      value={searchConstraints.maxResults}
-                      onChange={(e) => setSearchConstraints(prev => ({
-                        ...prev,
-                        maxResults: parseInt(e.target.value) || 50
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="1"
-                      max="1000"
-                    />
-                  </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -722,7 +726,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                     disabled={loadingSearch}
                     className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loadingSearch ? 'Searching...' : 'Search for Customers'}
+                    {loadingSearch ? 'Searching...' : `Search ${maxCustomers} Customers`}
                   </button>
                 </div>
               </div>
@@ -800,7 +804,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                           disabled={loadingSearch}
                           className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                         >
-                          {loadingSearch ? 'Searching...' : 'Search for Customers'}
+                          {loadingSearch ? 'Searching...' : `Search ${maxCustomers} Customers`}
                         </button>
                       </div>
                     </div>

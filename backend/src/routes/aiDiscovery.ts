@@ -231,11 +231,17 @@ router.post('/search-customers', authenticateToken, requireAnalyst, async (req: 
 
     console.log(`[AI Discovery] Searching for customers with resolved names: ${industryName}/${productVerticalName}`);
 
+    // Add safety cap for customer limits (similar to industry limits)
+    const safeConstraints = {
+      ...constraints,
+      maxResults: Math.min(constraints?.maxResults || 50, 100) // Cap at 100 for performance
+    };
+
     const results = await AIDiscoveryService.searchForCustomers(
       industryName,
       productVerticalName,
       customerTypesArray,
-      constraints
+      safeConstraints
     );
 
     // Send notification with proper names
