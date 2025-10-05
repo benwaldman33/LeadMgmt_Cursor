@@ -530,6 +530,46 @@ export class AIDiscoveryService {
   }
 
   /**
+   * Get available industries for scoring models (combines DB + fallback)
+   */
+  static async getAvailableIndustriesForScoring(): Promise<Array<{ value: string; label: string; source: 'database' | 'hardcoded' }>> {
+    try {
+      // Prefer dynamic industries from database
+      const dbIndustries = await prisma.industry.findMany({
+        where: { isActive: true },
+        select: { name: true },
+        orderBy: { name: 'asc' }
+      });
+
+      const mapped = dbIndustries
+        .filter(i => !!i.name)
+        .map(i => ({ value: i.name, label: i.name, source: 'database' as const }));
+
+      if (mapped.length > 0) {
+        return mapped;
+      }
+
+      // Fallback to a small, sensible hardcoded list if DB is empty
+      return [
+        { value: 'Dental Equipment', label: 'Dental Equipment', source: 'hardcoded' as const },
+        { value: 'Medical Devices', label: 'Medical Devices', source: 'hardcoded' as const },
+        { value: 'Pharmaceuticals', label: 'Pharmaceuticals', source: 'hardcoded' as const },
+        { value: 'Healthcare IT', label: 'Healthcare IT', source: 'hardcoded' as const },
+        { value: 'Biotechnology', label: 'Biotechnology', source: 'hardcoded' as const }
+      ];
+    } catch (error) {
+      console.error('[AI Discovery] getAvailableIndustriesForScoring failed:', error);
+      // Safe fallback on error
+      return [
+        { value: 'Dental Equipment', label: 'Dental Equipment', source: 'hardcoded' as const },
+        { value: 'Medical Devices', label: 'Medical Devices', source: 'hardcoded' as const },
+        { value: 'Pharmaceuticals', label: 'Pharmaceuticals', source: 'hardcoded' as const },
+        { value: 'Healthcare IT', label: 'Healthcare IT', source: 'hardcoded' as const },
+        { value: 'Biotechnology', label: 'Biotechnology', source: 'hardcoded' as const }
+      ];
+    }
+  }
+  /**
    * Find similar customers based on user-selected examples
    */
   static async findSimilarCustomers(
