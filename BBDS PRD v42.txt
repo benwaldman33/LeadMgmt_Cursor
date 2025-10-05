@@ -88,6 +88,29 @@ The system has undergone critical fixes to resolve AI Discovery authentication a
 #### Notes
 - For production preview builds, fix TypeScript build errors and set `VITE_API_URL` to a full backend URL (no proxy in preview).
 
+### ✅ Phase 3: Session Persistence & Saved Lists (2025-10-05)
+
+#### Requirements
+- Autosave discovery sessions by default (timer + step transitions).
+- Resume sessions (list view with pin/unpin and recency ordering).
+- Save customer results as named lists; pin to keep; retention 90 days by default.
+
+#### Data Model
+- Extend `DiscoverySession` with pinned/retention and JSON snapshots.
+- Add `SavedCustomerList` (header metadata) and `SavedCustomerItem` (URL+fields).
+
+#### APIs
+- `/api/discovery/sessions`: create/list/get/autosave/pin.
+- `/api/discovery/saved-lists`: create/list/get/delete.
+
+#### UX
+- Session autosave indicator; “Save/Resume Session” menu.
+- “Save Results as List” from customer results; “Saved Lists” screen for reuse.
+
+#### Policy
+- Default retention: 90 days; pinned items do not expire.
+- Future: quotas, soft-delete recovery window, admin overrides.
+
 The system has undergone comprehensive integration of business rules automation across the entire lead lifecycle, along with resolution of critical database configuration issues that were preventing proper system operation.
 
 #### Integration Issues Resolved

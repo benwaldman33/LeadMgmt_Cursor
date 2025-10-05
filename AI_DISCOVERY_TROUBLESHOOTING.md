@@ -190,3 +190,17 @@ If issues persist:
 1. `curl http://localhost:3001/api/health` → 200
 2. `curl http://localhost:3000/api/health` → 200 (proxy)
 3. Browser DevTools → Network (WS) shows successful websocket connection.
+
+## Session Persistence & Saved Lists
+
+### How It Works
+- Sessions autosave on key steps and on a timer. You can resume from the Sessions list.
+- Save any customer result set as a named list (optional pin to prevent expiration).
+
+### Retention Defaults
+- Sessions and lists: 90 days retention; pinned items do not expire.
+- Admin can adjust policy; future soft-delete window planned.
+
+### Common Issues
+- "Session not found" → ensure you’re logged in as the same user.
+- "Invalid payload" → name/industry/items are required for new saved lists.

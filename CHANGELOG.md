@@ -82,3 +82,17 @@ All notable changes to the Universal Lead Scoring Platform will be documented in
 
 ### Notes
 - If the AI still returns fewer than requested, strengthened prompt now significantly reduces occurrence; future step will add post-parse enforcement/fill if needed
+
+## [2025-10-05] - Phase 3: Session Persistence & Saved Customer Lists
+
+### Added
+- Discovery sessions autosave fields (pinned, expiresAt, lastAutoSavedAt, constraints/results snapshots).
+- Saved lists (`SavedCustomerList`, `SavedCustomerItem`) with rich metadata and pinning.
+- REST APIs under `/api/discovery` for sessions (create/list/get/autosave/pin) and saved lists (create/list/get/delete).
+
+### Changed
+- Linked lists to users; sessions now have retention metadata by default (90 days).
+
+### Notes
+- Schema applied with `prisma db push` (no tracked migrations yet).
+- Frontend autosave/resume and list UI to follow in Phase 3 UI work.

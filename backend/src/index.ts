@@ -54,6 +54,7 @@ console.log('marketAnalysisRoutes:', typeof marketAnalysisRoutes);
 import adminRouter from './routes/admin';
 console.log('adminRouter:', typeof adminRouter);
 import serviceConfigurationRoutes from './routes/serviceConfiguration';
+import discoveryPersistenceRoutes from './routes/discoveryPersistence';
 console.log('serviceConfigurationRoutes:', typeof serviceConfigurationRoutes);
 
 const app = express();
@@ -122,6 +123,7 @@ app.use('/api/apify', apifyRoutes);
 app.use('/api/market-analysis', marketAnalysisRoutes);
 app.use('/api/admin', authMiddleware, adminRouter);
 app.use('/api/service-configuration', serviceConfigurationRoutes);
+app.use('/api/discovery', discoveryPersistenceRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

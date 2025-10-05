@@ -93,6 +93,36 @@
 
 #### Notes / Next
 - For production (vite preview), ensure `VITE_API_URL` is a full URL (no proxy), and resolve current TS build errors before enabling preview build.
+
+## Phase 3 – Session Persistence & Saved Customer Lists (2025-10-05)
+
+### Goals
+- Autosave discovery progress; allow users to resume sessions.
+- Save customer results as named lists; pin/retention and basic metadata.
+
+### Data Model Changes
+- `DiscoverySession`
+  - Added: `pinned`, `expiresAt`, `lastAutoSavedAt`, `constraints` (JSON), `resultsSnapshot` (JSON).
+- `SavedCustomerList` and `SavedCustomerItem`
+  - List-level fields: `industry`, `productVertical`, `constraints` snapshot, `aiEngineUsed`, `promptVersion`, `pinned`, `expiresAt`, timestamps.
+  - Item fields: `url`, `title`, `description`, `relevanceScore`, `location`, `companyType`, optional `tags`, `notes`, `rank`, `domain`, `logoUrl`, `estEmployees`, `estRevenue`, `techTags`.
+  - Relation back to `User`; uniqueness on (listId, url).
+
+### Backend APIs (mounted at `/api/discovery`)
+- Sessions: `POST /sessions`, `GET /sessions`, `GET /sessions/:id`, `POST /sessions/:id/autosave`, `PATCH /sessions/:id` (pin/unpin).
+- Saved lists: `POST /saved-lists`, `GET /saved-lists`, `GET /saved-lists/:id`, `DELETE /saved-lists/:id`.
+
+### Retention & Limits
+- Default retention: 90 days from creation/last-activity; pinned items do not expire (expiresAt=null).
+- (Future) soft-delete recovery window and per-user quotas configurable.
+
+### Implementation Notes
+- Schema applied with `prisma db push` (no migrations tracked yet).
+- Autosave: recommended every ~45s and on key step transitions (frontend to implement next).
+- Constraints/results snapshots are JSON strings for portability; consider JSONB in future.
+
+### Outcome
+- Persistence foundation in place; ready for UI wiring (autosave/resume, lists UI).
 ### Technical Details
 
 #### Authentication Flow

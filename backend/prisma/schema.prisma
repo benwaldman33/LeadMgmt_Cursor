@@ -34,6 +34,7 @@ model User {
   team                 Team?                @relation(fields: [teamId], references: [id])
   workflowExecutions   WorkflowExecution[]  @relation("UserWorkflowExecutions")
   createdWorkflows     Workflow[]           @relation("WorkflowCreator")
+  savedCustomerLists   SavedCustomerList[]
 
   @@map("users")
 }
@@ -591,8 +592,13 @@ model DiscoverySession {
   industry            String
   productVertical     String?
   status              String                @default("exploring")
+  pinned              Boolean               @default(false)
+  expiresAt           DateTime?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
+  lastAutoSavedAt     DateTime?
+  constraints         String?               // JSON string of search constraints
+  resultsSnapshot     String?               // JSON string of last results snapshot
   conversationHistory ConversationMessage[]
   user                User                  @relation("UserDiscoverySessions", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -609,4 +615,48 @@ model ConversationMessage {
   session   DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("conversation_messages")
+}
+
+model SavedCustomerList {
+  id             String               @id @default(cuid())
+  userId         String
+  name           String
+  industry       String
+  productVertical String?
+  constraints    String?              // JSON snapshot
+  aiEngineUsed   String?
+  promptVersion  String?
+  pinned         Boolean              @default(false)
+  capturedAt     DateTime             @default(now())
+  expiresAt      DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  items          SavedCustomerItem[]
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_customer_lists")
+}
+
+model SavedCustomerItem {
+  id          String            @id @default(cuid())
+  listId      String
+  url         String
+  title       String
+  description String?
+  relevanceScore Float?
+  location    String?
+  companyType String?
+  tags        String?           // JSON array of strings
+  notes       String?
+  rank        Int?
+  domain      String?
+  logoUrl     String?
+  estEmployees Int?
+  estRevenue   String?
+  techTags     String?          // JSON array of strings
+  createdAt   DateTime          @default(now())
+  list        SavedCustomerList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, url])
+  @@map("saved_customer_items")
 }
