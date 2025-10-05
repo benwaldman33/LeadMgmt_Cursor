@@ -1503,39 +1503,37 @@ Format your response as: [Brief answer] + [1-2 follow-up questions to continue t
     const maxResults = constraints?.maxResults || 50;
     const geography = constraints?.geography?.join(', ') || 'United States';
     
-    return `You are an expert in customer discovery and market research. 
+    return `You are an expert in customer discovery and market research.
 
-I need you to find potential customers for ${productVertical} in the ${industry} industry.
+Task: Find potential customers for ${productVertical} in the ${industry} industry.
 
-Requirements:
+Hard requirements (must follow exactly):
+- Provide EXACTLY ${maxResults} companies. Not fewer, not more.
+- Output MUST be a single, valid JSON array only (no prose before or after).
+- Each item MUST strictly follow this schema:
+  {
+    "url": "https://...",                // Company website or LinkedIn
+    "title": "Company Name",             // Company name
+    "description": "Why they are a fit", // One sentence rationale
+    "relevanceScore": 0.0-1.0,            // Float score
+    "location": "City, State/Country",   // Location
+    "companyType": "Type of business"     // e.g., Manufacturer, Distributor
+  }
+
+Context & filters:
 - Industry: ${industry}
 - Product Vertical: ${productVertical}
 - Customer Types: ${customerTypes.join(', ') || 'All relevant types'}
 - Geography: ${geography}
-- Max Results: ${maxResults}
 
-IMPORTANT: You must find REAL companies that actually exist. Do not create fictional companies.
+Quality rules:
+1) Only REAL companies that actually exist (no fictional data)
+2) Provide actual URLs that resolve for each company
+3) Prioritize high-value prospects with purchasing power
+4) Ensure companies match the specified geography
+5) Calibrate relevanceScore based on how well they match the criteria
 
-Please provide a list of potential customers in this JSON format:
-[
-  {
-    "url": "company website or LinkedIn",
-    "title": "Company Name",
-    "description": "Brief description of the company and why they would be interested in this product",
-    "relevanceScore": 0.85,
-    "location": "City, State",
-    "companyType": "Type of business"
-  }
-]
-
-Focus on:
-1. Companies that would actually need ${productVertical}
-2. Real companies with online presence (provide actual URLs)
-3. High-value prospects with purchasing power
-4. Companies in the specified geography
-5. Relevance scores based on how well they match the criteria
-
-Search for actual companies in the ${industry} industry that could benefit from ${productVertical} solutions. Make sure the JSON is valid and properly formatted.`;
+Return ONLY the JSON array with EXACTLY ${maxResults} objects.`;
   }
 
   /**
