@@ -14,5 +14,6 @@ COPY . .
 # Expose port
 EXPOSE 3000
 
-# Start the development server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 
+# Build and serve the app in preview mode for stability inside Docker
+RUN npm run build
+CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
