@@ -120,6 +120,15 @@ Advanced AI-powered lead scoring with multiple models and optimization:
 - Buttons display selected limits (e.g., "Discover 15 Industries", "Search 25 Customers")
 - Strengthened prompts enforce EXACT result counts and strict JSON output
 
+#### Connectivity & Realtime
+- When running in Docker, the app connects to the backend via:
+  - REST: `/api` proxied to `http://backend:3001` (inside Docker)
+  - WebSocket: `ws://localhost:3001` (browser connects to host → backend)
+- If you see a disconnected banner:
+  1) Refresh the page.
+  2) Check `/api/health` at 3000 and 3001.
+  3) Ensure frontend container is running; review logs if needed.
+
 ### 4. Web Scraping
 Automated content extraction from target websites:
 

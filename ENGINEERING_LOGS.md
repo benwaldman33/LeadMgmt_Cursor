@@ -66,6 +66,33 @@
 - Selecting 25 customers now yields 25 results; user verified
 - Stronger compliance from Claude; reduces under-delivery to 10
 
+### Frontend Docker Runtime & WebSocket Connectivity (2025-10-05)
+
+#### Problem
+- UI intermittently showed "backend disconnected" and /api/health returned 500 via port 3000.
+- Vite dev server inside Docker (node:18-alpine) crashed with `TypeError: crypto.hash is not a function` → proxy at 3000 unavailable → 500s.
+- WebSocket client used `ws://backend:3001` (Docker service name) which the browser cannot resolve → persistent WS failures even when REST worked.
+
+#### Root Causes
+1. Node 18 + Vite 7 / React Router 7 incompatibility in the container.
+2. Browser cannot reach `backend` hostname; must use `localhost:3001` for WS.
+
+#### Fixes
+- Upgraded frontend Docker image to `node:20-bullseye` (stable for Vite 7).
+- Kept Vite dev server with proxy `/api -> http://backend:3001`.
+- Set `VITE_WS_URL=http://localhost:3001` so browser connects WS over host networking.
+
+#### Files Updated
+- `frontend/Dockerfile` (base image to node:20-bullseye; dev server entry)
+- `docker-compose.yml` (set `VITE_WS_URL=http://localhost:3001`)
+- `frontend/src/services/websocketService.ts` (env-configurable WS base)
+
+#### Outcome
+- `/api/health` via 3000 returns 200 (proxy active), backend `/api/health` 200.
+- WebSocket connects reliably; connection indicator reflects true status.
+
+#### Notes / Next
+- For production (vite preview), ensure `VITE_API_URL` is a full URL (no proxy), and resolve current TS build errors before enabling preview build.
 ### Technical Details
 
 #### Authentication Flow

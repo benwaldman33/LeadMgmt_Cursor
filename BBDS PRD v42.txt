@@ -71,6 +71,23 @@ The system has undergone critical fixes to resolve AI Discovery authentication a
 #### Future Work
 - Add post-parse enforcement to fill to exact count if AI under-delivers
 
+### ✅ Frontend Runtime & Connectivity Stabilization (2025-10-05)
+
+#### Summary
+- Stabilized Dockerized frontend by upgrading to Node 20 and fixing WebSocket routing.
+
+#### User Experience
+- Reliable connection status; WS indicators reflect actual status.
+- /api endpoints reachable via port 3000 through Vite proxy.
+
+#### Technical Details
+- Frontend container: `node:20-bullseye`, Vite dev server with proxy `/api -> backend:3001`.
+- WebSocket: `VITE_WS_URL=http://localhost:3001` for browser reachability.
+- WS client reads env and falls back to window location.
+
+#### Notes
+- For production preview builds, fix TypeScript build errors and set `VITE_API_URL` to a full backend URL (no proxy in preview).
+
 The system has undergone comprehensive integration of business rules automation across the entire lead lifecycle, along with resolution of critical database configuration issues that were preventing proper system operation.
 
 #### Integration Issues Resolved

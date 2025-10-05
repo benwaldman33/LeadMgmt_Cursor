@@ -171,3 +171,22 @@ If issues persist:
 
 ### Future Enhancements
 - Add post-parse enforcement to re-prompt/fill to exact count if AI under-delivers
+
+## Frontend “Backend Disconnected” Issues
+
+### Symptom
+- Banner shows disconnected; /api calls from 3000 return 500; WS dot stays red.
+
+### Common Causes
+- Frontend container Vite dev server crashed (Node version incompatible with Vite).
+- WebSocket URL points to `ws://backend:3001` which the browser cannot resolve.
+
+### Resolution
+- Use Node 20 image for frontend container to run Vite dev reliably.
+- Keep REST via Vite proxy: `/api -> http://backend:3001`.
+- Set `VITE_WS_URL=http://localhost:3001` so WS connects from browser.
+
+### Verify
+1. `curl http://localhost:3001/api/health` → 200
+2. `curl http://localhost:3000/api/health` → 200 (proxy)
+3. Browser DevTools → Network (WS) shows successful websocket connection.
