@@ -2,6 +2,7 @@ import { prisma } from '../index';
 import { webScrapingService } from './webScrapingService';
 import { ScoringService } from './scoringService';
 import { webSocketService } from './websocketService';
+import { RuleExecutionService } from './ruleExecutionService';
 
 export interface PipelineJob {
   id: string;
@@ -112,6 +113,20 @@ export class PipelineService {
           // Count as qualified if score > 0 (any score means some criteria matched)
           if (scoringResult.totalScore > 0) {
             job.progress.qualified++;
+          }
+          
+          // Execute business rules after scoring
+          try {
+            await RuleExecutionService.executeRulesForLead(lead.id, 'scored', {
+              score: scoringResult.totalScore,
+              confidence: scoringResult.confidence,
+              campaignId: campaignId,
+              pipelineJobId: jobId,
+              industry: industry
+            });
+          } catch (error) {
+            console.error('Rule execution failed in pipeline:', error);
+            // Don't fail the pipeline, just log the error
           }
           
           // Add to results with detailed scoring breakdown
@@ -375,7 +390,7 @@ export class PipelineService {
         const criterion = campaign.scoringModel!.criteria.find(c => c.id === cs.criterionId);
         return {
           criterionName: criterion?.name || 'Unknown',
-          criterionDescription: criterion?.description,
+          criterionDescription: criterion?.description || undefined,
           score: cs.score,
           matchedContent: JSON.parse(cs.matchedContent),
           confidence: cs.confidence,

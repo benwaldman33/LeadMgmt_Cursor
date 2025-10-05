@@ -57,6 +57,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     industryType: '',
     geographyFocus: ''
   });
+  const [maxIndustries, setMaxIndustries] = useState(8);
   
   // Loading states
   const [loadingIndustries, setLoadingIndustries] = useState(true);
@@ -77,7 +78,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     try {
       console.log('[AI Discovery] Starting AI industry discovery...');
       const result = await aiDiscoveryService.discoverIndustries(discoveryInput, {
-        maxIndustries: 8
+        maxIndustries: maxIndustries
       });
       
       setDiscoveredIndustries(result.industries);
@@ -408,7 +409,25 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
               {/* Interactive Discovery Criteria */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Refine Your Search Criteria</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Industries
+                    </label>
+                    <select 
+                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      value={maxIndustries}
+                      onChange={(e) => setMaxIndustries(parseInt(e.target.value))}
+                    >
+                      <option value={5}>5 industries</option>
+                      <option value={8}>8 industries</option>
+                      <option value={12}>12 industries</option>
+                      <option value={15}>15 industries</option>
+                      <option value={20}>20 industries</option>
+                      <option value={25}>25 industries</option>
+                      <option value={30}>30 industries</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Market Size (US TAM)
@@ -486,7 +505,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                     disabled={!discoveryInput.trim() || discoveringIndustries}
                     className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {discoveringIndustries ? 'Discovering...' : 'Discover with Criteria'}
+                    {discoveringIndustries ? 'Discovering...' : `Discover ${maxIndustries} Industries`}
                   </button>
                   <button
                     onClick={() => setSearchConstraints({

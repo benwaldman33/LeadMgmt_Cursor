@@ -21,7 +21,7 @@ async function seedServiceConfiguration() {
         config: JSON.stringify({
           apiKey: process.env.CLAUDE_API_KEY || 'your-claude-api-key',
           model: 'claude-3-5-sonnet-20241022',
-          maxTokens: 4096,
+          maxTokens: 8192, // Increased for larger industry lists
           temperature: 0.7
         }),
         limits: JSON.stringify({
@@ -44,7 +44,7 @@ async function seedServiceConfiguration() {
         config: JSON.stringify({
           apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key',
           model: 'gpt-4',
-          maxTokens: 4096,
+          maxTokens: 8192, // Increased for larger industry lists
           temperature: 0.7
         }),
         limits: JSON.stringify({

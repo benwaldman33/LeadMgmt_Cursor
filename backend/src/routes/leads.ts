@@ -12,6 +12,7 @@ import { ScoringService } from '../services/scoringService';
 import { webSocketService } from '../services/websocketService';
 import { webScrapingService } from '../services/webScrapingService';
 import { PipelineService } from '../services/pipelineService';
+import { RuleExecutionService } from '../services/ruleExecutionService';
 import { Request as ExpressRequest } from 'express';
 
 interface RequestWithFiles extends ExpressRequest {
@@ -102,6 +103,19 @@ router.post('/', authenticateToken, requireAnalyst, validateLead, async (req: Re
     // Send WebSocket notification
     await webSocketService.sendLeadCreated(lead);
 
+    // Execute business rules for new lead
+    try {
+      await RuleExecutionService.executeRulesForLead(lead.id, 'created', {
+        campaignId: lead.campaignId,
+        industry: lead.industry,
+        companyName: lead.companyName,
+        domain: lead.domain
+      });
+    } catch (error) {
+      console.error('Rule execution failed for lead creation:', error);
+      // Don't fail the lead creation, just log the error
+    }
+
     // Send user activity notification
     await webSocketService.sendUserActivity(req.user!.id, 'created a new lead');
 
@@ -184,6 +198,20 @@ router.put('/:id', authenticateToken, requireAnalyst, validateLead, async (req: 
     // Check if lead was assigned to a new user
     if (oldLead && lead.assignedToId && oldLead.assignedToId !== lead.assignedToId) {
       await webSocketService.sendLeadAssigned(lead, lead.assignedToId, req.user!.id);
+    }
+
+    // Execute business rules for lead update
+    try {
+      await RuleExecutionService.executeRulesForLead(lead.id, 'updated', {
+        previousStatus: oldLead?.status,
+        newStatus: lead.status,
+        assignedToChanged: oldLead?.assignedToId !== lead.assignedToId,
+        previousAssignedTo: oldLead?.assignedToId,
+        newAssignedTo: lead.assignedToId
+      });
+    } catch (error) {
+      console.error('Rule execution failed for lead update:', error);
+      // Don't fail the lead update, just log the error
     }
 
     // Send user activity notification

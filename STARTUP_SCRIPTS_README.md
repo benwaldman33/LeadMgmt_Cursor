@@ -1,10 +1,19 @@
 # 🚀 Lead Management System - Startup Scripts
 
-This directory contains automated startup scripts for the Lead Management System.
+This directory contains automated startup scripts for the Lead Management System using **Full Docker Experience**.
 
 ## 📁 Available Scripts
 
-### 1. `start-leadmgmt.bat` - Interactive Startup
+### 1. `start-leadmgmt-full.bat` - **RECOMMENDED** Full Docker Startup
+- **Purpose**: Complete Docker startup with all services
+- **Features**: 
+  - Starts all services (frontend, backend, database, redis) in Docker
+  - Shows progress step-by-step
+  - Waits for user input before closing
+  - Displays service status and health check
+- **Best for**: Development, testing, production-like environment
+
+### 2. `start-leadmgmt.bat` - Interactive Startup
 - **Purpose**: Manual startup with visual feedback
 - **Features**: 
   - Shows progress step-by-step
@@ -12,7 +21,7 @@ This directory contains automated startup scripts for the Lead Management System
   - Displays service status and health check
 - **Best for**: Development, testing, manual startup
 
-### 2. `start-leadmgmt-auto.bat` - Silent Auto Startup
+### 3. `start-leadmgmt-auto.bat` - Silent Auto Startup
 - **Purpose**: Automated startup without user interaction
 - **Features**:
   - Runs silently in background
@@ -21,13 +30,18 @@ This directory contains automated startup scripts for the Lead Management System
   - Can be scheduled to run automatically
 - **Best for**: Production, scheduled startup, automation
 
-### 3. `stop-leadmgmt.bat` - Stop Services
+### 4. `stop-leadmgmt.bat` - Stop Services
 - **Purpose**: Gracefully stop all containers
 - **Features**: Stops all services and shows confirmation
 
+### 5. `start-simple.ps1` - Simple PowerShell Startup
+- **Purpose**: Quick PowerShell startup
+- **Features**: Simple one-command startup
+- **Best for**: PowerShell users, quick testing
+
 ## 🧪 **Testing Scripts**
 
-### 4. `test-leadmgmt-system.bat` - Master Test Suite
+### 6. `test-leadmgmt-system.bat` - Master Test Suite
 - **Purpose**: Comprehensive testing with menu-driven interface
 - **Features**:
   - System health checks
@@ -38,10 +52,11 @@ This directory contains automated startup scripts for the Lead Management System
   - Run all tests option
 - **Best for**: Comprehensive testing, debugging, validation
 
-### 5. `quick-test.bat` - Basic Health Check
+### 7. `quick-test.bat` - Basic Health Check
 - **Purpose**: Quick system validation
 - **Features**:
   - Docker container status
+  - Frontend connectivity
   - Backend health endpoint
   - Database connectivity
   - Redis connectivity
@@ -53,6 +68,20 @@ This directory contains automated startup scripts for the Lead Management System
 - **`test-market-discovery.js`** - Test market discovery APIs
 - **`test-full-discovery-flow.js`** - Test complete discovery workflow
 - **`backend/test-ai-discovery-debug.js`** - Test AI services and database
+
+## 🎯 **Quick Start (Recommended)**
+
+### **For Daily Development:**
+```bash
+# Start everything with one command
+start-leadmgmt-full.bat
+```
+
+### **For Automated Startup:**
+```bash
+# Silent startup with logging
+start-leadmgmt-auto.bat
+```
 
 ## 🎯 **Complete Automated Startup Setup**
 
@@ -88,7 +117,8 @@ After reboot, the system will automatically:
 2. **Startup script runs** and waits for Docker
 3. **PostgreSQL & Redis start** (~30 seconds)
 4. **Backend starts** (~15 seconds)
-5. **Health check confirms** everything is working
+5. **Frontend starts** (~15 seconds)
+6. **Health check confirms** everything is working
 
 **Total time**: ~2-3 minutes after login
 
@@ -150,6 +180,10 @@ docker-compose logs -f
 
 ### **Start Services Manually**
 ```bash
+# Recommended: Full Docker startup
+start-leadmgmt-full.bat
+
+# Alternative: Step-by-step startup
 start-leadmgmt.bat
 ```
 

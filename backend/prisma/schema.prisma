@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
@@ -14,802 +8,605 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User and Team Models
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  fullName  String
-  role      String   @default("ANALYST")
-  status    String   @default("ACTIVE")
-  teamId    String?
-  team      Team?    @relation(fields: [teamId], references: [id])
-  
-  // Authentication
-  passwordHash String
-  
-  // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  lastLoginAt DateTime?
-  
-  // Relations
-  createdCampaigns Campaign[] @relation("CampaignCreator")
-  assignedLeads     Lead[]    @relation("LeadAssignee")
-  createdScoringModels ScoringModel[] @relation("ScoringModelCreator")
-  auditLogs         AuditLog[] @relation("UserAuditLogs")
-  createdWorkflows  Workflow[] @relation("WorkflowCreator")
-  createdBusinessRules BusinessRule[] @relation("BusinessRuleCreator")
-  workflowExecutions WorkflowExecution[] @relation("UserWorkflowExecutions")
-  createdConfigs SystemConfig[] @relation("ConfigCreator")
-  createdApifyActors ApifyActor[] @relation("ApifyActorCreator")
-  
-  // AI Market Discovery Relations
-  marketAnalyses    MarketAnalysis[] @relation("UserMarketAnalyses")
-  discoveryModels   DiscoveryModel[] @relation("UserDiscoveryModels")
-  discoveryExecutions DiscoveryExecution[] @relation("UserDiscoveryExecutions")
-  
-  // Service Usage Relations
-  serviceUsage      ServiceUsage[]
-  
-  // AI Discovery Sessions
-  discoverySessions DiscoverySession[] @relation("UserDiscoverySessions")
-  
+  id                   String               @id @default(cuid())
+  email                String               @unique
+  fullName             String
+  role                 String               @default("ANALYST")
+  status               String               @default("ACTIVE")
+  teamId               String?
+  passwordHash         String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  lastLoginAt          DateTime?
+  createdApifyActors   ApifyActor[]         @relation("ApifyActorCreator")
+  auditLogs            AuditLog[]           @relation("UserAuditLogs")
+  createdBusinessRules BusinessRule[]       @relation("BusinessRuleCreator")
+  createdCampaigns     Campaign[]           @relation("CampaignCreator")
+  discoveryExecutions  DiscoveryExecution[] @relation("UserDiscoveryExecutions")
+  discoveryModels      DiscoveryModel[]     @relation("UserDiscoveryModels")
+  discoverySessions    DiscoverySession[]   @relation("UserDiscoverySessions")
+  assignedLeads        Lead[]               @relation("LeadAssignee")
+  marketAnalyses       MarketAnalysis[]     @relation("UserMarketAnalyses")
+  createdScoringModels ScoringModel[]       @relation("ScoringModelCreator")
+  serviceUsage         ServiceUsage[]
+  createdConfigs       SystemConfig[]       @relation("ConfigCreator")
+  team                 Team?                @relation(fields: [teamId], references: [id])
+  workflowExecutions   WorkflowExecution[]  @relation("UserWorkflowExecutions")
+  createdWorkflows     Workflow[]           @relation("WorkflowCreator")
+
   @@map("users")
 }
 
 model Team {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
   industry  String
   leadId    String?
-  
-  // Relations
-  members   User[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   campaigns Campaign[] @relation("TeamCampaigns")
-  leads     Lead[]    @relation("TeamLeads")
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  leads     Lead[]     @relation("TeamLeads")
+  members   User[]
+
   @@map("teams")
 }
 
-// Campaign and Scoring Models
 model Campaign {
-  id              String         @id @default(cuid())
-  name            String
-  industry        String
-  status          String         @default("PLANNING")
-  scoringModelId  String?
-  scoringModel    ScoringModel?  @relation(fields: [scoringModelId], references: [id])
-  assignedTeamId  String?
-  assignedTeam    Team?          @relation("TeamCampaigns", fields: [assignedTeamId], references: [id])
-  createdById     String
-  createdBy       User           @relation("CampaignCreator", fields: [createdById], references: [id])
-  
-  // Campaign targets
-  targetLeadCount Int?
-  currentLeadCount Int @default(0)
-  
-  // Timeline
-  startDate       DateTime?
-  targetEndDate   DateTime?
-  actualEndDate   DateTime?
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Relations
-  leads Lead[]
-  
+  id               String        @id @default(cuid())
+  name             String
+  industry         String
+  status           String        @default("PLANNING")
+  scoringModelId   String?
+  assignedTeamId   String?
+  createdById      String
+  targetLeadCount  Int?
+  currentLeadCount Int           @default(0)
+  startDate        DateTime?
+  targetEndDate    DateTime?
+  actualEndDate    DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  assignedTeam     Team?         @relation("TeamCampaigns", fields: [assignedTeamId], references: [id])
+  createdBy        User          @relation("CampaignCreator", fields: [createdById], references: [id])
+  scoringModel     ScoringModel? @relation(fields: [scoringModelId], references: [id])
+  leads            Lead[]
+
   @@map("campaigns")
 }
 
 model ScoringModel {
-  id        String   @id @default(cuid())
-  name      String
-  industry  String
-  isActive  Boolean  @default(true)
+  id          String             @id @default(cuid())
+  name        String
+  industry    String
+  isActive    Boolean            @default(true)
   createdById String
-  createdBy User     @relation("ScoringModelCreator", fields: [createdById], references: [id])
-  
-  // Relations
-  criteria ScoringCriterion[]
-  campaigns Campaign[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  campaigns   Campaign[]
+  criteria    ScoringCriterion[]
+  createdBy   User               @relation("ScoringModelCreator", fields: [createdById], references: [id])
+
   @@map("scoring_models")
 }
 
 model ScoringCriterion {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  searchTerms String   // JSON string for SQLite compatibility
-  weight      Int      // 0-100, must sum to 100 across all criteria
-  type        String   @default("KEYWORD")
-  
-  // Relations
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  searchTerms    String
+  weight         Int
+  type           String       @default("KEYWORD")
   scoringModelId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   scoringModel   ScoringModel @relation(fields: [scoringModelId], references: [id], onDelete: Cascade)
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+
   @@map("scoring_criteria")
 }
 
-// Lead Management Models
 model Lead {
-  id        String   @id @default(cuid())
-  url       String
-  companyName String
-  domain    String
-  industry  String
-  status    String   @default("RAW")
-  score     Float?
-  
-  // Integration fields
-  externalId String?
-  externalSource String?
-  
-  // Relations
-  campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  assignedToId String?
-  assignedTo User?   @relation("LeadAssignee", fields: [assignedToId], references: [id])
-  assignedTeamId String?
-  assignedTeam Team? @relation("TeamLeads", fields: [assignedTeamId], references: [id])
-  
-  // Scoring
-  scoringDetails ScoringResult?
-  
-  // Enrichment
-  enrichment LeadEnrichment?
-  
-  // Workflow executions
-  workflowExecutions WorkflowExecution[] @relation("LeadWorkflowExecutions")
-  
-  // AI Discovery Relations
-  discoveryExecution DiscoveryExecution? @relation("DiscoveryExecutionLeads", fields: [discoveryExecutionId], references: [id])
+  id                   String              @id @default(cuid())
+  url                  String
+  companyName          String
+  domain               String
+  industry             String
+  status               String              @default("RAW")
+  score                Float?
+  externalId           String?
+  externalSource       String?
+  campaignId           String
+  assignedToId         String?
+  assignedTeamId       String?
   discoveryExecutionId String?
-  
-  // Timestamps
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  lastScoredAt DateTime?
-  
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  lastScoredAt         DateTime?
+  enrichment           LeadEnrichment?
+  assignedTeam         Team?               @relation("TeamLeads", fields: [assignedTeamId], references: [id])
+  assignedTo           User?               @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  campaign             Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  discoveryExecution   DiscoveryExecution? @relation("DiscoveryExecutionLeads", fields: [discoveryExecutionId], references: [id])
+  ruleExecutionLogs    RuleExecutionLog[]
+  scoringDetails       ScoringResult?
+  workflowExecutions   WorkflowExecution[] @relation("LeadWorkflowExecutions")
+
   @@map("leads")
 }
 
 model ScoringResult {
-  id        String   @id @default(cuid())
-  totalScore Float
-  confidence Float
-  scoredAt   DateTime @default(now())
+  id                  String           @id @default(cuid())
+  totalScore          Float
+  confidence          Float
+  scoredAt            DateTime         @default(now())
   scoringModelVersion String
-  
-  // Relations
-  leadId    String @unique
-  lead      Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  
-  // Criteria scores
-  criteriaScores CriterionScore[]
-  
+  leadId              String           @unique
+  criteriaScores      CriterionScore[]
+  lead                Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   @@map("scoring_results")
 }
 
 model CriterionScore {
-  id           String @id @default(cuid())
-  criterionId  String
-  score        Float
-  matchedContent String   // JSON string for SQLite compatibility
-  confidence   Float
-  
-  // Relations
+  id              String        @id @default(cuid())
+  criterionId     String
+  score           Float
+  matchedContent  String
+  confidence      Float
   scoringResultId String
   scoringResult   ScoringResult @relation(fields: [scoringResultId], references: [id], onDelete: Cascade)
-  
+
   @@map("criterion_scores")
 }
 
-// Enrichment Models
 model LeadEnrichment {
-  id          String @id @default(cuid())
-  companySize Int?
-  revenue     String?
-  industry    String?
-  technologies String   // JSON string for SQLite compatibility
-  
-  // Enhanced web scraping data storage
-  scrapedContent String?     // Full page content (truncated for storage)
-  pageTitle String?          // Page title from metadata
-  pageDescription String?    // Meta description
-  pageKeywords String?       // Meta keywords as JSON string
-  pageLanguage String?       // Page language
-  lastModified String?       // Last modified date
-  
-  // Structured data from scraping
-  companyName String?        // Extracted company name
-  services String?           // JSON string of detected services
-  certifications String?     // JSON string of certifications
-  contactEmail String?       // Primary contact email
-  contactPhone String?       // Primary contact phone
-  contactAddress String?     // Contact address
-  
-  // Scraping metadata
-  scrapingTimestamp DateTime @default(now())
-  processingTime Int?        // Time taken to scrape in milliseconds
-  scrapingSuccess Boolean @default(true)
-  scrapingError String?      // Error message if scraping failed
-  
-  // Relations
-  leadId      String @unique
-  lead        Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  contacts    Contact[]
-  
-  // Metadata
-  source      String @default("WEB_SCRAPING")
-  enrichedAt  DateTime @default(now())
-  
+  id                String    @id @default(cuid())
+  companySize       Int?
+  revenue           String?
+  industry          String?
+  technologies      String
+  scrapedContent    String?
+  pageTitle         String?
+  pageDescription   String?
+  pageKeywords      String?
+  pageLanguage      String?
+  lastModified      String?
+  companyName       String?
+  services          String?
+  certifications    String?
+  contactEmail      String?
+  contactPhone      String?
+  contactAddress    String?
+  scrapingTimestamp DateTime  @default(now())
+  processingTime    Int?
+  scrapingSuccess   Boolean   @default(true)
+  scrapingError     String?
+  leadId            String    @unique
+  source            String    @default("WEB_SCRAPING")
+  enrichedAt        DateTime  @default(now())
+  contacts          Contact[]
+  lead              Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   @@map("lead_enrichments")
 }
 
 model Contact {
-  id              String @id @default(cuid())
-  name            String
-  email           String?
-  title           String?
-  linkedinUrl     String?
-  isPrimaryContact Boolean @default(false)
-  
-  // Relations
-  enrichmentId    String
-  enrichment      LeadEnrichment @relation(fields: [enrichmentId], references: [id], onDelete: Cascade)
-  
+  id               String         @id @default(cuid())
+  name             String
+  email            String?
+  title            String?
+  linkedinUrl      String?
+  isPrimaryContact Boolean        @default(false)
+  enrichmentId     String
+  enrichment       LeadEnrichment @relation(fields: [enrichmentId], references: [id], onDelete: Cascade)
+
   @@map("contacts")
 }
 
-// Note: Using string fields instead of enums for SQLite compatibility
-// UserRole: "SUPER_ADMIN", "ANALYST", "VIEWER"
-// UserStatus: "ACTIVE", "INACTIVE", "SUSPENDED", "PENDING"
-// CampaignStatus: "PLANNING", "ACTIVE", "PAUSED", "COMPLETED", "CANCELLED"
-// LeadStatus: "RAW", "SCORED", "QUALIFIED", "DELIVERED", "REJECTED"
-// CriterionType: "KEYWORD", "PHRASE", "PRESENCE", "COUNT"
-// EnrichmentSource: "CLEARBIT", "MANUAL"
-
-// AI/ML Models
 model AIModel {
-  id        String   @id @default(cuid())
-  name      String
-  type      String   // "regression", "classification", "ensemble"
-  features  String   // JSON string for SQLite compatibility
-  performance String  // JSON string for SQLite compatibility
-  isActive  Boolean  @default(true)
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  features    String
+  performance String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@map("ai_models")
 }
 
-// AI Market Discovery Models
 model MarketAnalysis {
-  id        String   @id @default(cuid())
-  name      String   // e.g., "US Industries 300K+ Locations Analysis"
-  criteria  String   // JSON: {minLocations: 300000, geography: "US", filters: [...]}
-  results   String   // JSON: [{industry: "Plumbing", naicsCode: "238220", count: 412000, subIndustries: [...]}]
-  status    String   @default("completed") // "pending", "running", "completed", "failed"
-  
-  // User attribution
-  createdById String
-  createdBy   User   @relation("UserMarketAnalyses", fields: [createdById], references: [id])
-  
-  // Relations
+  id              String           @id @default(cuid())
+  name            String
+  criteria        String
+  results         String
+  status          String           @default("completed")
+  createdById     String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   discoveryModels DiscoveryModel[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  createdBy       User             @relation("UserMarketAnalyses", fields: [createdById], references: [id])
+
   @@map("market_analyses")
 }
 
 model DiscoveryModel {
-  id        String   @id @default(cuid())
-  name      String   // e.g., "Commercial Plumbing - Water Jetting Equipment"
-  
-  // Market Context
-  industry      String   // e.g., "Plumbing"
-  subIndustry   String   // e.g., "Commercial Plumbing"
-  product       String   // e.g., "High-pressure water jetting systems"
-  marketSize    Int?     // Number of potential customers (e.g., 89000)
-  
-  // AI-Generated Configuration
-  buyerProfile    String   // JSON: {companySize: [10,100], services: [...], painPoints: [...], budget: [15000,50000]}
-  searchStrategy  String   // JSON: {keywords: [...], excludeTerms: [...], geoTargeting: [...], sources: [...]}
-  targetCriteria  String   // JSON: {industryIndicators: [...], sizeIndicators: [...], techAdoption: [...]}
-  
-  // Configuration & Status
-  isActive        Boolean  @default(true)
-  lastExecuted    DateTime?
-  executionCount  Int      @default(0)
-  
-  // Performance Metrics
-  performanceMetrics String? // JSON: {avgQualityScore: 85, avgConversionRate: 0.15, costPerLead: 2.50}
-  
-  // User Attribution
-  createdById String
-  createdBy   User   @relation("UserDiscoveryModels", fields: [createdById], references: [id])
-  
-  // Relations
-  marketAnalysisId String?
-  marketAnalysis   MarketAnalysis? @relation(fields: [marketAnalysisId], references: [id])
-  executions       DiscoveryExecution[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id                 String               @id @default(cuid())
+  name               String
+  industry           String
+  subIndustry        String
+  product            String
+  marketSize         Int?
+  buyerProfile       String
+  searchStrategy     String
+  targetCriteria     String
+  isActive           Boolean              @default(true)
+  lastExecuted       DateTime?
+  executionCount     Int                  @default(0)
+  performanceMetrics String?
+  createdById        String
+  marketAnalysisId   String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  executions         DiscoveryExecution[]
+  createdBy          User                 @relation("UserDiscoveryModels", fields: [createdById], references: [id])
+  marketAnalysis     MarketAnalysis?      @relation(fields: [marketAnalysisId], references: [id])
+
   @@map("discovery_models")
 }
 
 model DiscoveryExecution {
-  id        String   @id @default(cuid())
-  name      String   // e.g., "Commercial Plumbing Discovery - Dec 2024"
-  
-  // Status & Progress
-  status    String   @default("planning") // "planning", "discovering", "analyzing", "qualifying", "completed", "failed"
-  phase     String   @default("market_research") // "market_research", "web_discovery", "content_analysis", "qualification", "lead_creation"
-  
-  // Progress Tracking
-  prospectsFound     Int @default(0)
-  prospectsAnalyzed  Int @default(0)
-  leadsQualified     Int @default(0)
-  leadsCreated       Int @default(0)
-  
-  // Execution Configuration
-  executionConfig String   // JSON: {sources: ["google", "linkedin"], maxResults: 5000, qualityThreshold: 75}
-  
-  // Results & Analytics
-  sourceResults   String?  // JSON: {google: {found: 2500, processed: 2500}, linkedin: {found: 1200, processed: 1200}}
-  analysisResults String?  // JSON: {totalAnalyzed: 4500, avgQualityScore: 78, qualificationRate: 0.28}
-  qualityMetrics  String?  // JSON: {relevanceScore: 85, confidenceScore: 92, completenessScore: 88}
-  
-  // Error Handling
-  errorMessage    String?
-  errorDetails    String?  // JSON: detailed error information
-  
-  // Performance & Cost
-  totalCost       Float?
-  avgLeadCost     Float?
-  processingTime  Int?     // milliseconds
-  
-  // Relations
-  discoveryModelId String
-  discoveryModel   DiscoveryModel @relation(fields: [discoveryModelId], references: [id], onDelete: Cascade)
-  prospects        DiscoveredProspect[]
-  createdLeads     Lead[] @relation("DiscoveryExecutionLeads")
-  
-  // User Attribution
-  triggeredById String?
-  triggeredBy   User?  @relation("UserDiscoveryExecutions", fields: [triggeredById], references: [id])
-  
-  // Timestamps
-  startedAt   DateTime @default(now())
-  completedAt DateTime?
-  updatedAt   DateTime @updatedAt
-  
+  id                String               @id @default(cuid())
+  name              String
+  status            String               @default("planning")
+  phase             String               @default("market_research")
+  prospectsFound    Int                  @default(0)
+  prospectsAnalyzed Int                  @default(0)
+  leadsQualified    Int                  @default(0)
+  leadsCreated      Int                  @default(0)
+  executionConfig   String
+  sourceResults     String?
+  analysisResults   String?
+  qualityMetrics    String?
+  errorMessage      String?
+  errorDetails      String?
+  totalCost         Float?
+  avgLeadCost       Float?
+  processingTime    Int?
+  discoveryModelId  String
+  triggeredById     String?
+  startedAt         DateTime             @default(now())
+  completedAt       DateTime?
+  updatedAt         DateTime             @updatedAt
+  prospects         DiscoveredProspect[]
+  discoveryModel    DiscoveryModel       @relation(fields: [discoveryModelId], references: [id], onDelete: Cascade)
+  triggeredBy       User?                @relation("UserDiscoveryExecutions", fields: [triggeredById], references: [id])
+  createdLeads      Lead[]               @relation("DiscoveryExecutionLeads")
+
   @@map("discovery_executions")
 }
 
 model DiscoveredProspect {
-  id        String   @id @default(cuid())
-  
-  // Basic Company Information
-  companyName String?
-  domain      String?
-  url         String
-  
-  // Discovery Source
-  source      String   // "google_search", "linkedin", "directory", "referral"
-  sourceId    String?  // Original ID from source system
-  
-  // Raw Data & Analysis
-  rawData         String   // JSON: all discovered data from source
-  contentAnalysis String?  // JSON: AI analysis of website content
-  
-  // AI Scoring & Qualification
-  relevanceScore    Float?   // 0-100: How well prospect matches buyer profile
-  qualityScore      Float?   // 0-100: Overall data quality and completeness
-  confidenceScore   Float?   // 0-100: AI confidence in analysis
-  
-  // Qualification Status
-  isQualified            Boolean  @default(false)
+  id                     String             @id @default(cuid())
+  companyName            String?
+  domain                 String?
+  url                    String
+  source                 String
+  sourceId               String?
+  rawData                String
+  contentAnalysis        String?
+  relevanceScore         Float?
+  qualityScore           Float?
+  confidenceScore        Float?
+  isQualified            Boolean            @default(false)
   qualifiedAt            DateTime?
   disqualificationReason String?
-  
-  // Lead Conversion
-  leadCreated   Boolean  @default(false)
-  leadCreatedAt DateTime?
-  leadId        String?
-  
-  // Relations
-  discoveryExecutionId String
-  discoveryExecution   DiscoveryExecution @relation(fields: [discoveryExecutionId], references: [id], onDelete: Cascade)
-  
-  // Timestamps
-  discoveredAt DateTime @default(now())
-  analyzedAt   DateTime?
-  updatedAt    DateTime @updatedAt
-  
+  leadCreated            Boolean            @default(false)
+  leadCreatedAt          DateTime?
+  leadId                 String?
+  discoveryExecutionId   String
+  discoveredAt           DateTime           @default(now())
+  analyzedAt             DateTime?
+  updatedAt              DateTime           @updatedAt
+  discoveryExecution     DiscoveryExecution @relation(fields: [discoveryExecutionId], references: [id], onDelete: Cascade)
+
   @@map("discovered_prospects")
 }
 
-// Audit Log Models
 model AuditLog {
   id          String   @id @default(cuid())
-  action      String   // e.g., "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT"
-  entityType  String   // e.g., "LEAD", "CAMPAIGN", "USER", "SCORING_MODEL"
-  entityId    String?  // ID of the affected entity (null for system events)
-  description String   // Human-readable description of the action
-  
-  // User attribution
+  action      String
+  entityType  String
+  entityId    String?
+  description String
   userId      String?
-  user        User?    @relation("UserAuditLogs", fields: [userId], references: [id])
-  
-  // Additional context
-  metadata    String?  // JSON string for additional data
+  metadata    String?
   ipAddress   String?
   userAgent   String?
-  
-  // Timestamps
   createdAt   DateTime @default(now())
-  
+  user        User?    @relation("UserAuditLogs", fields: [userId], references: [id])
+
   @@map("audit_logs")
 }
 
-// Integration Hub Models
 model Integration {
-  id        String   @id @default(cuid())
-  name      String
-  type      String   // "crm", "marketing", "email", "analytics", "custom"
-  provider  String   // "salesforce", "hubspot", "mailchimp", "zapier", "custom"
-  config    String   // JSON string for configuration (API keys, URLs, etc.)
-  isActive  Boolean  @default(true)
-  lastSync  DateTime?
-  syncStatus String  @default("idle") // "idle", "syncing", "error", "success"
+  id           String    @id @default(cuid())
+  name         String
+  type         String
+  provider     String
+  config       String
+  isActive     Boolean   @default(true)
+  lastSync     DateTime?
+  syncStatus   String    @default("idle")
   errorMessage String?
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
   @@map("integrations")
 }
 
-// Workflow Automation Models
 model Workflow {
-  id          String   @id @default(cuid())
+  id          String              @id @default(cuid())
   name        String
   description String?
-  trigger     String   // "lead_created", "lead_scored", "lead_status_changed", "manual"
-  isActive    Boolean  @default(true)
-  priority    Int      @default(0) // Higher number = higher priority
-  
-  // Relations
+  trigger     String
+  isActive    Boolean             @default(true)
+  priority    Int                 @default(0)
   createdById String
-  createdBy   User     @relation("WorkflowCreator", fields: [createdById], references: [id])
-  steps       WorkflowStep[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   executions  WorkflowExecution[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  steps       WorkflowStep[]
+  createdBy   User                @relation("WorkflowCreator", fields: [createdById], references: [id])
+
   @@map("workflows")
 }
 
 model WorkflowStep {
-  id          String   @id @default(cuid())
-  name        String
-  type        String   // "action", "condition", "delay", "notification", "integration"
-  order       Int      // Execution order within workflow
-  config      String   // JSON string for step configuration
-  
-  // Relations
-  workflowId  String
-  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id         String   @id @default(cuid())
+  name       String
+  type       String
+  order      Int
+  config     String
+  workflowId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
   @@map("workflow_steps")
 }
 
 model WorkflowExecution {
-  id          String   @id @default(cuid())
-  status      String   // "running", "completed", "failed", "cancelled"
-  startedAt   DateTime @default(now())
-  completedAt DateTime?
-  errorMessage String?
-  
-  // Relations
-  workflowId  String
-  workflow    Workflow @relation(fields: [workflowId], references: [id])
-  leadId      String?
-  lead        Lead?    @relation("LeadWorkflowExecutions", fields: [leadId], references: [id])
-  triggeredById String?
-  triggeredBy User?    @relation("UserWorkflowExecutions", fields: [triggeredById], references: [id])
-  
-  // Execution context and details
-  triggerData String?  // JSON string for trigger context data
-  stepResults String?  // JSON string for step execution results
-  executionContext String? // JSON string for full execution context
-  
+  id               String    @id @default(cuid())
+  status           String
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  errorMessage     String?
+  workflowId       String
+  leadId           String?
+  triggeredById    String?
+  triggerData      String?
+  stepResults      String?
+  executionContext String?
+  lead             Lead?     @relation("LeadWorkflowExecutions", fields: [leadId], references: [id])
+  triggeredBy      User?     @relation("UserWorkflowExecutions", fields: [triggeredById], references: [id])
+  workflow         Workflow  @relation(fields: [workflowId], references: [id])
+
   @@map("workflow_executions")
 }
 
-// Business Rules Models
 model BusinessRule {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  type        String   // "assignment", "scoring", "notification", "status_change", "enrichment"
-  conditions  String   // JSON string for rule conditions
-  actions     String   // JSON string for rule actions
-  isActive    Boolean  @default(true)
-  priority    Int      @default(0) // Higher number = higher priority
-  
-  // Relations
-  createdById String
-  createdBy   User     @relation("BusinessRuleCreator", fields: [createdById], references: [id])
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id            String             @id @default(cuid())
+  name          String
+  description   String?
+  type          String
+  conditions    String
+  actions       String
+  isActive      Boolean            @default(true)
+  priority      Int                @default(0)
+  createdById   String
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  createdBy     User               @relation("BusinessRuleCreator", fields: [createdById], references: [id])
+  executionLogs RuleExecutionLog[]
+
   @@map("business_rules")
 }
 
-// System Configuration Model
+model RuleExecutionLog {
+  id           String       @id @default(cuid())
+  leadId       String
+  ruleId       String
+  triggerEvent String
+  success      Boolean
+  errorMessage String?
+  executedAt   DateTime     @default(now())
+  lead         Lead         @relation(fields: [leadId], references: [id])
+  rule         BusinessRule @relation(fields: [ruleId], references: [id])
+
+  @@map("rule_execution_logs")
+}
+
 model SystemConfig {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
   description String?
-  isEncrypted Boolean @default(false)
-  category  String   @default("GENERAL")
-  
-  // Relations
+  isEncrypted Boolean  @default(false)
+  category    String   @default("GENERAL")
   createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   createdBy   User     @relation("ConfigCreator", fields: [createdById], references: [id])
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+
   @@map("system_configs")
 }
 
-// Claude API Usage Tracking Model
 model ClaudeUsage {
-  id        String   @id @default(cuid())
-  totalCalls Int     @default(0)
-  totalTokens Int    @default(0)
-  averageResponseTime Float @default(0)
-  errors    Int      @default(0)
-  lastCall  DateTime?
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id                  String    @id @default(cuid())
+  totalCalls          Int       @default(0)
+  totalTokens         Int       @default(0)
+  averageResponseTime Float     @default(0)
+  errors              Int       @default(0)
+  lastCall            DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
   @@map("claude_usage")
 }
 
-// Apify Integration Models
 model ApifyActor {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  actorId     String   // Apify Actor ID
-  apiToken    String   // Encrypted API token
-  isActive    Boolean  @default(true)
-  defaultInput String? // Default input configuration as JSON string
-  
-  // Relations
-  createdById String
-  createdBy   User     @relation("ApifyActorCreator", fields: [createdById], references: [id])
-  
-  // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  actorId      String
+  apiToken     String
+  isActive     Boolean  @default(true)
+  defaultInput String?
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    User     @relation("ApifyActorCreator", fields: [createdById], references: [id])
+
   @@map("apify_actors")
 }
 
 model ApifyScrapingJob {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   actorId     String
-  urls        String   // JSON array of URLs
-  industry    String   @default("general")
-  status      String   @default("pending") // pending, running, completed, failed
-  results     String?  // Scraping results as JSON string
+  urls        String
+  industry    String    @default("general")
+  status      String    @default("pending")
+  results     String?
   error       String?
-  apifyRunId  String?  // Apify run ID
-  
-  // Timestamps
-  createdAt   DateTime @default(now())
+  apifyRunId  String?
+  createdAt   DateTime  @default(now())
   completedAt DateTime?
-  
+
   @@map("apify_scraping_jobs")
 }
 
-// Service Configuration Models
 model ServiceProvider {
-  id          String   @id @default(cuid())
-  name        String   // "Claude", "OpenAI", "Apify", "Custom Scraper"
-  type        String   // "AI_ENGINE", "SCRAPER", "SITE_ANALYZER", "KEYWORD_EXTRACTOR", "CONTENT_ANALYZER"
-  isActive    Boolean  @default(true)
-  priority    Int      @default(1) // Lower = higher priority
-  
-  // Operation-specific capabilities
-  capabilities String  // JSON string: which operations this service can handle
-  config      String   // JSON string: API keys, endpoints, rate limits
-  limits      String   // JSON string: monthly quotas, concurrent requests
-  
-  // Specialized scraping configuration
-  scrapingConfig String? // JSON string: for site analyzers: depth, page limits, etc.
-  
-  // Relations
+  id                String                    @id @default(cuid())
+  name              String
+  type              String
+  isActive          Boolean                   @default(true)
+  priority          Int                       @default(1)
+  capabilities      String
+  config            String
+  limits            String
+  scrapingConfig    String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
   operationMappings OperationServiceMapping[] @relation("ServiceProviderMappings")
-  usageRecords     ServiceUsage[] @relation("ServiceProviderUsage")
-  
-  // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  usageRecords      ServiceUsage[]            @relation("ServiceProviderUsage")
+
   @@map("service_providers")
 }
 
 model OperationServiceMapping {
-  id          String   @id @default(cuid())
-  operation   String   // "AI_DISCOVERY", "MARKET_DISCOVERY", "WEB_SCRAPING", etc.
-  serviceId   String
-  service     ServiceProvider @relation("ServiceProviderMappings", fields: [serviceId], references: [id], onDelete: Cascade)
-  isEnabled   Boolean  @default(true)
-  priority    Int      @default(1)
-  config      String   // JSON string: operation-specific configuration
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  id        String          @id @default(cuid())
+  operation String
+  serviceId String
+  isEnabled Boolean         @default(true)
+  priority  Int             @default(1)
+  config    String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  service   ServiceProvider @relation("ServiceProviderMappings", fields: [serviceId], references: [id], onDelete: Cascade)
+
   @@unique([operation, serviceId])
   @@map("operation_service_mappings")
 }
 
 model ServiceUsage {
-  id              String   @id @default(cuid())
-  serviceId       String
-  service         ServiceProvider @relation("ServiceProviderUsage", fields: [serviceId], references: [id], onDelete: Cascade)
-  userId          String?
-  user            User?    @relation(fields: [userId], references: [id])
-  operation       String   // "AI_DISCOVERY", "MARKET_DISCOVERY", "WEB_SCRAPING", etc.
-  tokensUsed      Int?
-  cost            Float?
-  duration        Int?     // milliseconds
-  success         Boolean
-  errorMessage    String?
-  metadata        String?  // JSON string: additional usage data
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  
+  id           String          @id @default(cuid())
+  serviceId    String
+  userId       String?
+  operation    String
+  tokensUsed   Int?
+  cost         Float?
+  duration     Int?
+  success      Boolean
+  errorMessage String?
+  metadata     String?
+  createdAt    DateTime        @default(now())
+  service      ServiceProvider @relation("ServiceProviderUsage", fields: [serviceId], references: [id], onDelete: Cascade)
+  user         User?           @relation(fields: [userId], references: [id])
+
   @@map("service_usage")
 }
 
-// AI Discovery Models
 model Industry {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String
-  marketSize  String
-  growthRate  String
-  isActive    Boolean  @default(true)
-  
-  // Relations
+  id               String            @id @default(cuid())
+  name             String            @unique
+  description      String
+  marketSize       String
+  growthRate       String
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   productVerticals ProductVertical[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+
   @@map("industries")
 }
 
 model ProductVertical {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  marketSize  String
-  growthRate  String
-  isActive    Boolean  @default(true)
-  
-  // Relations
-  industryId String
-  industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  name          String
+  description   String
+  marketSize    String
+  growthRate    String
+  isActive      Boolean        @default(true)
+  industryId    String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   customerTypes CustomerType[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  industry      Industry       @relation(fields: [industryId], references: [id], onDelete: Cascade)
+
   @@map("product_verticals")
 }
 
 model CustomerType {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  characteristics String[] // Array of characteristics
-  buyingBehavior String
-  marketSegment String
-  estimatedValue String
-  isActive    Boolean  @default(true)
-  
-  // Relations
+  id                String          @id @default(cuid())
+  name              String
+  description       String
+  characteristics   String[]
+  buyingBehavior    String
+  marketSegment     String
+  estimatedValue    String
+  isActive          Boolean         @default(true)
   productVerticalId String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
   productVertical   ProductVertical @relation(fields: [productVerticalId], references: [id], onDelete: Cascade)
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+
   @@map("customer_types")
 }
 
 model DiscoverySession {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation("UserDiscoverySessions", fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Session Context
-  industry        String
-  productVertical String?
-  status          String   @default("exploring") // "exploring", "product_selection", "customer_selection", "completed"
-  
-  // Relations
+  id                  String                @id @default(cuid())
+  userId              String
+  industry            String
+  productVertical     String?
+  status              String                @default("exploring")
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
   conversationHistory ConversationMessage[]
-  
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
+  user                User                  @relation("UserDiscoverySessions", fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("discovery_sessions")
 }
 
 model ConversationMessage {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   sessionId String
-  session   DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  
-  // Message Content
-  role      String   // "user" or "assistant"
+  role      String
   content   String
-  metadata  String?  // JSON string for additional data
-  
-  // Timestamps
-  timestamp DateTime @default(now())
-  
+  metadata  String?
+  timestamp DateTime         @default(now())
+  session   DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
   @@map("conversation_messages")
 }

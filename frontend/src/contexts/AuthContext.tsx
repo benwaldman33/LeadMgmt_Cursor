@@ -173,8 +173,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem('accessToken');
-      const user = localStorage.getItem('user');
+      const token = localStorage.getItem('bbds_access_token');
+      const user = localStorage.getItem('bbds_user');
       
       if (!token || !user) {
         setToken(null);

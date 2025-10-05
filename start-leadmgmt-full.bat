@@ -1,21 +1,18 @@
 @echo off
-title Lead Management System - Fixed Startup
+title Lead Management System - Full Docker Startup
 color 0A
 
 :: Set working directory to script location
 cd /d "%~dp0"
 
-:: Log file for startup
-set LOGFILE=startup.log
-echo [%date% %time%] Starting Lead Management System >> %LOGFILE%
-
 echo.
 echo ========================================
 echo    LEAD MANAGEMENT SYSTEM STARTUP
+echo    (Full Docker Experience)
 echo ========================================
 echo.
 
-echo [1/4] Checking Docker Desktop...
+echo [1/3] Checking Docker Desktop...
 docker info >nul 2>&1
 if %errorlevel% neq 0 (
     echo    ❌ Docker Desktop not responding
@@ -25,45 +22,26 @@ if %errorlevel% neq 0 (
 echo    ✓ Docker Desktop is ready
 
 echo.
-echo [2/4] Starting database services...
-docker-compose up -d postgres redis
+echo [2/3] Starting all services...
+docker-compose up -d
 if %errorlevel% neq 0 (
-    echo    ❌ Failed to start database services
+    echo    ❌ Failed to start services
     goto :end
 )
-echo    ✓ Database services started
+echo    ✓ All services started
 
 echo.
-echo [3/4] Waiting for services to be ready...
-:: Wait a reasonable time for services to start
+echo [3/3] Waiting for services to be ready...
 echo    Waiting 30 seconds for services to initialize...
 timeout /t 30 /nobreak >nul
 
-:: Check if services are running (not necessarily healthy)
-docker-compose ps postgres redis | findstr "Up" >nul 2>&1
+:: Check if services are running
+docker-compose ps | findstr "Up" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo    ⚠️  Services may not be fully ready, but continuing...
+    echo    ⚠️  Some services may not be fully ready, but continuing...
 ) else (
     echo    ✓ Services are running
 )
-
-echo.
-echo [4/5] Starting backend...
-docker-compose up -d backend
-if %errorlevel% neq 0 (
-    echo    ❌ Failed to start backend
-    goto :end
-)
-echo    ✓ Backend started
-
-echo.
-echo [5/5] Starting frontend...
-docker-compose up -d frontend
-if %errorlevel% neq 0 (
-    echo    ❌ Failed to start frontend
-    goto :end
-)
-echo    ✓ Frontend started
 
 echo.
 echo ========================================
@@ -88,9 +66,6 @@ echo Note: Services may take a few minutes to be fully ready
 echo Check the logs with: docker-compose logs -f
 echo.
 
-:: Log completion
-echo [%date% %time%] Startup completed successfully >> %LOGFILE%
-
 :end
-echo Press any key to close...
+echo Press any key to close this window...
 pause >nul

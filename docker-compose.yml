@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: leadscoring_dev
+      POSTGRES_DB: leadmgmt  # Change from leadscoring_dev
       POSTGRES_USER: dev
       POSTGRES_PASSWORD: devpass
     ports:
@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dev -d leadscoring_dev"]
+      test: ["CMD-SHELL", "pg_isready -U dev -d leadmgmt"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,9 +41,12 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - DATABASE_URL=postgresql://dev:devpass@postgres:5432/leadscoring_dev
+      - DATABASE_URL=postgresql://dev:devpass@postgres:5432/leadmgmt
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=dev-secret-key-change-in-production
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,6 +65,7 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_URL=/api
+      - DOCKER=true
     depends_on:
       - backend
     volumes:

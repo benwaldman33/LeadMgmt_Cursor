@@ -1,4 +1,5 @@
 import { prisma } from '../index';
+import { RuleExecutionService } from './ruleExecutionService';
 
 interface ScoringResult {
   totalScore: number;
@@ -221,6 +222,18 @@ export class ScoringService {
         lastScoredAt: new Date()
       }
     });
+
+    // Execute business rules after scoring
+    try {
+      await RuleExecutionService.executeRulesForLead(leadId, 'scored', {
+        totalScore: scoringResult.totalScore,
+        confidence: scoringResult.confidence,
+        scoringModelVersion: '1.0'
+      });
+    } catch (error) {
+      console.error('Rule execution failed after scoring:', error);
+      // Don't fail the scoring, just log the error
+    }
   }
 
   /**

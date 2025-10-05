@@ -565,45 +565,171 @@ Comprehensive audit trail and compliance features:
 
 ## Business Rules
 
+> 📖 **For a complete tutorial with step-by-step examples, see [BUSINESS_RULES_TUTORIAL.md](./BUSINESS_RULES_TUTORIAL.md)**
+
+### Overview
+
+Business Rules automate lead management decisions throughout the lead lifecycle. Rules execute automatically when leads are created, updated, scored, or enriched, enabling sophisticated workflows without manual intervention.
+
+### Rule Types
+
+The system supports five distinct rule types:
+
+1. **Assignment Rules** - Automatically assign leads to users or teams based on criteria
+   - Territory-based routing
+   - Skill-based assignment
+   - Round-robin distribution
+   - Workload balancing
+
+2. **Scoring Rules** - Dynamically adjust lead scores
+   - Bonus points for key attributes
+   - Industry-specific adjustments
+   - Campaign-based scoring
+   - Time-based modifications
+
+3. **Notification Rules** - Trigger alerts and notifications
+   - High-value lead alerts
+   - SLA breach warnings
+   - Team notifications
+   - Executive escalations
+
+4. **Status Change Rules** - Automatically update lead status
+   - Auto-qualification workflows
+   - Nurture campaign triggers
+   - Disqualification rules
+   - Conversion tracking
+
+5. **Enrichment Rules** - Schedule data enrichment
+   - High-priority lead enrichment
+   - Missing data completion
+   - Technology detection
+   - Company research
+
 ### Rule Configuration
 
-**Rule Types**
-- **Scoring Rules**: Automated score adjustments
-- **Assignment Rules**: Lead routing logic
-- **Notification Rules**: Alert configurations
-- **Validation Rules**: Data quality checks
+#### Basic Settings
+- **Name**: Descriptive rule identifier
+- **Description**: Purpose and logic explanation
+- **Type**: One of the five rule types above
+- **Priority**: Execution order (0-100, higher = first)
+- **Active Status**: Enable/disable without deletion
 
-**Rule Components**
-- **Conditions**: When rules apply
-- **Actions**: What rules do
-- **Priorities**: Rule execution order
-- **Schedules**: When rules run
+#### Conditions
+Define when rules execute using:
+- **Fields**: score, status, industry, companyName, domain, companySize, revenue, confidence, and more
+- **Operators**: equals, not_equals, greater_than, less_than, contains, in, not_in
+- **Logical Operators**: AND/OR for combining multiple conditions
+- **Context Data**: Access trigger-specific data (e.g., previous status, score changes)
 
-**Rule Management**
-- Visual rule builder
-- Rule testing and validation
-- Performance impact analysis
-- Rule templates and libraries
+Example condition:
+```
+IF score > 80 AND industry = "dental" AND status = "new"
+```
 
-### Rule Features
+#### Actions
+Define what happens when conditions match:
+- **Assignment**: Assign to specific user or team
+- **Scoring**: Update lead score
+- **Notification**: Send email/SMS alerts with custom recipients
+- **Status Change**: Update to new status
+- **Enrichment**: Trigger data enrichment with specific sources
 
-**Condition Testing**
-- Rule validation
-- Test data scenarios
-- Performance impact
-- Error handling
+### Rule Execution
 
-**Rule Templates**
-- Industry-specific templates
-- Common rule patterns
-- Best practice rules
-- Custom rule libraries
+#### Trigger Events
+Rules execute automatically at four lifecycle points:
 
-**Rule Analytics**
-- Rule effectiveness tracking
-- Performance optimization
-- Usage analytics
-- Impact assessment
+| Event | Description | Example Rules |
+|-------|-------------|---------------|
+| `created` | New lead created | Assignment, initial notifications |
+| `updated` | Lead data modified | Status change, re-assignment |
+| `scored` | AI scoring completed | Score-based routing, alerts |
+| `enriched` | Enrichment data added | Update assignments, trigger workflows |
+
+#### Execution Order
+1. Rules execute in **priority order** (highest first)
+2. Multiple rules can execute for single event
+3. Each rule runs independently
+4. Actions apply immediately
+5. Execution logged for audit trail
+
+### Rule Management
+
+#### Creating Rules
+1. Navigate to **Business Rules** → **Create Rule**
+2. Configure basic information
+3. Add conditions (minimum 1 required)
+4. Add actions (minimum 1 required)
+5. Test with sample data
+6. Save and activate
+
+#### Testing Rules
+- **Test Endpoint**: Validate logic with sample data before activation
+- **Dry Run Mode**: See what would happen without applying changes
+- **Execution Logs**: Review historical executions
+- **Debug Mode**: Detailed condition evaluation
+
+#### Monitoring
+- **Execution Logs**: Complete audit trail per lead
+- **Statistics Dashboard**: Success rates, execution counts
+- **Performance Metrics**: Execution time, error rates
+- **Impact Analysis**: Lead conversion effects
+
+### Best Practices
+
+#### Priority Guidelines
+- **90-100**: Critical operations, VIP handling
+- **70-89**: Important assignments, urgent alerts
+- **50-69**: Standard operations (default)
+- **30-49**: Secondary actions
+- **10-29**: Background tasks
+
+#### Condition Design
+- ✅ Be specific to avoid unintended executions
+- ✅ Use status checks to prevent re-firing
+- ✅ Test with edge cases (nulls, empty strings)
+- ✅ Document complex logic clearly
+
+#### Action Safety
+- ⚠️ Avoid circular rule chains
+- ⚠️ Validate user/team IDs before use
+- ⚠️ Limit notification volume
+- ⚠️ Consider performance impact
+
+#### Maintenance
+- Review rules monthly for relevance
+- Monitor execution logs for failures
+- Update as business requirements change
+- Deactivate rather than delete for audit trail
+
+### Common Use Cases
+
+1. **Territory-Based Assignment**: Route leads by geography/industry
+2. **VIP Lead Detection**: Alert management for high-value opportunities
+3. **Auto-Qualification**: Move high-scoring leads to qualified status
+4. **Lead Nurture**: Route low-score leads to nurture campaigns
+5. **Data Quality**: Trigger enrichment for incomplete leads
+
+### Rule Templates
+
+Pre-built templates available:
+- High-Value Lead Assignment
+- Industry-Specific Routing
+- Score-Based Qualification
+- SLA Breach Notifications
+- Data Completion Workflows
+
+### API Access
+
+Rules can be managed programmatically:
+- `GET /api/business-rules` - List all rules
+- `POST /api/business-rules` - Create new rule
+- `PUT /api/business-rules/:id` - Update rule
+- `DELETE /api/business-rules/:id` - Delete rule
+- `POST /api/business-rules/:id/test` - Test rule
+- `POST /api/business-rules/evaluate/:leadId` - Execute rules for lead
+
+Requires **SUPER_ADMIN** or **ANALYST** role for write operations.
 
 ---
 
@@ -973,16 +1099,33 @@ A: Yes, workflows can be scheduled to run at specific times or intervals for aut
 ### Business Rules
 
 **Q: How do I create a business rule?**
-A: Navigate to "Business Rules" and use the visual rule builder to define conditions, actions, and priorities for automated decision-making.
+A: Navigate to "Business Rules" → "Create Rule" button. Fill in the basic information (name, type, priority), add at least one condition, add at least one action, and save. Test the rule with sample data before activating. See the [Business Rules Tutorial](./BUSINESS_RULES_TUTORIAL.md) for step-by-step examples.
 
 **Q: What types of rules can I create?**
-A: You can create scoring rules, assignment rules, notification rules, and validation rules to automate various aspects of lead management.
+A: You can create five types of rules:
+- **Assignment Rules**: Route leads to users/teams
+- **Scoring Rules**: Adjust lead scores
+- **Notification Rules**: Send alerts and notifications
+- **Status Change Rules**: Automatically update lead status
+- **Enrichment Rules**: Trigger data enrichment
 
 **Q: How do I test a business rule?**
-A: Use the rule testing feature to validate rule logic and ensure proper execution with sample data.
+A: Use the "Test Rule" feature to validate logic with sample data. Click the test button on any rule, provide sample lead data (score, industry, status, etc.), and the system will show whether conditions match and what actions would execute—without actually modifying any leads.
 
-**Q: Can I import rule templates?**
-A: Yes, you can import pre-built rule templates for common scenarios and customize them for your specific needs.
+**Q: When do business rules execute?**
+A: Rules execute automatically at four trigger points: when a lead is `created`, `updated`, `scored` (after AI scoring), or `enriched` (after enrichment data is added). Rules execute in priority order (highest priority first).
+
+**Q: Can multiple rules execute for the same lead?**
+A: Yes! Multiple rules can execute for a single lead event. They execute in priority order (90-100 = highest, 10-29 = lowest) and run independently of each other.
+
+**Q: How do I prevent rules from conflicting?**
+A: Use priorities to control execution order, make conditions more specific to avoid unintended matches, and use status checks in conditions to prevent rules from re-firing on the same lead.
+
+**Q: Can I see rule execution history?**
+A: Yes! Navigate to any lead's detail page and check the Activity Log to see which rules executed, when they ran, whether they succeeded, and what actions were applied. System administrators can also view execution statistics in the Business Rules dashboard.
+
+**Q: What permissions do I need to create rules?**
+A: Creating, editing, and deleting business rules requires **SUPER_ADMIN** or **ANALYST** role. All users can view rules and execution logs for leads they have access to.
 
 ### Integrations
 

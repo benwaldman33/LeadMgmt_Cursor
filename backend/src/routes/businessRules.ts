@@ -4,6 +4,8 @@ import { authenticateToken, requireRole } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import Joi from 'joi';
 
+const logger = console; // Using console for now, replace with proper logger
+
 const router = express.Router();
 const businessRuleService = new BusinessRuleService();
 
@@ -88,8 +90,10 @@ router.get('/:id', async (req, res) => {
 
 // Create new business rule
 router.post('/', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
+  logger.info('Business rule creation request:', { body: req.body, user: req.user?.id });
   try {
     if (!req.user) {
+      logger.error('User not authenticated for business rule creation');
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
@@ -98,16 +102,19 @@ router.post('/', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
       createdById: req.user.id
     };
 
+    logger.info('Creating business rule with data:', ruleData);
     const newRule = await businessRuleService.createBusinessRule(ruleData);
+    logger.info('Business rule created successfully:', newRule.id);
     res.status(201).json(newRule);
   } catch (error) {
+    logger.error('Error creating business rule:', error);
     console.error('Error creating business rule:', error);
     res.status(500).json({ error: 'Failed to create business rule' });
   }
 });
 
 // Update business rule
-router.put('/:id', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
+router.put('/:id', requireRole(['SUPER_ADMIN', 'ANALYST']), validateRequest(updateBusinessRuleSchema), async (req, res) => {
   try {
     const updatedRule = await businessRuleService.updateBusinessRule(req.params.id, req.body);
     if (!updatedRule) {
@@ -136,7 +143,7 @@ router.delete('/:id', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) 
 });
 
 // Test business rule
-router.post('/:id/test', requireRole(['SUPER_ADMIN', 'ANALYST']), async (req, res) => {
+router.post('/:id/test', requireRole(['SUPER_ADMIN', 'ANALYST']), validateRequest(testRuleSchema), async (req, res) => {
   try {
     const testData = req.body;
     const result = await businessRuleService.testRuleEvaluation(req.params.id, testData);

@@ -43,7 +43,7 @@ router.post('/discover-industries', authenticateToken, requireAnalyst, async (re
 
     // Extract and validate criteria
     const discoveryConstraints = {
-      maxIndustries: constraints?.maxIndustries || 8,
+      maxIndustries: Math.min(constraints?.maxIndustries || 8, 50), // Cap at 50 for performance
       focusAreas: constraints?.focusAreas || [],
       excludeIndustries: constraints?.excludeIndustries || [],
       marketSize: constraints?.marketSize || '',

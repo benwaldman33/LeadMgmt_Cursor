@@ -14,7 +14,12 @@ if ($LASTEXITCODE -eq 0) {
 
 # Start services
 Write-Host "Starting services..." -ForegroundColor Yellow
-docker-compose up -d postgres redis
-docker-compose up -d backend
+docker-compose up -d
 
 Write-Host "Done!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Services:" -ForegroundColor Cyan
+Write-Host "- Frontend: http://localhost:3000" -ForegroundColor White
+Write-Host "- Backend: http://localhost:3001" -ForegroundColor White
+Write-Host "- Database: localhost:5433" -ForegroundColor White
+Write-Host "- Redis: localhost:6379" -ForegroundColor White

@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const CreateBusinessRulePage: React.FC = () => {
+  alert('CreateBusinessRulePage Component Loading!');
   const navigate = useNavigate();
   const { showNotification } = useNotifications();
   const [rule, setRule] = useState<BusinessRuleData>({
@@ -36,17 +37,42 @@ const CreateBusinessRulePage: React.FC = () => {
       navigate('/business-rules');
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.message || 'Failed to create business rule', 'error');
+      console.error('Create rule mutation error:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to create business rule';
+      showNotification(errorMessage, 'error');
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('=== FORM SUBMIT DEBUG ===');
+    console.log('Form submitted with rule data:', rule);
+    console.log('Rule validation checks:', {
+      hasName: !!rule.name,
+      hasType: !!rule.type,
+      conditionsCount: rule.conditions.length,
+      actionsCount: rule.actions.length,
+      ruleName: rule.name,
+      ruleType: rule.type
+    });
+    
     if (!rule.name || !rule.type || rule.conditions.length === 0 || rule.actions.length === 0) {
+      console.log('Validation failed, showing error notification');
       showNotification('Please fill in all required fields and add at least one condition and action', 'error');
       return;
     }
-    createRuleMutation.mutate(rule);
+    
+    console.log('Validation passed, calling createRuleMutation.mutate with:', rule);
+    try {
+      createRuleMutation.mutate(rule);
+      console.log('Mutation triggered successfully');
+    } catch (error) {
+      console.error('Error triggering mutation:', error);
+    }
+    console.log('=== END FORM SUBMIT DEBUG ===');
   };
 
   const addCondition = () => {
@@ -420,9 +446,17 @@ const CreateBusinessRulePage: React.FC = () => {
             type="submit"
             disabled={createRuleMutation.isPending}
             className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
+            onClick={(e) => {
+              console.log('🔴 Create Rule button clicked!');
+              console.log('Rule data:', rule);
+              console.log('Button disabled?', createRuleMutation.isPending);
+              // Manual form submission
+              handleSubmit(e as any);
+            }}
           >
             {createRuleMutation.isPending ? 'Creating...' : 'Create Rule'}
           </button>
+          
         </div>
       </form>
     </div>

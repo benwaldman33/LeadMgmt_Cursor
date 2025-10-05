@@ -22,6 +22,7 @@ export interface BusinessRuleData {
   actions: BusinessRuleAction[];
   isActive?: boolean;
   priority?: number;
+  createdById?: string; // Optional in frontend, added by backend
 }
 
 export interface RuleEvaluationResult {
@@ -104,8 +105,15 @@ export class BusinessRuleService {
 
   // Create a new business rule
   async createBusinessRule(data: BusinessRuleData): Promise<BusinessRule> {
-    const response = await api.post('/business-rules', data);
-    return response.data;
+    console.log('Creating business rule with data:', data);
+    try {
+      const response = await api.post('/business-rules', data);
+      console.log('Business rule creation response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Business rule creation error:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
   // Update a business rule

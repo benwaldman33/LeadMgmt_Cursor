@@ -68,6 +68,27 @@ if %errorlevel% neq 0 (
 
 echo [%date% %time%] Backend ready >> %LOGFILE%
 
+:: Start frontend
+echo [%date% %time%] Starting frontend... >> %LOGFILE%
+docker-compose up -d frontend
+
+:: Wait for frontend to be ready
+echo [%date% %time%] Waiting for frontend to be ready... >> %LOGFILE%
+set /a frontend_attempts=0
+:wait_frontend
+curl -s http://localhost:3000 >nul 2>&1
+if %errorlevel% neq 0 (
+    set /a frontend_attempts+=1
+    if %frontend_attempts% geq 40 (
+        echo [%date% %time%] ERROR: Frontend not ready after 2 minutes >> %LOGFILE%
+        exit /b 1
+    )
+    timeout /t 3 /nobreak >nul
+    goto wait_frontend
+)
+
+echo [%date% %time%] Frontend ready >> %LOGFILE%
+
 :: Final status check
 echo [%date% %time%] Startup complete, checking final status... >> %LOGFILE%
 docker-compose ps >> %LOGFILE%

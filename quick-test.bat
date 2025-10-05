@@ -8,19 +8,28 @@ echo    LEAD MANAGEMENT SYSTEM QUICK TEST
 echo ========================================
 echo.
 
-echo [1/4] Checking Docker containers...
+echo [1/5] Checking Docker containers...
 docker-compose ps
 echo.
 
-echo [2/4] Testing backend health...
+echo [2/5] Testing frontend...
+curl -s http://localhost:3000 >nul 2>&1
+if %errorlevel% equ 0 (
+    echo    ✓ Frontend is responding
+) else (
+    echo    ❌ Frontend not responding
+)
+echo.
+
+echo [3/5] Testing backend health...
 curl -s http://localhost:3001/health
 echo.
 
-echo [3/4] Testing database connection...
+echo [4/5] Testing database connection...
 docker exec leadmgmt_cursor-postgres-1 pg_isready -U dev -d leadscoring_dev
 echo.
 
-echo [4/4] Testing Redis connection...
+echo [5/5] Testing Redis connection...
 docker exec leadmgmt_cursor-redis-1 redis-cli ping
 echo.
 

@@ -40,10 +40,16 @@ if %errorlevel% neq 0 (
 echo    ✓ Database services are healthy!
 echo.
 
-echo [4/4] Starting backend application...
+echo [4/5] Starting backend application...
 docker-compose up -d backend
 
 echo    ✓ Backend service started
+echo.
+
+echo [5/5] Starting frontend application...
+docker-compose up -d frontend
+
+echo    ✓ Frontend service started
 echo.
 
 echo.
@@ -62,10 +68,15 @@ echo ========================================
 echo    LEAD MANAGEMENT SYSTEM READY
 echo ========================================
 echo.
+echo Frontend: http://localhost:3000
 echo Backend API: http://localhost:3001
 echo Health Check: http://localhost:3001/health
 echo Database: localhost:5433
 echo Redis: localhost:6379
+echo.
+echo Login Credentials:
+echo Email: frontend-test@example.com
+echo Password: Test123!
 echo.
 echo Press any key to close this window...
 pause >nul
