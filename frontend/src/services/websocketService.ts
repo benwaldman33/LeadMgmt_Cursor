@@ -57,7 +57,12 @@ class WebSocketService {
     try {
       console.log(`[WebSocket] Attempting connection (attempt ${this.connectionAttempts + 1}/${this.maxConnectionAttempts})`);
       
-      this.socket = io('http://localhost:3001', {
+      // Resolve WS base URL: window override -> env -> sensible fallback to backend on localhost:3001
+      const envWs = (window as any).__WS_URL__ || import.meta.env.VITE_WS_URL;
+      const fallbackWs = `${window.location.protocol}//${window.location.hostname}:3001`;
+      const wsBase = envWs || fallbackWs;
+
+      this.socket = io(wsBase, {
         auth: { token },
         transports: ['websocket', 'polling'],
         timeout: 10000, // 10 second timeout
