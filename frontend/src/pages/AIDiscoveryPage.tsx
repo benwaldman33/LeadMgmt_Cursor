@@ -48,6 +48,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   const [discoverySession, setDiscoverySession] = useState<DiscoverySession | null>(null);
   const [userMessage, setUserMessage] = useState<string>('');
   const [searchResults, setSearchResults] = useState<WebSearchResult[]>([]);
+  const [selectedCustomerUrls, setSelectedCustomerUrls] = useState<string[]>([]);
   const [searchConstraints, setSearchConstraints] = useState({
     geography: [] as string[],
     maxResults: 50,
@@ -64,6 +65,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   const [loadingIndustries, setLoadingIndustries] = useState(true);
   const [loadingSession, setLoadingSession] = useState(false);
   const [loadingSearch, setLoadingSearch] = useState(false);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
 
   // Load industries using AI discovery
   const loadIndustries = async () => {
@@ -321,6 +323,70 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
       });
     } finally {
       setLoadingSearch(false);
+    }
+  };
+
+  const toggleCustomerSelection = (url: string) => {
+    setSelectedCustomerUrls(prev =>
+      prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]
+    );
+  };
+
+  const handleFindSimilarCustomers = async () => {
+    if (!selectedIndustry || !selectedProductVertical) {
+      addNotification({
+        type: 'error',
+        title: 'Missing Information',
+        message: 'Please select an industry and product vertical first'
+      });
+      return;
+    }
+
+    if (selectedCustomerUrls.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'No Customers Selected',
+        message: 'Select one or more customers to use as examples'
+      });
+      return;
+    }
+
+    try {
+      setLoadingSimilar(true);
+
+      const selectedCustomers = searchResults.filter(r => selectedCustomerUrls.includes(r.url));
+
+      // Show notification
+      addNotification({
+        type: 'info',
+        title: 'Finding Similar Customers',
+        message: `AI is finding customers similar to ${selectedCustomers.length} selected companies...`
+      });
+
+      const result = await aiDiscoveryService.findSimilarCustomers(
+        selectedIndustry,
+        selectedProductVertical,
+        selectedCustomers,
+        { ...searchConstraints, maxResults: maxCustomers }
+      );
+
+      setSearchResults(result.results);
+      setSelectedCustomerUrls([]);
+
+      addNotification({
+        type: 'success',
+        title: 'Similar Customers Found',
+        message: `Found ${result.totalFound} similar customers`
+      });
+    } catch (error: any) {
+      console.error('Find similar customers error:', error);
+      addNotification({
+        type: 'error',
+        title: 'Failed to Find Similar Customers',
+        message: error.response?.data?.error || 'Request failed'
+      });
+    } finally {
+      setLoadingSimilar(false);
     }
   };
 
@@ -834,11 +900,31 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                 </div>
                 
                 <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-sm text-gray-600">
+                      Selected: {selectedCustomerUrls.length} / {searchResults.length}
+                    </div>
+                    <button
+                      onClick={handleFindSimilarCustomers}
+                      disabled={loadingSimilar || selectedCustomerUrls.length === 0}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      {loadingSimilar ? 'Finding…' : `Find Similar Customers (${maxCustomers})`}
+                    </button>
+                  </div>
+
                   <div className="space-y-4">
                     {searchResults.map((result, index) => (
                       <div key={index} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex justify-between items-start">
-                          <div className="flex-1">
+                          <div className="flex items-start gap-3 flex-1">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                              checked={selectedCustomerUrls.includes(result.url)}
+                              onChange={() => toggleCustomerSelection(result.url)}
+                            />
+                            <div className="flex-1">
                             <h3 className="font-medium text-gray-900">{result.title}</h3>
                             <p className="text-sm text-gray-600 mt-1">{result.description}</p>
                             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
@@ -849,6 +935,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                                 <span>🏢 {result.companyType}</span>
                               )}
                               <span>🎯 {(result.relevanceScore * 100).toFixed(0)}% match</span>
+                            </div>
                             </div>
                           </div>
                           <a

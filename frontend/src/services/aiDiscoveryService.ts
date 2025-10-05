@@ -226,6 +226,24 @@ class AIDiscoveryService {
     console.log('Frontend searchForCustomers response:', response.data);
     return response.data;
   }
+
+  /**
+   * Find similar customers based on selected examples
+   */
+  async findSimilarCustomers(
+    industry: string,
+    productVertical: string,
+    selectedCustomers: WebSearchResult[],
+    constraints?: SearchConstraints
+  ): Promise<{ results: WebSearchResult[]; totalFound: number }> {
+    const response = await api.post('/ai-discovery/find-similar-customers', {
+      industry,
+      productVertical,
+      selectedCustomers,
+      constraints
+    });
+    return response.data;
+  }
 }
 
 export const aiDiscoveryService = new AIDiscoveryService(); 

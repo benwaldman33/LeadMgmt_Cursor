@@ -261,6 +261,67 @@ router.post('/search-customers', authenticateToken, requireAnalyst, async (req: 
   }
 });
 
+// Find similar customers based on user selections
+router.post('/find-similar-customers', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
+  try {
+    const {
+      industry,
+      productVertical,
+      selectedCustomers,
+      constraints
+    } = req.body;
+
+    if (!industry || !productVertical) {
+      return res.status(400).json({ error: 'Industry and product vertical are required' });
+    }
+
+    if (!Array.isArray(selectedCustomers) || selectedCustomers.length === 0) {
+      return res.status(400).json({ error: 'At least one selected customer is required' });
+    }
+
+    // Resolve IDs to names if necessary
+    let industryName = industry;
+    let productVerticalName = productVertical;
+
+    try {
+      const industryRecord = await prisma.industry.findUnique({ where: { id: industry }, select: { name: true } });
+      if (industryRecord) industryName = industryRecord.name;
+
+      const pvRecord = await prisma.productVertical.findUnique({ where: { id: productVertical }, select: { name: true } });
+      if (pvRecord) productVerticalName = pvRecord.name;
+    } catch (resolveError) {
+      console.warn('[AI Discovery] Could not resolve IDs to names for find-similar:', resolveError);
+    }
+
+    // Add safety cap for customer limits
+    const safeConstraints = {
+      ...constraints,
+      maxResults: Math.min(constraints?.maxResults || 50, 100)
+    };
+
+    const results = await AIDiscoveryService.findSimilarCustomers(
+      industryName,
+      productVerticalName,
+      selectedCustomers,
+      safeConstraints
+    );
+
+    await webSocketService.sendUserActivity(
+      req.user!.id,
+      `requested similar customers (${results.length}) for ${industryName}/${productVerticalName}`
+    );
+
+    res.json({
+      success: true,
+      results,
+      totalFound: results.length
+    });
+  } catch (error) {
+    console.error('Error finding similar customers:', error);
+    res.status(500).json({ error: 'Failed to find similar customers' });
+  }
+});
+
 // Get available industries from database
 router.get('/industries', authenticateToken, requireAnalyst, async (req: Request, res: Response) => {
   try {

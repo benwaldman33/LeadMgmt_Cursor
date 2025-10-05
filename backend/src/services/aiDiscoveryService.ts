@@ -530,6 +530,71 @@ export class AIDiscoveryService {
   }
 
   /**
+   * Find similar customers based on user-selected examples
+   */
+  static async findSimilarCustomers(
+    industry: string,
+    productVertical: string,
+    selectedCustomers: Array<{ url: string; title: string; description?: string; location?: string; companyType?: string }>,
+    constraints?: { geography?: string[]; maxResults?: number; companySize?: string[] }
+  ): Promise<WebSearchResult[]> {
+    try {
+      const maxResults = constraints?.maxResults || 50;
+      const geography = constraints?.geography?.join(', ') || 'United States';
+
+      const examples = selectedCustomers.map((c, i) => ({
+        index: i + 1,
+        url: c.url,
+        title: c.title,
+        description: c.description || '',
+        location: c.location || '',
+        companyType: c.companyType || ''
+      }));
+
+      const prompt = `You are an expert B2B market analyst.
+
+Task: Given example companies that are good targets for ${productVertical} in the ${industry} industry, find companies that are similar.
+
+Hard requirements (must follow exactly):
+- Provide EXACTLY ${maxResults} companies. Not fewer, not more.
+- Output MUST be a single, valid JSON array only (no prose before or after).
+- Each item MUST strictly follow this schema:
+  {
+    "url": "https://...",
+    "title": "Company Name",
+    "description": "Why they are similar / fit",
+    "relevanceScore": 0.0-1.0,
+    "location": "City, State/Country",
+    "companyType": "Type of business"
+  }
+
+Context & filters:
+- Industry: ${industry}
+- Product Vertical: ${productVertical}
+- Geography: ${geography}
+- Similarity basis: match attributes of the examples (industry niche, size, offerings, tech, markets)
+
+Examples (representative good targets):
+${JSON.stringify(examples, null, 2)}
+
+Quality rules:
+1) Only REAL companies with resolvable URLs
+2) Similarity should be defensible in description
+3) Prioritize high-value prospects with purchasing power
+4) Ensure companies match geography when possible
+5) Calibrate relevanceScore to reflect similarity strength
+
+Return ONLY the JSON array with EXACTLY ${maxResults} objects.`;
+
+      const aiResponse = await callAIEngine(prompt, 'AI_DISCOVERY');
+      const results = this.parseClaudeCustomerResults(aiResponse);
+      return results;
+    } catch (error) {
+      console.error('[AI Discovery] findSimilarCustomers failed:', error);
+      return [];
+    }
+  }
+  /**
    * Save discovered industries to database
    */
   private static async saveDiscoveredIndustries(industries: Array<{
