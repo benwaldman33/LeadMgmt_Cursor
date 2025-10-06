@@ -197,6 +197,12 @@ stop-leadmgmt.bat
 docker-compose restart
 ```
 
+### **Apply Database Migrations**
+```bash
+# Ensure schema is applied (run in backend container)
+docker compose exec backend npx prisma migrate deploy
+```
+
 ### **View Logs**
 ```bash
 docker-compose logs -f

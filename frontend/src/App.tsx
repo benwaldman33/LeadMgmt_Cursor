@@ -43,6 +43,9 @@ import MarketDiscoveryWizardPage from './pages/MarketDiscoveryWizardPage';
 import DiscoveryProgressPage from './pages/DiscoveryProgressPage';
 import TeamsPage from './pages/TeamsPage';
 import ServiceConfigurationPage from './pages/ServiceConfigurationPage';
+import DiscoverySessionsPage from './pages/DiscoverySessionsPage';
+import SavedListsPage from './pages/SavedListsPage';
+import SavedListDetailPage from './pages/SavedListDetailPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -390,6 +393,33 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <PipelineResultsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/discovery/sessions"
+        element={
+          <ProtectedRoute>
+            <DiscoverySessionsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/discovery/saved-lists"
+        element={
+          <ProtectedRoute>
+            <SavedListsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/discovery/saved-lists/:id"
+        element={
+          <ProtectedRoute>
+            <SavedListDetailPage />
           </ProtectedRoute>
         }
       />

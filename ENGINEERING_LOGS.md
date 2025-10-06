@@ -150,6 +150,27 @@
 4. **Long-term**: Add service health monitoring and automatic failover
 
 ### Testing Status
+## 2025-10-06 - Node 20 Upgrade & Prisma Migrate Baseline
+
+### Changes
+- Backend Docker base image upgraded to Node 20; verified in-container `node -v` = v20.x.
+- Added `"engines": { "node": ">=20" }` to `backend/package.json`.
+- Established Prisma Migrate as deployment mechanism:
+  - Generated baseline at `prisma/migrations/0001_init/migration.sql` via `prisma migrate diff`.
+  - Marked baseline applied using `prisma migrate resolve --applied 0001_init` (non-destructive).
+  - Docker compose updated to run `npx prisma migrate deploy` before backend startup.
+
+### Rationale
+- Aligns container and local runtime with Node 20 requirements.
+- Provides durable, versioned schema history for CI/production.
+
+### Risks & Mitigations
+- Migration drift across environments → Mitigated with baseline and `migrate deploy` on startup.
+- Constraint application failures on future changes → Add data backfill/cleanup steps before adding constraints.
+
+### Verification
+- `npx prisma migrate status` reports 1 migration found; schema up to date.
+
 - ✅ Authentication flow working
 - ✅ Industry limit configuration working
 - ❌ Claude API integration (endpoint bug)

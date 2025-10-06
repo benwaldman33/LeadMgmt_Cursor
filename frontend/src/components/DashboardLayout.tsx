@@ -34,6 +34,8 @@ interface DashboardLayoutProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'AI Discovery', href: '/ai-discovery', icon: MagnifyingGlassIcon },
+  { name: 'My Sessions', href: '/discovery/sessions', icon: ClockIcon },
+  { name: 'Saved Lists', href: '/discovery/saved-lists', icon: DocumentTextIcon },
   { name: 'Market Discovery', href: '/market-discovery', icon: MapIcon },
   { name: 'Campaigns', href: '/campaigns', icon: ChartBarIcon },
   { name: 'Pipeline', href: '/pipeline', icon: PlayIcon },

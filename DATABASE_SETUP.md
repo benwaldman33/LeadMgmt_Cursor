@@ -62,15 +62,22 @@ docker-compose ps
 docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT version();"
 ```
 
-### 3. Apply Database Schema
+### 3. Apply Database Schema (Prisma Migrate)
 ```bash
 cd backend
 
 # Generate Prisma client
 npx prisma generate
 
-# Apply schema to database
-npx prisma db push
+# Baseline (one-time if database already has the schema and you want to start tracking migrations):
+# npx prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script > prisma/migrations/0001_init/migration.sql
+# npx prisma migrate resolve --applied 0001_init
+
+# Development changes (create & apply a new migration)
+npx prisma migrate dev --name <change>
+
+# Container/CI deploy
+npx prisma migrate deploy
 ```
 
 ### 4. Verify Schema Application
@@ -185,10 +192,13 @@ docker-compose logs postgres
 # Regenerate Prisma client
 npx prisma generate
 
-# Push schema changes
-npx prisma db push
+# Check migration status
+npx prisma migrate status
 
-# Check for schema conflicts
+# For dev changes, create a migration
+npx prisma migrate dev --name <change>
+
+# Check for datasource config
 cat backend/prisma/schema.prisma | grep -A 3 "datasource db"
 ```
 

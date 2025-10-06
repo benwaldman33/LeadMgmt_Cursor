@@ -6,7 +6,7 @@ A universal, AI-powered web scraping and scoring platform that enables systemati
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - Docker and Docker Compose
 - PostgreSQL 15+ (provided via Docker)
 - Redis 7+ (provided via Docker)
@@ -34,14 +34,17 @@ A universal, AI-powered web scraping and scoring platform that enables systemati
    docker-compose up -d
    ```
 
-3. **Set up the database:**
+3. **Set up the database (Prisma Migrate):**
    ```bash
    cd backend
-   npm run db:generate
-   npm run db:push
+npm run db:generate
+# Development changes (create & apply migration)
+npx prisma migrate dev --name init
+# Container/CI deploy (applies existing migrations)
+npx prisma migrate deploy
    ```
 
-   **Note**: The database is PostgreSQL 15 running in Docker. The schema is automatically applied when you run `npm run db:push`.
+  **Note**: The database is PostgreSQL 15 running in Docker. Schema changes are applied via Prisma Migrate (not db push).
 
 4. **Install dependencies:**
    ```bash
@@ -287,7 +290,8 @@ docker-compose -f docker-compose.prod.yml up -d
 
 4. **Prisma errors**
    - Run `npm run db:generate` to regenerate client
-   - Run `npm run db:push` to sync schema
+   - Check migration status with `npx prisma migrate status`
+   - For dev schema changes use `npx prisma migrate dev --name <change>`
 
 ## 📝 Next Steps
 

@@ -1,6 +1,22 @@
 Universal Lead Scoring Platform - Product RequirementsDocument
 
 ## Recent System Updates - 2025-01-02
+## Recent System Updates - 2025-10-06
+
+### ✅ Platform Runtime & Database Migrations
+- Backend runtime upgraded to Node 20 in Docker
+- Prisma Migrate adopted with a baseline migration; Docker startup applies migrations (`migrate deploy`)
+- Database remains PostgreSQL 15 (Docker), Prisma configured for PostgreSQL
+
+### ✅ Phase 3 Features: Sessions & Saved Lists
+- Sessions: autosave (constraints/results), resume from `sessionId`, pin/unpin, retention
+- Saved Lists: list/detail, pin/unpin, delete, open URLs, append selected results with URL dedupe/domain normalization
+
+### Operational Notes
+- Development: create new migrations with `prisma migrate dev --name <change>`
+- CI/Containers: apply with `prisma migrate deploy`
+- One-time baseline created from current schema; non-destructive
+
 
 ### 🚨 CRITICAL FIX: AI Discovery Configuration & Authentication Issues
 **Status: COMPLETED** ✅

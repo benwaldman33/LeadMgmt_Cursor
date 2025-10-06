@@ -2,13 +2,12 @@
 
 ## Overview
 
-The LeadMgmt system now uses a secure API key management system that prioritizes environment variables over database storage, ensuring API keys are never committed to Git repositories. This system provides:
+The LeadMgmt system prioritizes keeping API keys out of source control. Keys are provided via environment variables or entered in the Service Configuration UI and stored in the database configuration JSON. No keys are committed to Git.
 
-- **Environment Variable Priority**: API keys are first loaded from environment variables
-- **Database Fallback**: If not found in environment, keys are retrieved from encrypted database storage
-- **Encryption**: Database-stored keys are encrypted using AES-256-CBC
+- **Environment Variable Priority**: API keys can be loaded from environment variables
+- **Service Configuration**: Keys can be stored in `service_providers.config` JSON via the UI
+- **Encryption (Optional)**: Database-stored keys may be encrypted if explicitly saved with an `encrypted:` prefix; by default we store plain values in Service Configuration to avoid any dependency on decrypting
 - **Git Safety**: Environment files are excluded from Git commits
-- **Migration Support**: Tools to migrate existing API keys to the new system
 
 ## Security Benefits
 
@@ -22,10 +21,9 @@ The LeadMgmt system now uses a secure API key management system that prioritizes
 - Easy to manage keys across different deployment environments
 - No need to modify code for different environments
 
-### ✅ **Encryption for Database Storage**
-- Keys stored in database are encrypted using AES-256-CBC
-- Encryption key is stored in environment variable
-- Fallback system maintains functionality while improving security
+### ✅ **Optional Encryption**
+- If you choose to encrypt a key, the system supports AES-256-CBC when keys are stored with an `encrypted:` prefix and a valid `ENCRYPTION_KEY` is supplied
+- Default setup does not require encryption for keys stored via Service Configuration; no decrypt step is needed
 
 ## API Key Configuration
 
@@ -95,9 +93,9 @@ SCRAPER_APIFY_API_KEY="apify_api_..."
 AI_ENGINE_OPENAI_API_KEY="sk-..."
 ```
 
-### 3. Set Encryption Key
+### 3. (Optional) Set Encryption Key
 
-Generate a secure 32-character encryption key:
+Only required if you intentionally store DB keys with the `encrypted:` prefix:
 ```bash
 ENCRYPTION_KEY="your-32-character-encryption-key-here"
 ```
@@ -209,9 +207,8 @@ AI_ENGINE_CLAUDE_CONCURRENT_REQUESTS="5"
 - Ensure the application was restarted after adding the key
 
 **2. "Encryption key not set" error**
-- Set the `ENCRYPTION_KEY` environment variable
-- Use a 32-character string for the encryption key
-- Restart the application after setting the key
+- This is only relevant if you stored a DB key with the `encrypted:` prefix
+- Either set `ENCRYPTION_KEY`, or store the key as a plain value in Service Configuration
 
 **3. Database fallback not working**
 - Check that the API key exists in the `service_providers` table
@@ -306,5 +303,5 @@ For issues with API key management:
 5. Check database connectivity and permissions
 
 ---
-*Last Updated: 2025-08-31*
-*API Key Management Version: 1.0*
+*Last Updated: 2025-10-06*
+*API Key Management Version: 1.1*

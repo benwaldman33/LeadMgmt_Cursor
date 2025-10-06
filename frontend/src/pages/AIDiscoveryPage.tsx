@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { aiDiscoveryService } from '../services/aiDiscoveryService';
+import discoveryService from '../services/discoveryService';
 import type { 
   Industry, 
   ProductVertical, 
@@ -45,10 +46,16 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     fallbackReason?: string;
   }>>([]);
   const [aiEngineUsed, setAiEngineUsed] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>('');
+  const [lastAutosaveAt, setLastAutosaveAt] = useState<number>(0);
+  const [isAutosaving, setIsAutosaving] = useState<boolean>(false);
   const [discoverySession, setDiscoverySession] = useState<DiscoverySession | null>(null);
   const [userMessage, setUserMessage] = useState<string>('');
   const [searchResults, setSearchResults] = useState<WebSearchResult[]>([]);
   const [selectedCustomerUrls, setSelectedCustomerUrls] = useState<string[]>([]);
+  const [showAppendModal, setShowAppendModal] = useState<boolean>(false);
+  const [savedLists, setSavedLists] = useState<{ id: string; name: string; pinned: boolean }[]>([]);
+  const [selectedListId, setSelectedListId] = useState<string>('');
   const [searchConstraints, setSearchConstraints] = useState({
     geography: [] as string[],
     maxResults: 50,
@@ -60,6 +67,7 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
   });
   const [maxIndustries, setMaxIndustries] = useState(8);
   const [maxCustomers, setMaxCustomers] = useState(50);
+  const [searchParams] = useSearchParams();
   
   // Loading states
   const [loadingIndustries, setLoadingIndustries] = useState(true);
@@ -111,6 +119,42 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     }
   };
 
+  // Rehydrate from sessionId (if provided via query param)
+  useEffect(() => {
+    const paramId = searchParams.get('sessionId');
+    if (!paramId) return;
+    (async () => {
+      try {
+        const session = await discoveryService.getSession(paramId);
+        setSessionId(session.id);
+        setDiscoverySession(session);
+        setSelectedIndustry(session.industry || '');
+        if (session.productVertical) setSelectedProductVertical(session.productVertical);
+        if (session.constraints) {
+          try {
+            const parsed = typeof session.constraints === 'string' ? JSON.parse(session.constraints) : session.constraints;
+            if (parsed && typeof parsed === 'object') {
+              setSearchConstraints(prev => ({ ...prev, ...parsed }));
+              if (parsed.maxResults && typeof parsed.maxResults === 'number') setMaxCustomers(parsed.maxResults);
+            }
+          } catch {}
+        }
+        if (session.resultsSnapshot) {
+          try {
+            const snap = typeof session.resultsSnapshot === 'string' ? JSON.parse(session.resultsSnapshot) : session.resultsSnapshot;
+            if (snap?.results && Array.isArray(snap.results)) {
+              setSearchResults(snap.results);
+            }
+            if (snap?.aiEngineUsed) setAiEngineUsed(snap.aiEngineUsed);
+          } catch {}
+        }
+        if (session.lastAutoSavedAt) setLastAutosaveAt(new Date(session.lastAutoSavedAt).getTime());
+      } catch (e: any) {
+        addNotification({ type: 'error', title: 'Failed to load session', message: e?.response?.data?.error || 'Request failed' });
+      }
+    })();
+  }, [searchParams]);
+
   // Handle AI discovery input
   const handleDiscoveryInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDiscoveryInput(e.target.value);
@@ -130,6 +174,15 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
     setProductVerticals([]);
     setDiscoverySession(null);
     setSearchResults([]);
+
+    // Create a discovery session for persistence
+    try {
+      const created = await discoveryService.createSession(industryId);
+      setSessionId(created.id);
+      setLastAutosaveAt(Date.now());
+    } catch (e) {
+      console.warn('Unable to create discovery session (non-blocking):', e);
+    }
 
     // Get the industry name for better user experience
     const selectedIndustryData = industries.find(ind => ind.id === industryId);
@@ -308,6 +361,20 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
       );
       console.log('Search result:', result);
       setSearchResults(result.results);
+
+      // Persist results snapshot
+      if (sessionId) {
+        try {
+          await discoveryService.autosaveSession(sessionId, {
+            constraints: { ...searchConstraints, maxResults: maxCustomers },
+            resultsSnapshot: { aiEngineUsed, results: result.results },
+            productVertical: selectedProductVertical || undefined,
+          });
+          setLastAutosaveAt(Date.now());
+        } catch (e) {
+          console.warn('Autosave failed (non-blocking):', e);
+        }
+      }
       
       addNotification({
         type: 'success',
@@ -331,6 +398,121 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
       prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]
     );
   };
+
+  const openAppendToList = async () => {
+    try {
+      const lists = await discoveryService.listSavedLists();
+      setSavedLists(lists.map(l => ({ id: l.id, name: l.name, pinned: l.pinned })));
+      setSelectedListId(lists[0]?.id || '');
+      setShowAppendModal(true);
+    } catch (e: any) {
+      addNotification({ type: 'error', title: 'Failed to load lists', message: e?.response?.data?.error || 'Request failed' });
+    }
+  };
+
+  const confirmAppendToList = async () => {
+    if (!selectedListId) return;
+    const items = searchResults
+      .filter(r => selectedCustomerUrls.includes(r.url))
+      .map((r, idx) => ({
+        url: r.url,
+        title: r.title,
+        description: r.description,
+        relevanceScore: r.relevanceScore,
+        location: r.location,
+        companyType: r.companyType,
+        rank: idx + 1
+      }));
+    try {
+      const res = await discoveryService.appendToSavedList(selectedListId, items);
+      addNotification({ type: 'success', title: 'Added to list', message: `Appended ${res.appended} item(s)` });
+      setShowAppendModal(false);
+      setSelectedCustomerUrls([]);
+    } catch (e: any) {
+      addNotification({ type: 'error', title: 'Failed to append', message: e?.response?.data?.error || 'Request failed' });
+    }
+  };
+
+  const handleSaveResultsAsList = async () => {
+    if (!searchResults || searchResults.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'No Results to Save',
+        message: 'Run a customer search before saving a list.'
+      });
+      return;
+    }
+
+    const defaultName = `Results – ${new Date().toLocaleString()}`;
+    const name = window.prompt('Enter a name for this customer list:', defaultName) || '';
+    if (!name.trim()) return;
+
+    try {
+      addNotification({
+        type: 'info',
+        title: 'Saving List',
+        message: `Saving "${name}"...`
+      });
+
+      const list = await discoveryService.createSavedList({
+        name,
+        industry: selectedIndustry || 'general',
+        productVertical: selectedProductVertical || undefined,
+        constraints: { ...searchConstraints, maxResults: maxCustomers },
+        aiEngineUsed: aiEngineUsed || undefined,
+        items: searchResults.map((r, idx) => ({
+          url: r.url,
+          title: r.title,
+          description: r.description,
+          relevanceScore: r.relevanceScore,
+          location: r.location,
+          companyType: r.companyType,
+          rank: idx + 1,
+          domain: undefined,
+          logoUrl: undefined
+        }))
+      });
+
+      addNotification({
+        type: 'success',
+        title: 'List Saved',
+        message: `Saved "${list.name}" with ${list.items?.length ?? searchResults.length} items`
+      });
+    } catch (error: any) {
+      console.error('Save list error:', error);
+      addNotification({
+        type: 'error',
+        title: 'Save Failed',
+        message: error?.response?.data?.error || 'Failed to save customer list'
+      });
+    }
+  };
+
+  // Autosave timer every ~45s
+  useEffect(() => {
+    if (!sessionId) return;
+    const interval = setInterval(async () => {
+      try {
+        setIsAutosaving(true);
+        await discoveryService.autosaveSession(sessionId, {
+          constraints: { ...searchConstraints, maxResults: maxCustomers },
+          resultsSnapshot: searchResults && searchResults.length ? { aiEngineUsed, results: searchResults } : undefined,
+          productVertical: selectedProductVertical || undefined,
+        });
+        setLastAutosaveAt(Date.now());
+      } catch (e: any) {
+        console.warn('Periodic autosave failed (non-blocking):', e);
+        addNotification({
+          type: 'warning',
+          title: 'Autosave failed',
+          message: 'We will retry automatically in a moment.'
+        });
+      } finally {
+        setIsAutosaving(false);
+      }
+    }, 45000);
+    return () => clearInterval(interval);
+  }, [sessionId, searchConstraints, maxCustomers, searchResults, aiEngineUsed, selectedProductVertical]);
 
   const handleFindSimilarCustomers = async () => {
     if (!selectedIndustry || !selectedProductVertical) {
@@ -438,6 +620,19 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
           <p className="mt-2 text-gray-600">
             Explore industries, discover product verticals, and find your ideal customers through AI conversations
           </p>
+          {sessionId && (
+            <div className="mt-3 flex items-center gap-3 text-sm text-gray-500">
+              {isAutosaving && (
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-3 w-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></span>
+                  Autosaving…
+                </span>
+              )}
+              {lastAutosaveAt > 0 && (
+                <span>Last autosaved: {new Date(lastAutosaveAt).toLocaleTimeString()}</span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -904,13 +1099,29 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
                     <div className="text-sm text-gray-600">
                       Selected: {selectedCustomerUrls.length} / {searchResults.length}
                     </div>
-                    <button
-                      onClick={handleFindSimilarCustomers}
-                      disabled={loadingSimilar || selectedCustomerUrls.length === 0}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      {loadingSimilar ? 'Finding…' : `Find Similar Customers (${maxCustomers})`}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleSaveResultsAsList}
+                        disabled={!searchResults.length}
+                        className="px-3 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        Save Results as List
+                      </button>
+                      <button
+                        onClick={openAppendToList}
+                        disabled={selectedCustomerUrls.length === 0}
+                        className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        Add selected to existing list
+                      </button>
+                      <button
+                        onClick={handleFindSimilarCustomers}
+                        disabled={loadingSimilar || selectedCustomerUrls.length === 0}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        {loadingSimilar ? 'Finding…' : `Find Similar Customers (${maxCustomers})`}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -956,6 +1167,40 @@ const AIDiscoveryPage: React.FC<AIDiscoveryPageProps> = () => {
           </div>
         </div>
       </div>
+
+      {showAppendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add selected to existing list</h3>
+            {savedLists.length === 0 ? (
+              <div className="text-gray-600">No saved lists available. Save a list first.</div>
+            ) : (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">Choose a list</label>
+                <select
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  value={selectedListId}
+                  onChange={(e) => setSelectedListId(e.target.value)}
+                >
+                  {savedLists.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}{l.pinned ? ' (pinned)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setShowAppendModal(false)} className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={confirmAppendToList}
+                disabled={!selectedListId || savedLists.length === 0}
+                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                Add {selectedCustomerUrls.length} item(s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

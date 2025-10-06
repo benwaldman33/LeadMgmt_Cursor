@@ -23,6 +23,11 @@
 - **ORM**: Prisma configured for PostgreSQL
 - **Data Status**: 6 users (from seeding), 0 leads/campaigns/workflows (data lost during transition)
 
+**Migrations**:
+- Prisma Migrate is the source of truth.
+- Baseline migration exists at `backend/prisma/migrations/0001_init/migration.sql` (marked applied).
+- Docker backend runs `prisma migrate deploy` at startup.
+
 **Files Involved**:
 - `docker-compose.yml` - PostgreSQL service configuration
 - `backend/prisma/schema.prisma` - Database schema and provider configuration
@@ -600,6 +605,9 @@ docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT COUNT(
 
 # Check backend environment
 docker exec leadmgmt_cursor-backend-1 env | grep DATABASE
+
+# Prisma migration status
+docker compose exec backend npx prisma migrate status
 
 # Check database data
 docker exec leadmgmt_cursor-postgres-1 psql -U dev -d leadmgmt -c "SELECT COUNT(*) as user_count FROM users; SELECT COUNT(*) as lead_count FROM leads; SELECT COUNT(*) as campaign_count FROM campaigns;"

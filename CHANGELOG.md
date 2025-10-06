@@ -2,6 +2,27 @@
 
 All notable changes to the Universal Lead Scoring Platform will be documented in this file.
 
+## [2025-10-06] - Node 20 Upgrade, Prisma Migrate Baseline, Phase 3 UI
+
+### Added
+- Saved Lists UI: list and detail pages with pin/unpin, delete, open-in-new-tab.
+- Sessions UI: “My Sessions” page; session rehydration from `sessionId` in URL.
+- Frontend: “Add selected to existing list” in AI Discovery results.
+- Backend: Saved list endpoints for pin, unpin, and append items with URL dedupe and domain normalization.
+
+### Changed
+- Backend container upgraded to Node 20 (was Node 18).
+- Prisma now uses a baseline migration; Docker startup runs `prisma migrate deploy`.
+- AI Discovery autosave UX: subtle spinner, last saved timestamp, retry with non-blocking toast.
+
+### Notes
+- Database is PostgreSQL 15 in Docker; Prisma Migrate is now the source of truth.
+- Existing schema baselined to `prisma/migrations/0001_init` and marked applied (non-destructive).
+
+### Migration
+- Dev: `npx prisma migrate dev --name <change>`
+- CI/Docker: `npx prisma migrate deploy`
+
 ## [2025-10-05] - AI Discovery Configuration & Authentication Fixes
 
 ### Added
